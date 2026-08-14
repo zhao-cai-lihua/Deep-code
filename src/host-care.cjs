@@ -72,7 +72,7 @@ class HostCare {
       [join('.deep-code', 'project.json')]: `${JSON.stringify({ format: 'deep-code.project/v1', name: cleanName, description: cleanDescription, createdAt: new Date().toISOString() }, null, 2)}\n`
     }
     for (const [relativePath, content] of Object.entries(files)) this.writeText(join(target, relativePath), content, 'utf8')
-    return { path: target, files: Object.keys(files), message: '已创建规范工作区与基础文档。请在官方 Harness 中选择这个文件夹。' }
+    return { path: target, files: Object.keys(files), message: '已创建规范工作区与基础文档，并设为 Deep code 当前项目。' }
   }
 
   exportDiagnostics({ destinationPath, hostVersion, runtimeReport, runtimeStatus }) {

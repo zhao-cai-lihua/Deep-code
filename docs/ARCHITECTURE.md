@@ -2,45 +2,44 @@
 
 ## Product shape
 
-Deep code is a narrow **Desktop Host** for DeepSeek Harness. The official Harness remains the agent runtime and source of truth for sessions, tools, approvals, plugins, and execution. Deep code owns only the beginner-facing shell around it.
+Deep code is the primary human-facing desktop Workbench above the official DeepSeek Harness Engine. Users do not leave Deep code to perform a task; the DSH UI is not opened or embedded. Harness remains the only execution truth.
 
 ```text
-Deep code desktop shell
-  |-- local workbench (task intent, navigation, local task metadata)
-  |-- first-run setup (bounded detection, official runtime provisioning, workspace initialization)
-  |-- first-run and runtime health
-  |-- safe-workspace and redacted-diagnostics helpers
-  |-- companion-card library (local, inspectable)
-  `-- future DSH Adapter (one normalized event stream)
-          `-- official DeepSeek Harness runtime
+Deep code Workbench
+  |-- Task conversation and project navigation
+  |-- Explanation Layer
+  |     |-- Project Brief
+  |     |-- readable activity and errors
+  |     `-- expandable Evidence Drawer
+  |-- first-run setup and recovery
+  |-- local Companion Cards
+  `-- DSH Adapter
+        |-- session.create / prompt / history / cancel
+        |-- normalized durable events
+        `-- next: live Decision Gates and streaming
+              `-- official DeepSeek Harness Engine
 ```
 
-## The seams
+## Ownership
 
 | Concern | Owner | Rule |
 | --- | --- | --- |
-| Agent loop, model calls, sessions, tool approvals | Official DeepSeek Harness | Deep code must not fork or silently override these. |
-| Choosing and starting a local runtime | Deep code Host | Validate it is an official checkout; attach to an existing local web runtime where possible. |
-| Local task workbench | Deep code | Store a task title and intent locally; opening Harness is an explicit handoff, not a hidden message send. |
-| First-run setup | Deep code | Detect only bounded local paths; provision from the fixed official repository; never overwrite an existing target. |
-| Runtime events and a future whale/status indicator | DSH Adapter | Normalize once, then render. No invented "thinking" state. |
-| Companion-card library | Deep code | Local User Persona, Agent Character, and Interaction Style cards; user review and fixed safe schema. |
-| Applying a reviewed card stack to Harness | Future adapter slice | Only on a new session, compiled through an upstream-supported preset/profile seam; never as a tool-permission patch. |
+| Tasks, navigation, human explanations, visible action feedback | Deep code | Every action must show working, success, or failure in the user's current context. |
+| Sessions, model calls, tools, approvals, sandbox, modes, plugins | DSH Engine | Deep code reads and presents upstream truth; it never duplicates the decision logic. |
+| Protocol and event vocabulary changes | DSH Adapter | Normalize once behind a version-aware seam. Renderer code must not call raw DSH endpoints. |
+| Technical support for an explanation | Evidence Drawer | Preserve tool presenters and durable events; do not expose private reasoning traces. |
+| Persona and interaction texture | Companion Cards | No tool, shell, sandbox, approval, model route, or system-policy authority. |
 
-## Delivery slices
+## Current vertical slice
 
-### v0.2: reliable host and local companion-card library
+Deep code can locate/start a local Engine, bind a selected workspace to a real DSH session, send prompts, poll durable history, display user and assistant messages, retain tool events as evidence, and cancel an active turn. The fixed Project Brief task asks the Agent to explain a repository for a non-programmer and distinguish confirmed facts from inference.
 
-Runtime inspection, attach/start/stop behavior, safe workspaces, diagnostics, and local Companion Card management. A card stack combines a User Persona (how the user prefers to collaborate), an Agent Character (a user-selected expressive starting point), and an Interaction Style (research, teaching, play, or other session texture). Tool Profile stays outside the stack.
+Live WebSocket downlinks for approvals, questions, queue state, incremental chunks, and projections are not complete yet. Until adapted, Deep code must describe that limitation rather than pretend an approval is a normal local confirmation.
 
-### v0.3: local workbench and official configuration adapter
+## Delivery order
 
-The local workbench is now a stable task-navigation seam: users can create and retain local task intent, then explicitly open the official Harness in a separate window. The remaining Adapter slice will compile a reviewed card stack into an upstream-supported per-agent preset/profile for a **new** Harness session. It must show the exact generated text and offer rollback. This is where we verify DSH version compatibility before writing any configuration.
-
-### v0.4: controlled interchange
-
-The first-run setup, standard workspace documents, automated Windows Releases, and exact task + card-stack handoff preview now form the beginner path. Optional one-way, visibly lossy import drafts from SillyTavern CCv2/CCv3 remain future work. Dynamic lore, regex, post-history instructions, extensions, assets, system prompts, and all permission-adjacent fields remain excluded unless a later reviewed model can represent them safely.
-
-### Later, only after the adapter is real
-
-Status whale, richer task/workspace UI, character/persona layers, relationship experiments, and a community catalogue. These must consume normalized real data; they cannot be a second agent runtime.
+1. Reliable first run, workspace selection, and Engine recovery.
+2. Complete DSH Adapter: streaming, Decision Gates, errors, model/mode/permission visibility, resume.
+3. Explanation Layer: project map, change impact, error recovery, and continuous brief.
+4. Companion Cards with Correction, provenance, preview, and versioning.
+5. Relationship experiments only after the workbench is independently useful.

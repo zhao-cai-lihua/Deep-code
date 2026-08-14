@@ -9,10 +9,12 @@ const emptyTask = document.querySelector('#empty-task')
 const activeTask = document.querySelector('#active-task')
 const activeTaskTitle = document.querySelector('#active-task-title')
 const activeTaskPrompt = document.querySelector('#active-task-prompt')
-const continueInHarness = document.querySelector('#continue-in-harness')
+const taskEngineStatus = document.querySelector('#task-engine-status')
+const conversationFeed = document.querySelector('#conversation-feed')
+const taskEvidenceContent = document.querySelector('#task-evidence-content')
+const cancelTaskButton = document.querySelector('#cancel-task')
+const retryTaskButton = document.querySelector('#retry-task')
 const deleteTaskButton = document.querySelector('#delete-task')
-const openHarnessTop = document.querySelector('#open-harness-top')
-const openHarnessSide = document.querySelector('#open-harness-side')
 const previewHandoffButton = document.querySelector('#preview-handoff')
 const handoffDialog = document.querySelector('#handoff-dialog')
 const handoffText = document.querySelector('#handoff-text')
@@ -25,7 +27,6 @@ const pathInput = document.querySelector('#runtime-path')
 const selectButton = document.querySelector('#select-runtime')
 const startButton = document.querySelector('#start')
 const stopButton = document.querySelector('#stop')
-const openButton = document.querySelector('#open')
 const label = document.querySelector('#status-label')
 const message = document.querySelector('#status-message')
 const dot = document.querySelector('#status-dot')
@@ -42,6 +43,14 @@ const setupInstallRuntime = document.querySelector('#setup-install-runtime')
 const setupWorkspaceName = document.querySelector('#setup-workspace-name')
 const setupCreateWorkspace = document.querySelector('#setup-create-workspace')
 const setupProgress = document.querySelector('#setup-progress')
+const workspaceDialog = document.querySelector('#workspace-dialog')
+const workspaceDialogForm = document.querySelector('#workspace-dialog-form')
+const workspaceDialogName = document.querySelector('#workspace-dialog-name')
+const cancelWorkspaceDialog = document.querySelector('#cancel-workspace-dialog')
+const selectWorkspaceButton = document.querySelector('#select-workspace')
+const selectWorkspaceSide = document.querySelector('#select-workspace-side')
+const workspaceSummary = document.querySelector('#workspace-summary')
+const explainProjectButton = document.querySelector('#explain-project')
 
 const activeUserPersona = document.querySelector('#active-user-persona')
 const activeAgentCharacter = document.querySelector('#active-agent-character')
@@ -77,14 +86,12 @@ function renderRuntime(status) {
   message.textContent = status.message || ''
   dot.className = `status-dot ${status.state}`
   runtimeDot.className = `status-dot ${status.state}`
-  runtimeShort.textContent = status.state === 'ready' ? 'Harness 已连接' : `Harness ${stateLabel}`
+  runtimeShort.textContent = status.state === 'ready' ? 'Engine 已连接' : `Engine ${stateLabel}`
   runtimeSummary.textContent = status.state === 'ready'
-    ? 'Harness 已准备好。Deep code 会在独立工作窗口中打开它。'
-    : (status.runtimePath ? '已选择本地 Runtime；启动后可打开官方 Harness。' : '尚未选择官方 DeepSeek Harness 文件夹。')
+    ? 'Engine 已准备好，Deep code 可以直接使用它。'
+    : (status.runtimePath ? '已找到本机 Engine，启动后由 Deep code 在后台使用。' : '尚未找到 Deep code Engine。')
   startButton.disabled = status.state === 'starting' || status.state === 'ready' || !pathInput.value
   stopButton.disabled = !['starting', 'ready', 'stopping'].includes(status.state)
-  openButton.disabled = status.state !== 'ready'
-  openHarnessSide.disabled = status.state !== 'ready'
   logs.textContent = status.logs?.length ? status.logs.map(({ stream, line }) => `[${stream}] ${line}`).join('\n') : '还没有运行日志。'
 }
 
@@ -92,10 +99,26 @@ async function safelyRenderStatus(action) {
   try { renderRuntime(await action()) } catch (error) { renderRuntime({ state: 'error', message: error.message, logs: [] }) }
 }
 
-async function openHarness() {
-  try { await window.desktopHost.openHarness() } catch (error) {
-    showPage('settings')
-    careResult.textContent = `无法打开 Harness：${error.message}`
+async function runVisibleAction({ button, status, working, action, success }) {
+  const oldText = button.textContent
+  button.disabled = true
+  button.setAttribute('aria-busy', 'true')
+  status.textContent = working
+  status.dataset.state = 'working'
+  status.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  try {
+    const result = await action()
+    status.textContent = success(result)
+    status.dataset.state = 'success'
+    return result
+  } catch (error) {
+    status.textContent = `没有完成：${error.message}\n\n你可以重试；若仍失败，请到“设置与故障恢复”导出脱敏诊断。`
+    status.dataset.state = 'error'
+    return null
+  } finally {
+    button.disabled = false
+    button.removeAttribute('aria-busy')
+    button.textContent = oldText
   }
 }
 
@@ -105,7 +128,8 @@ async function selectRuntimeNative() {
   pathInput.value = result.runtimePath
   const status = await window.desktopHost.status()
   renderRuntime(status)
-  setupProgress.textContent = `已选择本地文件夹：\n${result.runtimePath}\n\n你可以继续进入工作台并启动 Harness。`
+  setupProgress.textContent = `已找到并记住 Deep code Engine：\n${result.runtimePath}`
+  setupProgress.dataset.state = 'success'
   return true
 }
 
@@ -138,6 +162,31 @@ function renderWorkbench() {
   if (thread) {
     activeTaskTitle.textContent = thread.title
     activeTaskPrompt.textContent = thread.prompt
+    const labels = {
+      draft: '任务已保存，等待连接 Engine。',
+      running: 'Deep code 正在处理。结果会自动更新。',
+      ready: '这一轮已经完成。你可以继续追问，或展开技术证据。',
+      error: `没有完成：${thread.engineError || 'Engine 返回了未知错误。'}`
+    }
+    taskEngineStatus.textContent = labels[thread.engineState] || labels.draft
+    taskEngineStatus.dataset.state = thread.engineState || 'draft'
+    cancelTaskButton.disabled = thread.engineState !== 'running'
+    retryTaskButton.classList.toggle('hidden', !['draft', 'error'].includes(thread.engineState))
+    conversationFeed.replaceChildren()
+    for (const item of thread.agent?.messages || []) {
+      const bubble = document.createElement('article')
+      bubble.className = `message-bubble ${item.role}`
+      const role = document.createElement('strong')
+      role.textContent = item.role === 'assistant' ? 'Deep code' : '你'
+      const text = document.createElement('p')
+      text.textContent = item.text
+      bubble.append(role, text)
+      conversationFeed.append(bubble)
+    }
+    const evidence = thread.agent?.evidence || []
+    taskEvidenceContent.textContent = evidence.length
+      ? evidence.map((item) => `${item.type}\n${JSON.stringify(item.detail, null, 2)}`).join('\n\n')
+      : '还没有工具记录。'
   }
 }
 
@@ -150,10 +199,35 @@ async function createTask() {
   const prompt = taskComposer.value.trim()
   if (!prompt) { taskComposer.focus(); return }
   try {
-    await window.desktopHost.createTask({ prompt })
+    createTaskButton.disabled = true
+    taskComposer.disabled = true
+    const thread = activeThread()
+    workbench = thread?.sessionId
+      ? await window.desktopHost.sendMessage(thread.id, prompt)
+      : await window.desktopHost.createTask({ prompt })
     taskComposer.value = ''
-    await refreshWorkbench()
-  } catch (error) { careResult.textContent = error.message; showPage('settings') }
+    renderWorkbench()
+  } catch (error) {
+    taskEngineStatus.textContent = `没有发送：${error.message}`
+    taskEngineStatus.dataset.state = 'error'
+  } finally {
+    createTaskButton.disabled = false
+    taskComposer.disabled = false
+    taskComposer.focus()
+  }
+}
+
+async function refreshWorkspace() {
+  const result = await window.desktopHost.workspaceStatus()
+  workspaceSummary.textContent = result.workspacePath || '尚未选择工作区。'
+}
+
+async function selectWorkspace() {
+  const result = await window.desktopHost.selectWorkspace()
+  if (!result.canceled) {
+    workspaceSummary.textContent = result.workspacePath
+    careResult.textContent = `当前项目已切换为：\n${result.workspacePath}\n\n新任务会在这里运行。`
+  }
 }
 
 function cardsOfKind(kind) {
@@ -261,8 +335,20 @@ async function saveActive(kind, select) {
 }
 
 for (const button of pageButtons) button.addEventListener('click', () => showPage(button.dataset.page))
-newTaskButton.addEventListener('click', () => { showPage('workbench'); taskComposer.focus() })
+newTaskButton.addEventListener('click', async () => {
+  workbench = await window.desktopHost.selectTask('')
+  renderWorkbench()
+  showPage('workbench')
+  taskComposer.focus()
+})
 createTaskButton.addEventListener('click', createTask)
+explainProjectButton.addEventListener('click', async () => {
+  explainProjectButton.disabled = true
+  try { workbench = await window.desktopHost.createProjectBrief(); renderWorkbench() } catch (error) {
+    taskEngineStatus.textContent = `无法开始项目说明：${error.message}`
+    taskEngineStatus.dataset.state = 'error'
+  } finally { explainProjectButton.disabled = false }
+})
 taskComposer.addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') createTask() })
 for (const button of document.querySelectorAll('[data-suggestion]')) button.addEventListener('click', () => { taskComposer.value = button.dataset.suggestion; taskComposer.focus() })
 deleteTaskButton.addEventListener('click', async () => {
@@ -270,9 +356,23 @@ deleteTaskButton.addEventListener('click', async () => {
   if (!thread || !window.confirm(`删除本机任务“${thread.title}”？这不会影响 Harness。`)) return
   try { workbench = await window.desktopHost.deleteTask(thread.id); renderWorkbench() } catch (error) { careResult.textContent = error.message }
 })
-continueInHarness.addEventListener('click', openHarness)
-openHarnessTop.addEventListener('click', openHarness)
-openHarnessSide.addEventListener('click', openHarness)
+cancelTaskButton.addEventListener('click', async () => {
+  const thread = activeThread()
+  if (!thread) return
+  try { workbench = await window.desktopHost.cancelTask(thread.id); renderWorkbench() } catch (error) {
+    taskEngineStatus.textContent = `无法停止：${error.message}`
+    taskEngineStatus.dataset.state = 'error'
+  }
+})
+retryTaskButton.addEventListener('click', async () => {
+  const thread = activeThread()
+  if (!thread) return
+  retryTaskButton.disabled = true
+  try { workbench = await window.desktopHost.retryTask(thread.id); renderWorkbench() } catch (error) {
+    taskEngineStatus.textContent = `重试失败：${error.message}`
+    taskEngineStatus.dataset.state = 'error'
+  } finally { retryTaskButton.disabled = false }
+})
 previewHandoffButton.addEventListener('click', async () => {
   try {
     const preview = await window.desktopHost.handoffPreview(workbench.activeThreadId)
@@ -286,15 +386,35 @@ handoffDialog.addEventListener('click', (event) => { if (event.target === handof
 selectButton.addEventListener('click', selectRuntimeNative)
 startButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.start(pathInput.value)))
 stopButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.stop()))
-openButton.addEventListener('click', openHarness)
 inspectButton.addEventListener('click', async () => {
-  const report = await window.desktopHost.inspectRuntime(pathInput.value)
-  careResult.textContent = report.checks.map((check) => `[${check.state}] ${check.label}\n${check.detail}`).join('\n\n')
+  await runVisibleAction({
+    button: inspectButton,
+    status: careResult,
+    working: '正在检查 Engine 文件、依赖和构建结果…',
+    action: () => window.desktopHost.inspectRuntime(pathInput.value),
+    success: (report) => report.checks.map((check) => `[${check.state}] ${check.label}\n${check.detail}`).join('\n\n')
+  })
 })
-workspaceButton.addEventListener('click', async () => {
-  const name = window.prompt('给这个独立安全工作区起一个名字：', '我的第一个 Harness 工作区')
-  if (name === null) return
-  try { careResult.textContent = (await window.desktopHost.createSafeWorkspace(name)).message } catch (error) { careResult.textContent = error.message }
+selectWorkspaceButton.addEventListener('click', selectWorkspace)
+selectWorkspaceSide.addEventListener('click', selectWorkspace)
+workspaceButton.addEventListener('click', () => {
+  workspaceDialogName.value = '我的第一个项目'
+  workspaceDialog.showModal()
+  workspaceDialogName.select()
+})
+cancelWorkspaceDialog.addEventListener('click', () => workspaceDialog.close())
+workspaceDialogForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const name = workspaceDialogName.value
+  workspaceDialog.close()
+  const result = await runVisibleAction({
+    button: workspaceButton,
+    status: careResult,
+    working: '正在创建独立工作区和新手文档…',
+    action: () => window.desktopHost.createSafeWorkspace(name),
+    success: (result) => `${result.message}\n${result.path}\n\n已生成：\n${result.files.join('\n')}`
+  })
+  if (result) await refreshWorkspace()
 })
 diagnosticsButton.addEventListener('click', async () => {
   const result = await window.desktopHost.exportDiagnostics()
@@ -304,30 +424,42 @@ skipSetupButton.addEventListener('click', () => showPage('workbench'))
 finishSetupButton.addEventListener('click', () => showPage('workbench'))
 setupSelectRuntime.addEventListener('click', selectRuntimeNative)
 setupDetectRuntime.addEventListener('click', async () => {
-  setupProgress.textContent = '正在检查桌面与 Deep code Runtime 目录…'
-  try {
-    const result = await window.desktopHost.autoDetectRuntime()
-    setupProgress.textContent = result.found ? `已找到官方 Harness：\n${result.runtimePath}` : '没有在有限的默认位置找到官方 Harness。你可以手动选择，或使用下一步自动安装。'
-    renderRuntime(await window.desktopHost.status())
-  } catch (error) { setupProgress.textContent = error.message }
+  await runVisibleAction({
+    button: setupDetectRuntime,
+    status: setupProgress,
+    working: '正在检查已保存位置、桌面和 Deep code Runtime 目录…',
+    action: async () => {
+      const result = await window.desktopHost.autoDetectRuntime()
+      renderRuntime(await window.desktopHost.status())
+      return result
+    },
+    success: (result) => result.found
+      ? `已找到 Deep code Engine：\n${result.runtimePath}\n\n这一步已经完成。`
+      : '没有在默认位置找到 Engine。你可以手动定位已有文件夹，或使用下一步自动安装。'
+  })
 })
 setupInstallRuntime.addEventListener('click', async () => {
-  setupInstallRuntime.disabled = true
-  setupProgress.textContent = '准备自动安装。第一次构建可能需要几分钟，请保持网络连接。'
-  try {
-    const result = await window.desktopHost.provisionRuntime()
-    setupProgress.textContent += `\n\n安装完成：\n${result.runtimePath}`
-    renderRuntime(await window.desktopHost.status())
-  } catch (error) { setupProgress.textContent += `\n\n安装未完成：${error.message}` }
-  finally { setupInstallRuntime.disabled = false }
+  await runVisibleAction({
+    button: setupInstallRuntime,
+    status: setupProgress,
+    working: '正在准备 Engine。第一次下载和构建可能需要几分钟，进度会继续显示在这里…',
+    action: async () => {
+      const result = await window.desktopHost.provisionRuntime()
+      renderRuntime(await window.desktopHost.status())
+      return result
+    },
+    success: (result) => `Engine 已安装完成：\n${result.runtimePath}\n\n这一步已经完成。`
+  })
 })
 setupCreateWorkspace.addEventListener('click', async () => {
-  setupCreateWorkspace.disabled = true
-  try {
-    const result = await window.desktopHost.createSafeWorkspace(setupWorkspaceName.value)
-    setupProgress.textContent = `${result.message}\n${result.path}\n\n已生成：\n${result.files.join('\n')}`
-  } catch (error) { setupProgress.textContent = error.message }
-  finally { setupCreateWorkspace.disabled = false }
+  const result = await runVisibleAction({
+    button: setupCreateWorkspace,
+    status: setupProgress,
+    working: '正在创建独立工作区和新手文档…',
+    action: () => window.desktopHost.createSafeWorkspace(setupWorkspaceName.value),
+    success: (result) => `${result.message}\n${result.path}\n\n已生成：\n${result.files.join('\n')}\n\n这一步已经完成。`
+  })
+  if (result) await refreshWorkspace()
 })
 
 activeUserPersona.addEventListener('change', () => saveActive('user-persona', activeUserPersona))
@@ -386,3 +518,10 @@ window.desktopHost.status().then((status) => {
 })
 refreshWorkbench().catch((error) => { careResult.textContent = error.message })
 refreshCards().catch((error) => { cardResult.textContent = error.message })
+refreshWorkspace().catch((error) => { careResult.textContent = error.message })
+
+setInterval(async () => {
+  const thread = activeThread()
+  if (!thread?.sessionId || thread.engineState !== 'running') return
+  try { await refreshWorkbench() } catch { /* Keep the last readable state visible. */ }
+}, 1500)
