@@ -8,8 +8,8 @@ It is an independent community desktop host, **not** an official DeepSeek client
 
 Normal users do **not** need to clone the repository or run pnpm. Open [GitHub Releases](https://github.com/zhao-cai-lihua/Deep-code/releases/latest), then download one of these files:
 
-- `Deep code Setup x.y.z.exe` — recommended installer.
-- `Deep code x.y.z.exe` — portable app; no installation required.
+- `Deep.code.Setup.x.y.z.exe` — recommended installer; GitHub normalizes spaces in the built filename to dots.
+- `Deep.code.x.y.z.exe` — portable app; no installation required.
 
 The GitHub web page cannot browse arbitrary local folders. Run the downloaded Deep code desktop app; its first-run guide opens the native Windows folder picker, can detect an existing official Harness, or can prepare one under `Documents/Deep code Runtime`.
 
