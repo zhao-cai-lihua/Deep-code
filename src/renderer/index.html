@@ -35,14 +35,14 @@
             <section class="setup-step"><span class="step-number">2</span><div><h2>没有 Harness？自动准备</h2><p>将从官方 GitHub 仓库克隆到 <code>Documents\Deep code Runtime</code>，安装依赖并构建。电脑需要已安装 Git、Node.js 和 pnpm；缺少时会明确告诉你是哪一项。</p><button id="setup-install-runtime" class="quiet-button" type="button">自动安装官方 Harness</button></div></section>
             <section class="setup-step"><span class="step-number">3</span><div><h2>创建第一个工作区</h2><p>自动生成 README、Agent 协作约定、Git 忽略规则与本地项目元数据；不会覆盖同名文件夹。</p><div class="path-row"><input id="setup-workspace-name" type="text" maxlength="60" value="我的第一个项目" /><button id="setup-create-workspace" class="quiet-button" type="button">创建工作区与文档</button></div></div></section>
           </div>
-          <pre id="setup-progress">等待开始。你也可以稍后在“运行时与设置”中完成这些步骤。</pre>
+          <pre id="setup-progress" aria-live="polite">等待开始。每一步都会在这里明确显示进行中、成功或失败。</pre>
           <div class="setup-finish"><button id="finish-setup" class="primary-button" type="button">进入 Deep code 工作台</button></div>
         </section>
 
         <section id="page-workbench" class="page is-active" aria-labelledby="workbench-heading">
           <header class="topbar">
             <div><p class="eyebrow">LOCAL WORKBENCH</p><h1 id="workbench-heading">今天要推进什么？</h1></div>
-            <div class="topbar-actions"><button id="open-harness-top" type="button" class="quiet-button">打开官方 Harness ↗</button><button class="avatar" type="button" data-page="cards" title="打开角色与协作卡">砚</button></div>
+            <div class="topbar-actions"><button class="avatar" type="button" data-page="cards" title="打开角色与协作卡">砚</button></div>
           </header>
 
           <div class="workbench-layout">
@@ -50,23 +50,27 @@
               <div id="empty-task" class="welcome-card">
                 <div class="welcome-symbol">✦</div>
                 <h2>从一个真实任务开始。</h2>
-                <p>Deep code 先把你的意图、工作区与协作卡放在同一个清楚的桌面里；真正的模型、工具与批准仍属于官方 Harness。</p>
+                <p>在这里描述任务。Deep code 会负责组织项目、解释进展和呈现需要你决定的事项；底层执行由本机 Engine 完成。</p>
                 <div class="suggestions">
+                  <button id="explain-project" type="button">用人话看懂当前项目</button>
                   <button type="button" data-suggestion="帮我把一个模糊想法拆成可验证的第一步。">拆解一个想法</button>
                   <button type="button" data-suggestion="和我一起审查这个项目的下一步，指出风险与假设。">审查下一步</button>
                   <button type="button" data-suggestion="教我理解一个抽象概念，先给可在空间里想象的版本。">学习一个概念</button>
                 </div>
               </div>
               <article id="active-task" class="active-task hidden">
-                <div class="task-kicker">LOCAL TASK · 尚未发送到 HARNESS</div>
+                <div class="task-kicker">DEEP CODE TASK</div>
                 <h2 id="active-task-title"></h2>
                 <p id="active-task-prompt" class="task-prompt"></p>
-                <div class="task-actions"><button id="preview-handoff" type="button" class="quiet-button">预览新会话交接</button><button id="continue-in-harness" type="button" class="primary-button">在官方 Harness 中继续 ↗</button><button id="delete-task" type="button" class="danger-button">删除本地任务</button></div>
+                <div id="task-engine-status" class="task-engine-status" aria-live="polite"></div>
+                <div id="conversation-feed" class="conversation-feed"></div>
+                <details id="task-evidence" class="evidence-panel"><summary>查看技术证据</summary><pre id="task-evidence-content">还没有工具记录。</pre></details>
+                <div class="task-actions"><button id="retry-task" type="button" class="primary-button hidden">准备好后重试</button><button id="preview-handoff" type="button" class="quiet-button">查看会话上下文</button><button id="cancel-task" type="button" class="quiet-button">停止当前操作</button><button id="delete-task" type="button" class="danger-button">删除任务</button></div>
               </article>
               <div class="composer-wrap">
                 <label class="sr-only" for="task-composer">描述任务</label>
-                <textarea id="task-composer" rows="3" maxlength="12000" placeholder="描述你想一起完成的任务。Deep code 会先在本地创建任务；需要实际 Agent 时再打开官方 Harness。"></textarea>
-                <div class="composer-footer"><span>本地草稿 · 不会自动发送</span><button id="create-task" type="button" class="send-button" title="创建本地任务">↑</button></div>
+                <textarea id="task-composer" rows="3" maxlength="12000" placeholder="描述你想完成的事。可以直接说人话，不需要知道命令、端口或项目术语。"></textarea>
+                <div class="composer-footer"><span>Deep code 工作台</span><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div>
               </div>
             </section>
 
@@ -74,9 +78,11 @@
               <div class="context-heading"><span>当前协作卡组</span><button class="text-button" type="button" data-page="cards">编辑</button></div>
               <div id="active-card-stack" class="card-stack"></div>
               <div class="context-divider"></div>
-              <div class="context-heading"><span>运行时</span><button class="text-button" type="button" data-page="settings">管理</button></div>
-              <p id="runtime-summary" class="context-copy">尚未选择官方 DeepSeek Harness 文件夹。</p>
-              <button id="open-harness-side" type="button" class="wide-button">打开官方 Harness</button>
+              <div class="context-heading"><span>Deep code Engine</span><button class="text-button" type="button" data-page="settings">诊断</button></div>
+              <p id="runtime-summary" class="context-copy">Engine 尚未准备好。</p>
+              <div class="context-divider"></div>
+              <div class="context-heading"><span>当前项目</span><button id="select-workspace-side" class="text-button" type="button">选择</button></div>
+              <p id="workspace-summary" class="context-copy">尚未选择工作区。</p>
             </aside>
           </div>
         </section>
@@ -106,18 +112,20 @@
         </section>
 
         <section id="page-settings" class="page" aria-labelledby="settings-heading">
-          <header class="topbar"><div><p class="eyebrow">RUNTIME CARE</p><h1 id="settings-heading">运行时与设置</h1><p class="topbar-copy">Deep code 管理引导与诊断；官方 Harness 管理 Agent、工具与批准。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
+          <header class="topbar"><div><p class="eyebrow">ENGINE & RECOVERY</p><h1 id="settings-heading">设置与故障恢复</h1><p class="topbar-copy">平时不需要理解这里。Deep code 使用官方 Harness 作为隐藏执行引擎，并把它的真实状态翻译到工作台。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
           <div class="settings-grid runtime-grid">
             <section class="settings-card runtime-card">
-              <h2>官方 DeepSeek Harness</h2>
-              <label>DeepSeek Harness 文件夹<div class="path-row"><input id="runtime-path" type="text" readonly placeholder="请选择官方 deepseek-harness 文件夹" /><button id="select-runtime" type="button" class="quiet-button">选择文件夹</button></div></label>
+              <h2>Deep code Engine</h2>
+              <p>由官方 DeepSeek Harness 提供执行能力。这个路径仅用于安装、升级和故障恢复。</p>
+              <label>Engine 文件夹<div class="path-row"><input id="runtime-path" type="text" readonly placeholder="尚未找到本机 Engine" /><button id="select-runtime" type="button" class="quiet-button">手动定位</button></div></label>
               <div class="runtime-status"><span id="status-dot" class="status-dot stopped"></span><div><strong id="status-label">尚未启动</strong><p id="status-message">Harness 未运行。</p></div></div>
-              <div class="button-row"><button id="start" type="button" class="primary-button">启动官方 Harness</button><button id="open" type="button" class="quiet-button">打开 Harness</button><button id="stop" type="button" class="danger-button">停止</button></div>
+              <div class="button-row"><button id="start" type="button" class="primary-button">启动 Engine</button><button id="stop" type="button" class="danger-button">停止</button></div>
             </section>
             <section class="settings-card safety-card">
               <h2>新手保护层</h2>
               <p>让错误变得可解释，同时不把密钥、聊天内容或工作区文件写入诊断。</p>
               <div class="button-row"><button id="inspect" type="button" class="quiet-button">检查 Runtime</button><button id="create-workspace" type="button" class="quiet-button">创建安全工作区</button><button id="export-diagnostics" type="button" class="quiet-button">导出脱敏诊断</button></div>
+              <div class="button-row"><button id="select-workspace" type="button" class="primary-button">选择已有项目文件夹</button></div>
               <pre id="care-result">先检查 Runtime；Deep code 会告诉你缺少什么。</pre>
             </section>
           </div>
@@ -129,6 +137,14 @@
       <div class="dialog-heading"><div><p class="eyebrow">EXACT MODEL-VISIBLE PREVIEW</p><h2>新会话交接预览</h2></div><button id="close-handoff" class="quiet-button" type="button">关闭</button></div>
       <p>以下文本目前只供审阅，尚未发送或写入 Harness。工具与批准策略永远不从角色卡继承。</p>
       <pre id="handoff-text"></pre>
+    </dialog>
+    <dialog id="workspace-dialog">
+      <form id="workspace-dialog-form" method="dialog">
+        <div class="dialog-heading"><div><p class="eyebrow">SAFE WORKSPACE</p><h2>创建一个新工作区</h2></div><button id="cancel-workspace-dialog" class="quiet-button" type="button">取消</button></div>
+        <p>Deep code 会在“文档\\Deep code Workspaces”下创建独立文件夹和新手说明，不会覆盖已有同名文件夹。</p>
+        <label>工作区名称<input id="workspace-dialog-name" type="text" maxlength="60" value="我的第一个项目" /></label>
+        <div class="button-row"><button id="confirm-workspace-dialog" class="primary-button" type="submit">创建并使用</button></div>
+      </form>
     </dialog>
     <script src="./shell.js"></script>
   </body>

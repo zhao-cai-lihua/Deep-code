@@ -26,3 +26,12 @@ test('selects and deletes task metadata through one store seam', () => {
   assert.equal(afterDelete.activeThreadId, second.id)
   assert.equal(afterDelete.threads.length, 1)
 })
+
+test('binds one Deep code task to one hidden Engine session', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '用人话解释这个项目。' })
+  store.setEngineState(task.id, { sessionId: 'session-1', state: 'running' })
+  const bound = store.snapshot().threads[0]
+  assert.equal(bound.sessionId, 'session-1')
+  assert.equal(bound.engineState, 'running')
+})

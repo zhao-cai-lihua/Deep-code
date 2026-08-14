@@ -25,7 +25,7 @@ function titleFromPrompt(prompt) {
 }
 
 function defaultState() {
-  return { version: 1, threads: [], activeThreadId: '' }
+  return { version: 2, threads: [], activeThreadId: '' }
 }
 
 function validateThread(raw) {
@@ -35,6 +35,9 @@ function validateThread(raw) {
     id: cleanText(raw.id, '任务标识', 120),
     title: cleanText(raw.title, '任务标题', MAX_TITLE),
     prompt,
+    sessionId: typeof raw.sessionId === 'string' ? raw.sessionId : '',
+    engineState: ['draft', 'running', 'ready', 'error'].includes(raw.engineState) ? raw.engineState : 'draft',
+    engineError: typeof raw.engineError === 'string' ? raw.engineError.slice(0, 1200) : '',
     createdAt: cleanText(raw.createdAt, '创建时间', 80),
     updatedAt: cleanText(raw.updatedAt, '更新时间', 80)
   }
@@ -49,9 +52,9 @@ class WorkbenchStore {
     if (!existsSync(this.storagePath)) return defaultState()
     try {
       const raw = JSON.parse(readFileSync(this.storagePath, 'utf8'))
-      if (raw?.version !== 1 || !Array.isArray(raw.threads)) throw new Error('版本或列表格式不兼容')
+      if (![1, 2].includes(raw?.version) || !Array.isArray(raw.threads)) throw new Error('版本或列表格式不兼容')
       const threads = raw.threads.map(validateThread)
-      return { version: 1, threads, activeThreadId: typeof raw.activeThreadId === 'string' ? raw.activeThreadId : '' }
+      return { version: 2, threads, activeThreadId: typeof raw.activeThreadId === 'string' ? raw.activeThreadId : '' }
     } catch (error) {
       throw new Error(`无法读取本地任务库：${error.message}`)
     }
@@ -76,11 +79,14 @@ class WorkbenchStore {
       id: randomUUID(),
       title: title && String(title).trim() ? cleanText(title, '任务标题', MAX_TITLE) : titleFromPrompt(body),
       prompt: body,
+      sessionId: '',
+      engineState: 'draft',
+      engineError: '',
       createdAt: now,
       updatedAt: now
     }
     const state = this.load()
-    this.persist({ version: 1, threads: [...state.threads, thread], activeThreadId: thread.id })
+    this.persist({ version: 2, threads: [...state.threads, thread], activeThreadId: thread.id })
     return copy(thread)
   }
 
@@ -96,7 +102,27 @@ class WorkbenchStore {
     const threads = state.threads.filter((thread) => thread.id !== id)
     if (threads.length === state.threads.length) throw new Error('找不到要删除的任务。')
     const activeThreadId = state.activeThreadId === id ? (threads[0]?.id || '') : state.activeThreadId
-    this.persist({ version: 1, threads, activeThreadId })
+    this.persist({ version: 2, threads, activeThreadId })
+    return this.snapshot()
+  }
+
+  setEngineState(id, { sessionId, state, error = '' }) {
+    const current = this.load()
+    let found = false
+    const now = new Date().toISOString()
+    const threads = current.threads.map((thread) => {
+      if (thread.id !== id) return thread
+      found = true
+      return {
+        ...thread,
+        sessionId: sessionId === undefined ? thread.sessionId : String(sessionId || ''),
+        engineState: ['draft', 'running', 'ready', 'error'].includes(state) ? state : thread.engineState,
+        engineError: String(error || '').slice(0, 1200),
+        updatedAt: now
+      }
+    })
+    if (!found) throw new Error('找不到要更新的任务。')
+    this.persist({ version: 2, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 }

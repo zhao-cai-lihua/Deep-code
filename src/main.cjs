@@ -8,11 +8,13 @@ const { CompanionCardStore } = require('./companion-card-store.cjs')
 const { WorkbenchStore } = require('./workbench-store.cjs')
 const { SetupAssistant } = require('./setup-assistant.cjs')
 const { buildHandoffPreview } = require('./handoff-preview.cjs')
+const { DshAdapter } = require('./dsh-adapter.cjs')
+const { buildProjectBriefPrompt } = require('./project-explainer.cjs')
 
 const supervisor = new RuntimeSupervisor()
 const hostCare = new HostCare()
+const dshAdapter = new DshAdapter()
 let mainWindow
-let harnessWindow
 let settings
 let replyModes
 let companionCards
@@ -33,6 +35,41 @@ function saveSettings(next) {
   return settings
 }
 
+async function ensureEngineReady() {
+  const current = supervisor.snapshot()
+  if (current.state === 'ready' && current.url) return current
+  if (!settings.runtimePath) throw new Error('Engine 尚未准备好。请先在首次向导中自动检测或安装。')
+  return supervisor.start(settings.runtimePath)
+}
+
+async function launchTask(thread) {
+  try {
+    if (!settings.workspacePath) throw new Error('请先创建一个安全工作区，或在设置中选择项目文件夹。')
+    const runtime = await ensureEngineReady()
+    const sessionId = thread.sessionId || (await dshAdapter.createSession({ baseUrl: runtime.url, cwd: settings.workspacePath })).sessionId
+    workbench.setEngineState(thread.id, { sessionId, state: 'running' })
+    await dshAdapter.prompt({ baseUrl: runtime.url, sessionId, text: thread.prompt })
+  } catch (error) {
+    workbench.setEngineState(thread.id, { state: 'error', error: error.message })
+  }
+}
+
+async function workbenchSnapshot() {
+  const snapshot = workbench.snapshot()
+  const thread = snapshot.threads.find((item) => item.id === snapshot.activeThreadId)
+  const runtime = supervisor.snapshot()
+  if (!thread?.sessionId || runtime.state !== 'ready' || !runtime.url) return snapshot
+  try {
+    thread.agent = await dshAdapter.snapshot({ baseUrl: runtime.url, sessionId: thread.sessionId })
+    thread.engineState = thread.agent.running ? 'running' : 'ready'
+    thread.engineError = ''
+  } catch (error) {
+    thread.engineState = 'error'
+    thread.engineError = error.message
+  }
+  return snapshot
+}
+
 function isLocalHarnessUrl(value) {
   try {
     const parsed = new URL(value)
@@ -47,26 +84,6 @@ function publishStatus() {
 
 function loadHost() {
   return mainWindow.loadFile(join(__dirname, 'renderer', 'index.html'))
-}
-
-function openHarness() {
-  const { url } = supervisor.snapshot()
-  if (!url) throw new Error('Harness is not ready yet.')
-  if (harnessWindow && !harnessWindow.isDestroyed()) {
-    harnessWindow.focus()
-    return Promise.resolve()
-  }
-  harnessWindow = new BrowserWindow({
-    width: 1280,
-    height: 860,
-    minWidth: 920,
-    minHeight: 620,
-    title: 'DeepSeek Harness · Deep code',
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true }
-  })
-  harnessWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  harnessWindow.on('closed', () => { harnessWindow = undefined })
-  return harnessWindow.loadURL(url)
 }
 
 function createWindow() {
@@ -98,7 +115,6 @@ function createMenu() {
       label: 'Deep code',
       submenu: [
         { label: 'Host setup', click: () => loadHost() },
-        { label: 'Open running Harness', click: () => openHarness().catch(() => loadHost()) },
         { label: 'Stop local runtime', click: () => supervisor.stop() },
         { type: 'separator' },
         { role: 'quit' }
@@ -176,11 +192,22 @@ ipcMain.handle('host:start', (_event, runtimePath) => {
   })
 })
 ipcMain.handle('host:stop', () => supervisor.stop())
-ipcMain.handle('host:open-harness', () => openHarness())
-ipcMain.handle('host:create-safe-workspace', (_event, name) => hostCare.createSafeWorkspace({
-  documentsPath: app.getPath('documents'),
-  name: String(name || '')
-}))
+ipcMain.handle('host:create-safe-workspace', (_event, name) => {
+  const result = hostCare.createSafeWorkspace({ documentsPath: app.getPath('documents'), name: String(name || '') })
+  saveSettings({ workspacePath: result.path })
+  return result
+})
+ipcMain.handle('host:select-workspace', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: '选择 Deep code 要处理的项目文件夹',
+    buttonLabel: '使用这个项目',
+    properties: ['openDirectory']
+  })
+  if (result.canceled || !result.filePaths[0]) return { canceled: true, workspacePath: settings.workspacePath || '' }
+  saveSettings({ workspacePath: result.filePaths[0] })
+  return { canceled: false, workspacePath: result.filePaths[0] }
+})
+ipcMain.handle('host:workspace-status', () => ({ workspacePath: settings.workspacePath || '' }))
 ipcMain.handle('host:export-diagnostics', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
     title: '导出脱敏诊断包',
@@ -255,11 +282,41 @@ ipcMain.handle('cards:export', async (_event, id) => {
   writeFileSync(result.filePath, JSON.stringify(card, null, 2), 'utf8')
   return { canceled: false, path: result.filePath }
 })
-ipcMain.handle('workbench:snapshot', () => workbench.snapshot())
-ipcMain.handle('workbench:create-task', (_event, draft) => workbench.create({
-  title: String(draft?.title || ''),
-  prompt: String(draft?.prompt || '')
-}))
+ipcMain.handle('workbench:snapshot', () => workbenchSnapshot())
+ipcMain.handle('workbench:create-task', async (_event, draft) => {
+  const thread = workbench.create({ title: String(draft?.title || ''), prompt: String(draft?.prompt || '') })
+  await launchTask(thread)
+  return workbenchSnapshot()
+})
+ipcMain.handle('workbench:create-project-brief', async () => {
+  const thread = workbench.create({ title: '用人话看懂这个项目', prompt: buildProjectBriefPrompt() })
+  await launchTask(thread)
+  return workbenchSnapshot()
+})
+ipcMain.handle('workbench:retry-task', async (_event, id) => {
+  const snapshot = workbench.snapshot()
+  const thread = snapshot.threads.find((item) => item.id === String(id || snapshot.activeThreadId || ''))
+  if (!thread) throw new Error('找不到要重试的任务。')
+  await launchTask(thread)
+  return workbenchSnapshot()
+})
+ipcMain.handle('workbench:send-message', async (_event, id, text) => {
+  const snapshot = workbench.snapshot()
+  const thread = snapshot.threads.find((item) => item.id === String(id || snapshot.activeThreadId || ''))
+  if (!thread?.sessionId) throw new Error('这个任务还没有连接到 Engine 会话。')
+  const runtime = await ensureEngineReady()
+  await dshAdapter.prompt({ baseUrl: runtime.url, sessionId: thread.sessionId, text: String(text || '') })
+  workbench.setEngineState(thread.id, { state: 'running' })
+  return workbenchSnapshot()
+})
+ipcMain.handle('workbench:cancel', async (_event, id) => {
+  const snapshot = workbench.snapshot()
+  const thread = snapshot.threads.find((item) => item.id === String(id || snapshot.activeThreadId || ''))
+  if (!thread?.sessionId) throw new Error('这个任务还没有可停止的 Engine 会话。')
+  const runtime = await ensureEngineReady()
+  await dshAdapter.cancel({ baseUrl: runtime.url, sessionId: thread.sessionId })
+  return workbenchSnapshot()
+})
 ipcMain.handle('workbench:select-task', (_event, id) => workbench.select(String(id || '')))
 ipcMain.handle('workbench:delete-task', (_event, id) => workbench.remove(String(id || '')))
 ipcMain.handle('workbench:handoff-preview', (_event, id) => {
