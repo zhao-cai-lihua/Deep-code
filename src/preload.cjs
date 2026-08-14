@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('desktopHost', {
   status: () => ipcRenderer.invoke('host:status'),
   inspectRuntime: (runtimePath) => ipcRenderer.invoke('host:inspect-runtime', runtimePath),
   selectRuntime: () => ipcRenderer.invoke('host:select-runtime'),
+  autoDetectRuntime: () => ipcRenderer.invoke('host:auto-detect-runtime'),
+  provisionRuntime: () => ipcRenderer.invoke('host:provision-runtime'),
   start: (runtimePath) => ipcRenderer.invoke('host:start', runtimePath),
   stop: () => ipcRenderer.invoke('host:stop'),
   openHarness: () => ipcRenderer.invoke('host:open-harness'),
@@ -26,5 +28,7 @@ contextBridge.exposeInMainWorld('desktopHost', {
   createTask: (draft) => ipcRenderer.invoke('workbench:create-task', draft),
   selectTask: (id) => ipcRenderer.invoke('workbench:select-task', id),
   deleteTask: (id) => ipcRenderer.invoke('workbench:delete-task', id),
+  handoffPreview: (id) => ipcRenderer.invoke('workbench:handoff-preview', id),
+  onSetupProgress: (callback) => ipcRenderer.on('setup:progress', (_event, value) => callback(value)),
   onStatus: (callback) => ipcRenderer.on('host:status', (_event, value) => callback(value))
 })

@@ -12,15 +12,19 @@ test('recognizes the official Harness package and reports missing setup separate
   assert.equal(report.checks[1].state, 'warn')
 })
 
-test('creates a new workspace only below the dedicated Documents root', () => {
+test('initializes a new workspace below the dedicated Documents root with safe starter documents', () => {
   const created = []
+  const written = []
   const care = new HostCare({
     pathExists: () => false,
-    makeDirectory: (path) => created.push(path)
+    makeDirectory: (path) => created.push(path),
+    writeText: (path, content) => written.push({ path, content })
   })
   const workspace = care.createSafeWorkspace({ documentsPath: 'C:\\Users\\test\\Documents', name: 'first project' })
-  assert.match(workspace.path, /DSH Workspaces[\\/]first project$/)
-  assert.equal(created.length, 1)
+  assert.match(workspace.path, /Deep code Workspaces[\\/]first project$/)
+  assert.equal(created.length, 2)
+  assert.deepEqual(workspace.files.sort(), ['.deep-code\\project.json', '.gitignore', 'AGENTS.md', 'README.md'].sort())
+  assert.match(written.find((file) => file.path.endsWith('AGENTS.md')).content, /只在当前工作区内/)
 })
 
 test('removes secrets from diagnostics before writing', () => {

@@ -28,6 +28,17 @@
       </aside>
 
       <main class="main-panel">
+        <section id="page-setup" class="page" aria-labelledby="setup-heading">
+          <header class="topbar"><div><p class="eyebrow">FIRST RUN · DESKTOP APP</p><h1 id="setup-heading">欢迎来到 Deep code。</h1><p class="topbar-copy">三步准备本地 Runtime 和规范工作区。这里是 Windows 桌面程序，可以打开原生文件夹选择器；GitHub 网页本身不能替你访问本地目录。</p></div><button id="skip-setup" class="quiet-button" type="button">稍后设置</button></header>
+          <div class="setup-steps">
+            <section class="setup-step"><span class="step-number">1</span><div><h2>找到官方 Harness</h2><p>先自动检查桌面和 Deep code 的文档目录；也可以用 Windows 原生选择器手动指定。</p><div class="button-row"><button id="setup-detect-runtime" class="primary-button" type="button">自动检测</button><button id="setup-select-runtime" class="quiet-button" type="button">选择本地文件夹</button></div></div></section>
+            <section class="setup-step"><span class="step-number">2</span><div><h2>没有 Harness？自动准备</h2><p>将从官方 GitHub 仓库克隆到 <code>Documents\Deep code Runtime</code>，安装依赖并构建。电脑需要已安装 Git、Node.js 和 pnpm；缺少时会明确告诉你是哪一项。</p><button id="setup-install-runtime" class="quiet-button" type="button">自动安装官方 Harness</button></div></section>
+            <section class="setup-step"><span class="step-number">3</span><div><h2>创建第一个工作区</h2><p>自动生成 README、Agent 协作约定、Git 忽略规则与本地项目元数据；不会覆盖同名文件夹。</p><div class="path-row"><input id="setup-workspace-name" type="text" maxlength="60" value="我的第一个项目" /><button id="setup-create-workspace" class="quiet-button" type="button">创建工作区与文档</button></div></div></section>
+          </div>
+          <pre id="setup-progress">等待开始。你也可以稍后在“运行时与设置”中完成这些步骤。</pre>
+          <div class="setup-finish"><button id="finish-setup" class="primary-button" type="button">进入 Deep code 工作台</button></div>
+        </section>
+
         <section id="page-workbench" class="page is-active" aria-labelledby="workbench-heading">
           <header class="topbar">
             <div><p class="eyebrow">LOCAL WORKBENCH</p><h1 id="workbench-heading">今天要推进什么？</h1></div>
@@ -50,7 +61,7 @@
                 <div class="task-kicker">LOCAL TASK · 尚未发送到 HARNESS</div>
                 <h2 id="active-task-title"></h2>
                 <p id="active-task-prompt" class="task-prompt"></p>
-                <div class="task-actions"><button id="continue-in-harness" type="button" class="primary-button">在官方 Harness 中继续 ↗</button><button id="delete-task" type="button" class="danger-button">删除本地任务</button></div>
+                <div class="task-actions"><button id="preview-handoff" type="button" class="quiet-button">预览新会话交接</button><button id="continue-in-harness" type="button" class="primary-button">在官方 Harness 中继续 ↗</button><button id="delete-task" type="button" class="danger-button">删除本地任务</button></div>
               </article>
               <div class="composer-wrap">
                 <label class="sr-only" for="task-composer">描述任务</label>
@@ -114,6 +125,11 @@
         </section>
       </main>
     </div>
+    <dialog id="handoff-dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">EXACT MODEL-VISIBLE PREVIEW</p><h2>新会话交接预览</h2></div><button id="close-handoff" class="quiet-button" type="button">关闭</button></div>
+      <p>以下文本目前只供审阅，尚未发送或写入 Harness。工具与批准策略永远不从角色卡继承。</p>
+      <pre id="handoff-text"></pre>
+    </dialog>
     <script src="./shell.js"></script>
   </body>
 </html>

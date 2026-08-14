@@ -13,6 +13,10 @@ const continueInHarness = document.querySelector('#continue-in-harness')
 const deleteTaskButton = document.querySelector('#delete-task')
 const openHarnessTop = document.querySelector('#open-harness-top')
 const openHarnessSide = document.querySelector('#open-harness-side')
+const previewHandoffButton = document.querySelector('#preview-handoff')
+const handoffDialog = document.querySelector('#handoff-dialog')
+const handoffText = document.querySelector('#handoff-text')
+const closeHandoffButton = document.querySelector('#close-handoff')
 const runtimeDot = document.querySelector('#runtime-dot')
 const runtimeShort = document.querySelector('#runtime-short')
 const runtimeSummary = document.querySelector('#runtime-summary')
@@ -30,6 +34,14 @@ const inspectButton = document.querySelector('#inspect')
 const workspaceButton = document.querySelector('#create-workspace')
 const diagnosticsButton = document.querySelector('#export-diagnostics')
 const careResult = document.querySelector('#care-result')
+const skipSetupButton = document.querySelector('#skip-setup')
+const finishSetupButton = document.querySelector('#finish-setup')
+const setupDetectRuntime = document.querySelector('#setup-detect-runtime')
+const setupSelectRuntime = document.querySelector('#setup-select-runtime')
+const setupInstallRuntime = document.querySelector('#setup-install-runtime')
+const setupWorkspaceName = document.querySelector('#setup-workspace-name')
+const setupCreateWorkspace = document.querySelector('#setup-create-workspace')
+const setupProgress = document.querySelector('#setup-progress')
 
 const activeUserPersona = document.querySelector('#active-user-persona')
 const activeAgentCharacter = document.querySelector('#active-agent-character')
@@ -85,6 +97,16 @@ async function openHarness() {
     showPage('settings')
     careResult.textContent = `无法打开 Harness：${error.message}`
   }
+}
+
+async function selectRuntimeNative() {
+  const result = await window.desktopHost.selectRuntime()
+  if (result.canceled) return false
+  pathInput.value = result.runtimePath
+  const status = await window.desktopHost.status()
+  renderRuntime(status)
+  setupProgress.textContent = `已选择本地文件夹：\n${result.runtimePath}\n\n你可以继续进入工作台并启动 Harness。`
+  return true
 }
 
 function displayTime(value) {
@@ -251,13 +273,17 @@ deleteTaskButton.addEventListener('click', async () => {
 continueInHarness.addEventListener('click', openHarness)
 openHarnessTop.addEventListener('click', openHarness)
 openHarnessSide.addEventListener('click', openHarness)
-
-selectButton.addEventListener('click', async () => {
-  const result = await window.desktopHost.selectRuntime()
-  if (result.canceled) return
-  pathInput.value = result.runtimePath
-  renderRuntime({ ...(await window.desktopHost.status()), runtimePath: result.runtimePath })
+previewHandoffButton.addEventListener('click', async () => {
+  try {
+    const preview = await window.desktopHost.handoffPreview(workbench.activeThreadId)
+    handoffText.textContent = preview.text
+    handoffDialog.showModal()
+  } catch (error) { careResult.textContent = error.message; showPage('settings') }
 })
+closeHandoffButton.addEventListener('click', () => handoffDialog.close())
+handoffDialog.addEventListener('click', (event) => { if (event.target === handoffDialog) handoffDialog.close() })
+
+selectButton.addEventListener('click', selectRuntimeNative)
 startButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.start(pathInput.value)))
 stopButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.stop()))
 openButton.addEventListener('click', openHarness)
@@ -273,6 +299,35 @@ workspaceButton.addEventListener('click', async () => {
 diagnosticsButton.addEventListener('click', async () => {
   const result = await window.desktopHost.exportDiagnostics()
   careResult.textContent = result.canceled ? '未导出诊断包。' : `${result.message}\n${result.path}`
+})
+skipSetupButton.addEventListener('click', () => showPage('workbench'))
+finishSetupButton.addEventListener('click', () => showPage('workbench'))
+setupSelectRuntime.addEventListener('click', selectRuntimeNative)
+setupDetectRuntime.addEventListener('click', async () => {
+  setupProgress.textContent = '正在检查桌面与 Deep code Runtime 目录…'
+  try {
+    const result = await window.desktopHost.autoDetectRuntime()
+    setupProgress.textContent = result.found ? `已找到官方 Harness：\n${result.runtimePath}` : '没有在有限的默认位置找到官方 Harness。你可以手动选择，或使用下一步自动安装。'
+    renderRuntime(await window.desktopHost.status())
+  } catch (error) { setupProgress.textContent = error.message }
+})
+setupInstallRuntime.addEventListener('click', async () => {
+  setupInstallRuntime.disabled = true
+  setupProgress.textContent = '准备自动安装。第一次构建可能需要几分钟，请保持网络连接。'
+  try {
+    const result = await window.desktopHost.provisionRuntime()
+    setupProgress.textContent += `\n\n安装完成：\n${result.runtimePath}`
+    renderRuntime(await window.desktopHost.status())
+  } catch (error) { setupProgress.textContent += `\n\n安装未完成：${error.message}` }
+  finally { setupInstallRuntime.disabled = false }
+})
+setupCreateWorkspace.addEventListener('click', async () => {
+  setupCreateWorkspace.disabled = true
+  try {
+    const result = await window.desktopHost.createSafeWorkspace(setupWorkspaceName.value)
+    setupProgress.textContent = `${result.message}\n${result.path}\n\n已生成：\n${result.files.join('\n')}`
+  } catch (error) { setupProgress.textContent = error.message }
+  finally { setupCreateWorkspace.disabled = false }
 })
 
 activeUserPersona.addEventListener('change', () => saveActive('user-persona', activeUserPersona))
@@ -320,6 +375,14 @@ deleteCardButton.addEventListener('click', async () => {
 })
 
 window.desktopHost.onStatus(renderRuntime)
-window.desktopHost.status().then(renderRuntime)
+window.desktopHost.onSetupProgress((line) => {
+  if (!line) return
+  setupProgress.textContent = `${setupProgress.textContent}\n${line}`.trim()
+  setupProgress.scrollTop = setupProgress.scrollHeight
+})
+window.desktopHost.status().then((status) => {
+  renderRuntime(status)
+  if (!status.runtimePath) showPage('setup')
+})
 refreshWorkbench().catch((error) => { careResult.textContent = error.message })
 refreshCards().catch((error) => { cardResult.textContent = error.message })

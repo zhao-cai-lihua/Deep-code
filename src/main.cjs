@@ -6,6 +6,8 @@ const { HostCare } = require('./host-care.cjs')
 const { ReplyModeStore } = require('./reply-mode-store.cjs')
 const { CompanionCardStore } = require('./companion-card-store.cjs')
 const { WorkbenchStore } = require('./workbench-store.cjs')
+const { SetupAssistant } = require('./setup-assistant.cjs')
+const { buildHandoffPreview } = require('./handoff-preview.cjs')
 
 const supervisor = new RuntimeSupervisor()
 const hostCare = new HostCare()
@@ -15,6 +17,7 @@ let settings
 let replyModes
 let companionCards
 let workbench
+let setupAssistant
 
 function settingsPath() {
   return join(app.getPath('userData'), 'host-settings.json')
@@ -112,6 +115,7 @@ app.whenReady().then(() => {
     join(app.getPath('userData'), 'reply-modes.json')
   )
   workbench = new WorkbenchStore(join(app.getPath('userData'), 'local-tasks.json'))
+  setupAssistant = new SetupAssistant()
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false))
   supervisor.on('status', publishStatus)
   supervisor.on('log', publishStatus)
@@ -137,9 +141,32 @@ ipcMain.handle('host:inspect-runtime', (_event, selectedPath) => {
   }
 })
 ipcMain.handle('host:select-runtime', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: '选择官方 DeepSeek Harness 文件夹',
+    buttonLabel: '选择此文件夹',
+    properties: ['openDirectory', 'createDirectory', 'promptToCreate']
+  })
   if (result.canceled) return { canceled: true, runtimePath: settings.runtimePath }
+  saveSettings({ runtimePath: result.filePaths[0] })
   return { canceled: false, runtimePath: result.filePaths[0] }
+})
+ipcMain.handle('host:auto-detect-runtime', () => {
+  const runtimePath = setupAssistant.detectRuntime({
+    desktopPath: app.getPath('desktop'),
+    documentsPath: app.getPath('documents'),
+    configuredPath: settings.runtimePath || ''
+  })
+  if (runtimePath) saveSettings({ runtimePath })
+  return { runtimePath, found: Boolean(runtimePath) }
+})
+ipcMain.handle('host:provision-runtime', async () => {
+  const onLine = (line) => {
+    if (!line || !mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.webContents.send('setup:progress', line)
+  }
+  const runtimePath = await setupAssistant.provisionRuntime({ documentsPath: app.getPath('documents'), onLine })
+  saveSettings({ runtimePath })
+  return { runtimePath, report: hostCare.inspectRuntime(runtimePath) }
 })
 ipcMain.handle('host:start', (_event, runtimePath) => {
   const normalized = String(runtimePath || '')
@@ -235,3 +262,9 @@ ipcMain.handle('workbench:create-task', (_event, draft) => workbench.create({
 }))
 ipcMain.handle('workbench:select-task', (_event, id) => workbench.select(String(id || '')))
 ipcMain.handle('workbench:delete-task', (_event, id) => workbench.remove(String(id || '')))
+ipcMain.handle('workbench:handoff-preview', (_event, id) => {
+  const taskState = workbench.snapshot()
+  const thread = taskState.threads.find((item) => item.id === String(id || taskState.activeThreadId || ''))
+  const cardState = companionCards.snapshot()
+  return buildHandoffPreview({ thread, cards: cardState.cards, active: cardState.active })
+})

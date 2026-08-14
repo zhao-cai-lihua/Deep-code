@@ -4,15 +4,28 @@
 
 It is an independent community desktop host, **not** an official DeepSeek client and not a replacement for DeepSeek Harness.
 
+## Download for Windows
+
+Normal users do **not** need to clone the repository or run pnpm. Open [GitHub Releases](https://github.com/zhao-cai-lihua/Deep-code/releases/latest), then download one of these files:
+
+- `Deep code Setup x.y.z.exe` — recommended installer.
+- `Deep code x.y.z.exe` — portable app; no installation required.
+
+The GitHub web page cannot browse arbitrary local folders. Run the downloaded Deep code desktop app; its first-run guide opens the native Windows folder picker, can detect an existing official Harness, or can prepare one under `Documents/Deep code Runtime`.
+
 ## What works now
 
 - A Codex-inspired desktop workbench with a local task sidebar, task intent canvas, and a clear handoff into the official Harness window.
+- A first-run desktop guide that detects or prepares the official Runtime and initializes a documented workspace.
 - Select an official `deepseek-harness` checkout and launch its documented `pnpm dsh web` command.
 - Connect to an already-running local Harness rather than starting a competing copy, then open it in a separate work window without replacing the Deep code workbench.
 - Explain missing runtime pieces, create a safe workspace under `Documents/DSH Workspaces`, and export a redacted diagnostic report.
 - Save, inspect, combine, import, and export local-first Companion Cards: a User Persona, an Agent Character, and an Interaction Style. Cards can make an agent relationship feel personal, but cannot grant tools, permissions, network access, or workspace access.
+- Preview the exact task and model-visible card text intended for a future new-session handoff, without sending it or changing Harness permissions.
 
-## Requirements
+## Developer setup
+
+The following steps are for contributors building from source. Regular users should install a file from Releases.
 
 1. Git, Node.js, and pnpm installed on Windows.
 2. An official Harness checkout prepared according to its upstream documentation.

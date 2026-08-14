@@ -7,6 +7,7 @@ Deep code is a narrow **Desktop Host** for DeepSeek Harness. The official Harnes
 ```text
 Deep code desktop shell
   |-- local workbench (task intent, navigation, local task metadata)
+  |-- first-run setup (bounded detection, official runtime provisioning, workspace initialization)
   |-- first-run and runtime health
   |-- safe-workspace and redacted-diagnostics helpers
   |-- companion-card library (local, inspectable)
@@ -21,6 +22,7 @@ Deep code desktop shell
 | Agent loop, model calls, sessions, tool approvals | Official DeepSeek Harness | Deep code must not fork or silently override these. |
 | Choosing and starting a local runtime | Deep code Host | Validate it is an official checkout; attach to an existing local web runtime where possible. |
 | Local task workbench | Deep code | Store a task title and intent locally; opening Harness is an explicit handoff, not a hidden message send. |
+| First-run setup | Deep code | Detect only bounded local paths; provision from the fixed official repository; never overwrite an existing target. |
 | Runtime events and a future whale/status indicator | DSH Adapter | Normalize once, then render. No invented "thinking" state. |
 | Companion-card library | Deep code | Local User Persona, Agent Character, and Interaction Style cards; user review and fixed safe schema. |
 | Applying a reviewed card stack to Harness | Future adapter slice | Only on a new session, compiled through an upstream-supported preset/profile seam; never as a tool-permission patch. |
@@ -37,7 +39,7 @@ The local workbench is now a stable task-navigation seam: users can create and r
 
 ### v0.4: controlled interchange
 
-Optional one-way, visibly lossy import drafts from SillyTavern CCv2/CCv3. Dynamic lore, regex, post-history instructions, extensions, assets, system prompts, and all permission-adjacent fields remain excluded unless a later reviewed model can represent them safely.
+The first-run setup, standard workspace documents, automated Windows Releases, and exact task + card-stack handoff preview now form the beginner path. Optional one-way, visibly lossy import drafts from SillyTavern CCv2/CCv3 remain future work. Dynamic lore, regex, post-history instructions, extensions, assets, system prompts, and all permission-adjacent fields remain excluded unless a later reviewed model can represent them safely.
 
 ### Later, only after the adapter is real
 
