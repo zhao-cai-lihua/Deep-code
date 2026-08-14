@@ -6,8 +6,9 @@ It is an independent community desktop host, **not** an official DeepSeek client
 
 ## What works now
 
+- A Codex-inspired desktop workbench with a local task sidebar, task intent canvas, and a clear handoff into the official Harness window.
 - Select an official `deepseek-harness` checkout and launch its documented `pnpm dsh web` command.
-- Connect to an already-running local Harness rather than starting a competing copy.
+- Connect to an already-running local Harness rather than starting a competing copy, then open it in a separate work window without replacing the Deep code workbench.
 - Explain missing runtime pieces, create a safe workspace under `Documents/DSH Workspaces`, and export a redacted diagnostic report.
 - Save, inspect, combine, import, and export local-first Companion Cards: a User Persona, an Agent Character, and an Interaction Style. Cards can make an agent relationship feel personal, but cannot grant tools, permissions, network access, or workspace access.
 
@@ -35,7 +36,7 @@ Deep code deliberately does **not** rewrite Harness tool permissions, approval r
 
 ## Project status
 
-Early developer preview. Use it with a local Harness checkout you trust. Before making it the default work surface, test it on a non-sensitive workspace and keep upstream Harness updated intentionally.
+Early developer preview. The workbench currently stores task intent locally; it is not yet a replacement chat/session client for Harness. Use it with a local Harness checkout you trust. Before making it the default work surface, test it on a non-sensitive workspace and keep upstream Harness updated intentionally.
 
 ## License
 

@@ -8,92 +8,112 @@
     <link rel="stylesheet" href="./shell.css" />
   </head>
   <body>
-    <main>
-      <p class="eyebrow">DEEP CODE · LOCAL DESKTOP HOST · 0.2</p>
-      <h1>让 Harness 先安全地跑起来。</h1>
-      <p class="lede">Deep code 是运行时与安全引导的桌面壳；模型、工作区、会话和批准仍由官方 DeepSeek Harness 负责。</p>
-      <section aria-labelledby="runtime-heading">
-        <h2 id="runtime-heading">官方 Runtime</h2>
-        <label for="runtime-path">DeepSeek Harness 文件夹</label>
-        <div class="path-row">
-          <input id="runtime-path" type="text" readonly placeholder="请选择官方 deepseek-harness 文件夹" />
-          <button id="select-runtime" type="button">选择文件夹</button>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Deep code 导航">
+        <div class="brand"><span class="brand-mark">D</span><span>Deep code</span><span class="preview">preview</span></div>
+        <button id="new-task" class="new-task" type="button"><span>＋</span> 新任务</button>
+        <nav class="primary-nav" aria-label="主导航">
+          <button class="nav-item is-active" type="button" data-page="workbench"><span>▣</span>任务</button>
+          <button class="nav-item" type="button" data-page="cards"><span>◌</span>角色与协作卡</button>
+          <button class="nav-item" type="button" data-page="settings"><span>⚙</span>运行时与设置</button>
+        </nav>
+        <div class="sidebar-section">
+          <div class="section-label"><span>本地任务</span><span id="task-count">0</span></div>
+          <div id="task-list" class="task-list" aria-live="polite"></div>
         </div>
-        <p class="hint">Host 只会在这个目录运行 <code>pnpm dsh web</code>，不会读取或保存你的 API Key。</p>
-      </section>
-      <section class="status-card" aria-live="polite">
-        <div><span id="status-dot" class="dot stopped"></span><strong id="status-label">尚未启动</strong></div>
-        <p id="status-message">Harness is not running.</p>
-      </section>
-      <div class="actions">
-        <button id="start" type="button" class="primary">启动官方 Harness</button>
-        <button id="open" type="button" disabled>打开 Harness</button>
-        <button id="stop" type="button" disabled>停止</button>
-      </div>
-      <section aria-labelledby="care-heading">
-        <h2 id="care-heading">新手保护层</h2>
-        <div class="actions">
-          <button id="inspect" type="button">检查 Runtime</button>
-          <button id="create-workspace" type="button">创建安全工作区</button>
-          <button id="export-diagnostics" type="button">导出脱敏诊断包</button>
+        <div class="sidebar-footer">
+          <div class="runtime-chip"><span id="runtime-dot" class="status-dot stopped"></span><span id="runtime-short">Harness 未连接</span></div>
+          <p>你的任务、卡和运行时状态默认只保存在本机。</p>
         </div>
-        <pre id="care-result">先检查 Runtime；Host 会告诉你缺少什么，而不是只抛命令行错误。</pre>
-      </section>
-      <section aria-labelledby="card-heading">
-        <div class="section-title">
-          <div>
-            <h2 id="card-heading">本地设置：角色与协作卡</h2>
-            <p class="hint">用可组合的用户人格、Agent Character 与互动风格，给每个专属 Agent 留下亲切但可审阅的起点。它们不等同于 Harness 配置，也不拥有执行能力。</p>
+      </aside>
+
+      <main class="main-panel">
+        <section id="page-workbench" class="page is-active" aria-labelledby="workbench-heading">
+          <header class="topbar">
+            <div><p class="eyebrow">LOCAL WORKBENCH</p><h1 id="workbench-heading">今天要推进什么？</h1></div>
+            <div class="topbar-actions"><button id="open-harness-top" type="button" class="quiet-button">打开官方 Harness ↗</button><button class="avatar" type="button" data-page="cards" title="打开角色与协作卡">砚</button></div>
+          </header>
+
+          <div class="workbench-layout">
+            <section class="conversation-column" aria-live="polite">
+              <div id="empty-task" class="welcome-card">
+                <div class="welcome-symbol">✦</div>
+                <h2>从一个真实任务开始。</h2>
+                <p>Deep code 先把你的意图、工作区与协作卡放在同一个清楚的桌面里；真正的模型、工具与批准仍属于官方 Harness。</p>
+                <div class="suggestions">
+                  <button type="button" data-suggestion="帮我把一个模糊想法拆成可验证的第一步。">拆解一个想法</button>
+                  <button type="button" data-suggestion="和我一起审查这个项目的下一步，指出风险与假设。">审查下一步</button>
+                  <button type="button" data-suggestion="教我理解一个抽象概念，先给可在空间里想象的版本。">学习一个概念</button>
+                </div>
+              </div>
+              <article id="active-task" class="active-task hidden">
+                <div class="task-kicker">LOCAL TASK · 尚未发送到 HARNESS</div>
+                <h2 id="active-task-title"></h2>
+                <p id="active-task-prompt" class="task-prompt"></p>
+                <div class="task-actions"><button id="continue-in-harness" type="button" class="primary-button">在官方 Harness 中继续 ↗</button><button id="delete-task" type="button" class="danger-button">删除本地任务</button></div>
+              </article>
+              <div class="composer-wrap">
+                <label class="sr-only" for="task-composer">描述任务</label>
+                <textarea id="task-composer" rows="3" maxlength="12000" placeholder="描述你想一起完成的任务。Deep code 会先在本地创建任务；需要实际 Agent 时再打开官方 Harness。"></textarea>
+                <div class="composer-footer"><span>本地草稿 · 不会自动发送</span><button id="create-task" type="button" class="send-button" title="创建本地任务">↑</button></div>
+              </div>
+            </section>
+
+            <aside class="context-panel" aria-label="当前协作上下文">
+              <div class="context-heading"><span>当前协作卡组</span><button class="text-button" type="button" data-page="cards">编辑</button></div>
+              <div id="active-card-stack" class="card-stack"></div>
+              <div class="context-divider"></div>
+              <div class="context-heading"><span>运行时</span><button class="text-button" type="button" data-page="settings">管理</button></div>
+              <p id="runtime-summary" class="context-copy">尚未选择官方 DeepSeek Harness 文件夹。</p>
+              <button id="open-harness-side" type="button" class="wide-button">打开官方 Harness</button>
+            </aside>
           </div>
-          <span class="local-badge">仅本地</span>
-        </div>
-        <div class="mode-grid">
-          <label>用户人格
-            <select id="active-user-persona" aria-label="激活的用户人格"></select>
-          </label>
-          <label>Agent Character
-            <select id="active-agent-character" aria-label="激活的 Agent Character"></select>
-          </label>
-          <label>互动风格
-            <select id="active-interaction-style" aria-label="激活的互动风格"></select>
-          </label>
-        </div>
-        <p class="hint">这是本地卡组选择，不会自动写进 Harness。之后接入官方 Adapter 时，Deep code 会只允许在新会话前逐字预览并确认。</p>
-        <label for="card-list">角色卡库</label>
-        <select id="card-list" aria-label="已保存的角色卡">
-          <option value="">新建一张角色或协作卡</option>
-        </select>
-        <input id="card-id" type="hidden" />
-        <div class="mode-grid">
-          <label>类型
-            <select id="card-kind">
-              <option value="user-persona">User Persona（用户侧协作偏好）</option>
-              <option value="agent-character">Agent Character（专属 Agent 起点）</option>
-              <option value="interaction-style">Interaction Style（研究／教学／玩耍风格）</option>
-            </select>
-          </label>
-          <label>标签（用逗号分隔）<input id="card-tags" type="text" maxlength="340" placeholder="例如：中文，共同思考，创作" /></label>
-          <label>名称<input id="card-name" type="text" maxlength="80" placeholder="例如：砚星 / Yanxing" /></label>
-          <label>简介<input id="card-summary" type="text" maxlength="280" placeholder="它适合什么协作场景？" /></label>
-        </div>
-        <label for="card-model-text">模型可见内容</label>
-        <textarea id="card-model-text" maxlength="6000" placeholder="只写可被模型看到的协作方式、表达风格、边界或稳定背景。"></textarea>
-        <label for="card-human-notes">仅本地说明（不会发送给模型）</label>
-        <textarea id="card-human-notes" maxlength="2000" placeholder="例如：这张卡从哪来、适合何时用、是否准备公开。"></textarea>
-        <p class="hint">卡不能包含工具、权限、Shell、网络、MCP、密钥、插件、命令或 Agent 配置。导入不联网，也不执行文件。内置“砚星”卡可以复制编辑，但不会自动把内容应用到 Harness。</p>
-        <div class="actions wrap-actions">
-          <button id="save-card" type="button" class="primary">保存为本地卡</button>
-          <button id="import-card" type="button">导入并预览</button>
-          <button id="export-card" type="button">导出所选卡</button>
-          <button id="delete-card" type="button" class="quiet-danger">删除所选卡</button>
-        </div>
-        <pre id="card-result">内置“砚星”用户人格卡已作为本地起点。你可以从空白卡开始，也可以复制它后编辑。</pre>
-      </section>
-      <details>
-        <summary>本地诊断日志</summary>
-        <pre id="logs">还没有运行日志。</pre>
-      </details>
-    </main>
+        </section>
+
+        <section id="page-cards" class="page" aria-labelledby="cards-heading">
+          <header class="topbar"><div><p class="eyebrow">COMPANION LAYER · LOCAL ONLY</p><h1 id="cards-heading">角色与协作卡</h1><p class="topbar-copy">亲切感来自可组合的协作方式，不来自暗中扩大的权限。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
+          <div class="settings-grid cards-grid">
+            <section class="settings-card card-stack-settings">
+              <h2>当前卡组</h2>
+              <p>选择不会修改 Harness；未来应用前会逐字预览，并且只允许新会话使用。</p>
+              <label>用户人格<select id="active-user-persona"></select></label>
+              <label>Agent Character<select id="active-agent-character"></select></label>
+              <label>互动风格<select id="active-interaction-style"></select></label>
+              <pre id="card-stack-note">载入本地卡组中…</pre>
+            </section>
+            <section class="settings-card card-editor">
+              <div class="editor-heading"><div><h2>卡库</h2><p>内置“砚星”是可复制编辑的 User Persona 起点。</p></div><span class="local-badge">仅本地</span></div>
+              <label>已保存的卡<select id="card-list"><option value="">新建一张角色或协作卡</option></select></label>
+              <div class="form-grid"><label>类型<select id="card-kind"><option value="user-persona">User Persona</option><option value="agent-character">Agent Character</option><option value="interaction-style">Interaction Style</option></select></label><label>标签<input id="card-tags" type="text" maxlength="340" placeholder="中文，共同思考，创作" /></label></div>
+              <div class="form-grid"><label>名称<input id="card-name" type="text" maxlength="80" placeholder="例如：砚星 / Yanxing" /></label><label>简介<input id="card-summary" type="text" maxlength="280" placeholder="它适合什么协作场景？" /></label></div>
+              <label>模型可见内容<textarea id="card-model-text" maxlength="6000" placeholder="只写可被模型看到的协作方式、表达风格、边界或稳定背景。"></textarea></label>
+              <label>仅本地说明<textarea id="card-human-notes" maxlength="2000" placeholder="来源、适用场景、是否准备公开。不会发送给模型。"></textarea></label>
+              <div class="button-row"><button id="save-card" type="button" class="primary-button">保存为本地卡</button><button id="import-card" type="button" class="quiet-button">导入并预览</button><button id="export-card" type="button" class="quiet-button">导出</button><button id="delete-card" type="button" class="danger-button">删除</button></div>
+              <pre id="card-result">内置“砚星”用户人格卡已作为本地起点。</pre>
+            </section>
+          </div>
+        </section>
+
+        <section id="page-settings" class="page" aria-labelledby="settings-heading">
+          <header class="topbar"><div><p class="eyebrow">RUNTIME CARE</p><h1 id="settings-heading">运行时与设置</h1><p class="topbar-copy">Deep code 管理引导与诊断；官方 Harness 管理 Agent、工具与批准。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
+          <div class="settings-grid runtime-grid">
+            <section class="settings-card runtime-card">
+              <h2>官方 DeepSeek Harness</h2>
+              <label>DeepSeek Harness 文件夹<div class="path-row"><input id="runtime-path" type="text" readonly placeholder="请选择官方 deepseek-harness 文件夹" /><button id="select-runtime" type="button" class="quiet-button">选择文件夹</button></div></label>
+              <div class="runtime-status"><span id="status-dot" class="status-dot stopped"></span><div><strong id="status-label">尚未启动</strong><p id="status-message">Harness 未运行。</p></div></div>
+              <div class="button-row"><button id="start" type="button" class="primary-button">启动官方 Harness</button><button id="open" type="button" class="quiet-button">打开 Harness</button><button id="stop" type="button" class="danger-button">停止</button></div>
+            </section>
+            <section class="settings-card safety-card">
+              <h2>新手保护层</h2>
+              <p>让错误变得可解释，同时不把密钥、聊天内容或工作区文件写入诊断。</p>
+              <div class="button-row"><button id="inspect" type="button" class="quiet-button">检查 Runtime</button><button id="create-workspace" type="button" class="quiet-button">创建安全工作区</button><button id="export-diagnostics" type="button" class="quiet-button">导出脱敏诊断</button></div>
+              <pre id="care-result">先检查 Runtime；Deep code 会告诉你缺少什么。</pre>
+            </section>
+          </div>
+          <details class="logs-panel"><summary>本地诊断日志</summary><pre id="logs">还没有运行日志。</pre></details>
+        </section>
+      </main>
+    </div>
     <script src="./shell.js"></script>
   </body>
 </html>

@@ -5,13 +5,16 @@ const { RuntimeSupervisor } = require('./runtime-supervisor.cjs')
 const { HostCare } = require('./host-care.cjs')
 const { ReplyModeStore } = require('./reply-mode-store.cjs')
 const { CompanionCardStore } = require('./companion-card-store.cjs')
+const { WorkbenchStore } = require('./workbench-store.cjs')
 
 const supervisor = new RuntimeSupervisor()
 const hostCare = new HostCare()
 let mainWindow
+let harnessWindow
 let settings
 let replyModes
 let companionCards
+let workbench
 
 function settingsPath() {
   return join(app.getPath('userData'), 'host-settings.json')
@@ -46,15 +49,29 @@ function loadHost() {
 function openHarness() {
   const { url } = supervisor.snapshot()
   if (!url) throw new Error('Harness is not ready yet.')
-  return mainWindow.loadURL(url)
+  if (harnessWindow && !harnessWindow.isDestroyed()) {
+    harnessWindow.focus()
+    return Promise.resolve()
+  }
+  harnessWindow = new BrowserWindow({
+    width: 1280,
+    height: 860,
+    minWidth: 920,
+    minHeight: 620,
+    title: 'DeepSeek Harness · Deep code',
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true }
+  })
+  harnessWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  harnessWindow.on('closed', () => { harnessWindow = undefined })
+  return harnessWindow.loadURL(url)
 }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1180,
-    height: 780,
-    minWidth: 900,
-    minHeight: 620,
+    width: 1380,
+    height: 880,
+    minWidth: 1040,
+    minHeight: 680,
     title: 'Deep code',
     webPreferences: {
       preload: join(__dirname, 'preload.cjs'),
@@ -94,6 +111,7 @@ app.whenReady().then(() => {
     join(app.getPath('userData'), 'companion-cards.json'),
     join(app.getPath('userData'), 'reply-modes.json')
   )
+  workbench = new WorkbenchStore(join(app.getPath('userData'), 'local-tasks.json'))
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false))
   supervisor.on('status', publishStatus)
   supervisor.on('log', publishStatus)
@@ -210,3 +228,10 @@ ipcMain.handle('cards:export', async (_event, id) => {
   writeFileSync(result.filePath, JSON.stringify(card, null, 2), 'utf8')
   return { canceled: false, path: result.filePath }
 })
+ipcMain.handle('workbench:snapshot', () => workbench.snapshot())
+ipcMain.handle('workbench:create-task', (_event, draft) => workbench.create({
+  title: String(draft?.title || ''),
+  prompt: String(draft?.prompt || '')
+}))
+ipcMain.handle('workbench:select-task', (_event, id) => workbench.select(String(id || '')))
+ipcMain.handle('workbench:delete-task', (_event, id) => workbench.remove(String(id || '')))

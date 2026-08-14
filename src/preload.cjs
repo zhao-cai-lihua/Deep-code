@@ -22,5 +22,9 @@ contextBridge.exposeInMainWorld('desktopHost', {
   prepareCardImport: () => ipcRenderer.invoke('cards:prepare-import'),
   commitCardImport: (raw) => ipcRenderer.invoke('cards:commit-import', raw),
   exportCard: (id) => ipcRenderer.invoke('cards:export', id),
+  workbenchSnapshot: () => ipcRenderer.invoke('workbench:snapshot'),
+  createTask: (draft) => ipcRenderer.invoke('workbench:create-task', draft),
+  selectTask: (id) => ipcRenderer.invoke('workbench:select-task', id),
+  deleteTask: (id) => ipcRenderer.invoke('workbench:delete-task', id),
   onStatus: (callback) => ipcRenderer.on('host:status', (_event, value) => callback(value))
 })

@@ -6,6 +6,7 @@ Deep code is a narrow **Desktop Host** for DeepSeek Harness. The official Harnes
 
 ```text
 Deep code desktop shell
+  |-- local workbench (task intent, navigation, local task metadata)
   |-- first-run and runtime health
   |-- safe-workspace and redacted-diagnostics helpers
   |-- companion-card library (local, inspectable)
@@ -19,6 +20,7 @@ Deep code desktop shell
 | --- | --- | --- |
 | Agent loop, model calls, sessions, tool approvals | Official DeepSeek Harness | Deep code must not fork or silently override these. |
 | Choosing and starting a local runtime | Deep code Host | Validate it is an official checkout; attach to an existing local web runtime where possible. |
+| Local task workbench | Deep code | Store a task title and intent locally; opening Harness is an explicit handoff, not a hidden message send. |
 | Runtime events and a future whale/status indicator | DSH Adapter | Normalize once, then render. No invented "thinking" state. |
 | Companion-card library | Deep code | Local User Persona, Agent Character, and Interaction Style cards; user review and fixed safe schema. |
 | Applying a reviewed card stack to Harness | Future adapter slice | Only on a new session, compiled through an upstream-supported preset/profile seam; never as a tool-permission patch. |
@@ -29,9 +31,9 @@ Deep code desktop shell
 
 Runtime inspection, attach/start/stop behavior, safe workspaces, diagnostics, and local Companion Card management. A card stack combines a User Persona (how the user prefers to collaborate), an Agent Character (a user-selected expressive starting point), and an Interaction Style (research, teaching, play, or other session texture). Tool Profile stays outside the stack.
 
-### v0.3: official configuration adapter
+### v0.3: local workbench and official configuration adapter
 
-Compile a reviewed card stack into an upstream-supported per-agent preset/profile for a **new** Harness session. Show the exact generated text and offer rollback. This is where we verify DSH version compatibility before writing any configuration.
+The local workbench is now a stable task-navigation seam: users can create and retain local task intent, then explicitly open the official Harness in a separate window. The remaining Adapter slice will compile a reviewed card stack into an upstream-supported per-agent preset/profile for a **new** Harness session. It must show the exact generated text and offer rollback. This is where we verify DSH version compatibility before writing any configuration.
 
 ### v0.4: controlled interchange
 
