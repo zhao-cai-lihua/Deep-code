@@ -1,0 +1,26 @@
+const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('desktopHost', {
+  status: () => ipcRenderer.invoke('host:status'),
+  inspectRuntime: (runtimePath) => ipcRenderer.invoke('host:inspect-runtime', runtimePath),
+  selectRuntime: () => ipcRenderer.invoke('host:select-runtime'),
+  start: (runtimePath) => ipcRenderer.invoke('host:start', runtimePath),
+  stop: () => ipcRenderer.invoke('host:stop'),
+  openHarness: () => ipcRenderer.invoke('host:open-harness'),
+  createSafeWorkspace: (name) => ipcRenderer.invoke('host:create-safe-workspace', name),
+  exportDiagnostics: () => ipcRenderer.invoke('host:export-diagnostics'),
+  listModes: () => ipcRenderer.invoke('mode:list'),
+  saveMode: (draft) => ipcRenderer.invoke('mode:save', draft),
+  deleteMode: (id) => ipcRenderer.invoke('mode:delete', id),
+  prepareModeImport: () => ipcRenderer.invoke('mode:prepare-import'),
+  commitModeImport: (raw) => ipcRenderer.invoke('mode:commit-import', raw),
+  exportMode: (id) => ipcRenderer.invoke('mode:export', id),
+  cardSnapshot: () => ipcRenderer.invoke('cards:snapshot'),
+  saveCard: (draft) => ipcRenderer.invoke('cards:save', draft),
+  deleteCard: (id) => ipcRenderer.invoke('cards:delete', id),
+  setActiveCard: (kind, id) => ipcRenderer.invoke('cards:set-active', kind, id),
+  prepareCardImport: () => ipcRenderer.invoke('cards:prepare-import'),
+  commitCardImport: (raw) => ipcRenderer.invoke('cards:commit-import', raw),
+  exportCard: (id) => ipcRenderer.invoke('cards:export', id),
+  onStatus: (callback) => ipcRenderer.on('host:status', (_event, value) => callback(value))
+})

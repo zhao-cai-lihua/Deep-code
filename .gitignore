@@ -1,0 +1,31 @@
+# Dependencies and packaged application output
+node_modules/
+dist/
+out/
+release/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+coverage/
+
+# Local credentials and runtime state (never version these)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+credentials.yaml
+.dsh/
+
+# Private Deep code material. Exported shareable Reply Mode Packages use .deepcode.json.
+.deep-code/
+private/
+*.private.deepcode.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
