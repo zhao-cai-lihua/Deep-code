@@ -1,19 +1,51 @@
 const { EventEmitter } = require('node:events')
 const { existsSync } = require('node:fs')
 const { spawn } = require('node:child_process')
-const { join } = require('node:path')
+const { delimiter, join } = require('node:path')
 const http = require('node:http')
 
 const LOCAL_URL = /http:\/\/127\.0\.0\.1:(\d+)/
 
+function resolveNodeExecutable({
+  platform = process.platform,
+  environment = process.env,
+  pathExists = existsSync
+} = {}) {
+  if (platform !== 'win32') return 'node'
+  const pathCandidates = String(environment.PATH || '')
+    .split(delimiter)
+    .map((entry) => entry.trim().replace(/^"|"$/g, ''))
+    .filter(Boolean)
+    .map((entry) => join(entry, 'node.exe'))
+  const fixedCandidates = [
+    environment.ProgramFiles && join(environment.ProgramFiles, 'nodejs', 'node.exe'),
+    environment['ProgramFiles(x86)'] && join(environment['ProgramFiles(x86)'], 'nodejs', 'node.exe'),
+    environment.LOCALAPPDATA && join(environment.LOCALAPPDATA, 'Programs', 'nodejs', 'node.exe')
+  ].filter(Boolean)
+  const executable = [...pathCandidates, ...fixedCandidates].find((candidate) => pathExists(candidate))
+  if (!executable) {
+    throw new Error('没有找到 Engine 需要的 Node.js。请运行“检查 Runtime”或使用首次向导自动修复。')
+  }
+  return executable
+}
+
 /** Owns one official Harness child process and a bounded diagnostic log. */
 class RuntimeSupervisor extends EventEmitter {
-  constructor({ spawnProcess = spawn, pathExists = existsSync, probeReady = probeDefaultHarness, maxLogLines = 250 } = {}) {
+  constructor({
+    spawnProcess = spawn,
+    pathExists = existsSync,
+    probeReady = probeDefaultHarness,
+    maxLogLines = 250,
+    platform = process.platform,
+    environment = process.env
+  } = {}) {
     super()
     this.spawnProcess = spawnProcess
     this.pathExists = pathExists
     this.probeReady = probeReady
     this.maxLogLines = maxLogLines
+    this.platform = platform
+    this.environment = environment
     this.child = null
     this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, message: 'Harness 未运行。' }
     this.logs = []
@@ -63,12 +95,18 @@ class RuntimeSupervisor extends EventEmitter {
     }
     this.logs = []
     this.setStatus({ state: 'starting', url: null, runtimePath, owned: true, message: '正在启动官方 Harness runtime…' })
-    const child = this.spawnProcess('pnpm', ['dsh', 'web'], {
+    // Start the official CLI entrypoint directly through Node. Desktop apps do
+    // not inherit development-shell PATH helpers, so relying on a global pnpm
+    // made a valid Harness checkout exit immediately on Windows.
+    const nodeExecutable = resolveNodeExecutable({
+      platform: this.platform,
+      environment: this.environment,
+      pathExists: this.pathExists
+    })
+    const child = this.spawnProcess(nodeExecutable, ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web'], {
       cwd: runtimePath,
-      env: process.env,
-      // Windows resolves pnpm through pnpm.cmd. Node cannot spawn that wrapper
-      // with shell:false (EINVAL), so this runs only the fixed literal command.
-      shell: process.platform === 'win32',
+      env: this.environment,
+      shell: false,
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe']
     })
@@ -111,4 +149,4 @@ function probeDefaultHarness() {
   })
 }
 
-module.exports = { RuntimeSupervisor, probeDefaultHarness }
+module.exports = { RuntimeSupervisor, probeDefaultHarness, resolveNodeExecutable }

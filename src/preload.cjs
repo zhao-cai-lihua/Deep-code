@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('desktopHost', {
   createSafeWorkspace: (name) => ipcRenderer.invoke('host:create-safe-workspace', name),
   selectWorkspace: () => ipcRenderer.invoke('host:select-workspace'),
   workspaceStatus: () => ipcRenderer.invoke('host:workspace-status'),
+  openWorkspace: () => ipcRenderer.invoke('host:open-workspace'),
   exportDiagnostics: () => ipcRenderer.invoke('host:export-diagnostics'),
   listModes: () => ipcRenderer.invoke('mode:list'),
   saveMode: (draft) => ipcRenderer.invoke('mode:save', draft),

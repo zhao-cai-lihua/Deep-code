@@ -61,7 +61,21 @@ class HostCare {
     const root = resolve(documentsPath, 'Deep code Workspaces')
     const target = resolve(root, cleanName)
     if (!target.startsWith(`${root}${sep}`)) throw new Error('工作区名称无效。')
-    if (this.pathExists(target)) throw new Error('同名安全工作区已存在；请换一个名称。')
+    if (this.pathExists(target)) {
+      const metadataPath = join(target, '.deep-code', 'project.json')
+      try {
+        const metadata = JSON.parse(this.readText(metadataPath, 'utf8'))
+        if (metadata.format !== 'deep-code.project/v1') throw new Error('unknown format')
+        return {
+          path: target,
+          files: ['README.md', 'AGENTS.md', '.gitignore', join('.deep-code', 'project.json')].filter((file) => this.pathExists(join(target, file))),
+          created: false,
+          message: '已找到 Deep code 此前创建的同名工作区，并重新设为当前项目。'
+        }
+      } catch {
+        throw new Error('同名文件夹已经存在，但不是 Deep code 创建的安全工作区；请换一个名称或手动选择它。')
+      }
+    }
     this.makeDirectory(target, { recursive: true })
     const metadataDirectory = join(target, '.deep-code')
     this.makeDirectory(metadataDirectory, { recursive: true })
@@ -72,7 +86,7 @@ class HostCare {
       [join('.deep-code', 'project.json')]: `${JSON.stringify({ format: 'deep-code.project/v1', name: cleanName, description: cleanDescription, createdAt: new Date().toISOString() }, null, 2)}\n`
     }
     for (const [relativePath, content] of Object.entries(files)) this.writeText(join(target, relativePath), content, 'utf8')
-    return { path: target, files: Object.keys(files), message: '已创建规范工作区与基础文档，并设为 Deep code 当前项目。' }
+    return { path: target, files: Object.keys(files), created: true, message: '已创建规范工作区与基础文档，并设为 Deep code 当前项目。' }
   }
 
   exportDiagnostics({ destinationPath, hostVersion, runtimeReport, runtimeStatus }) {
