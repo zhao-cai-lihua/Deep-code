@@ -20,6 +20,13 @@ test('workspace creation uses an in-app form and never depends on window.prompt'
   assert.doesNotMatch(shell, /window\.prompt/)
 })
 
+test('workspace protection shows the active path and distinguishes opening the form from creating files', () => {
+  assert.match(html, /id="settings-workspace-path"/)
+  assert.match(html, /id="open-workspace"/)
+  assert.match(html, /下一步才会真正创建/)
+  assert.match(preload, /openWorkspace/)
+})
+
 test('first-run actions expose visible and accessible progress state', () => {
   assert.match(html, /id="setup-progress"[^>]*aria-live="polite"/)
   assert.match(shell, /runVisibleAction/)

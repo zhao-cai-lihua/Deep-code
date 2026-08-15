@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, session } = require('electron')
+const { app, BrowserWindow, Menu, dialog, session, shell } = require('electron')
 const { existsSync, readFileSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 const { RuntimeSupervisor } = require('./runtime-supervisor.cjs')
@@ -208,6 +208,13 @@ ipcMain.handle('host:select-workspace', async () => {
   return { canceled: false, workspacePath: result.filePaths[0] }
 })
 ipcMain.handle('host:workspace-status', () => ({ workspacePath: settings.workspacePath || '' }))
+ipcMain.handle('host:open-workspace', async () => {
+  const workspacePath = settings.workspacePath || ''
+  if (!workspacePath || !existsSync(workspacePath)) throw new Error('当前工作区不存在，请先创建或选择一个项目文件夹。')
+  const error = await shell.openPath(workspacePath)
+  if (error) throw new Error(`无法打开当前工作区：${error}`)
+  return { workspacePath }
+})
 ipcMain.handle('host:export-diagnostics', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
     title: '导出脱敏诊断包',

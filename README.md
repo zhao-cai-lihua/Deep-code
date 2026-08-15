@@ -47,7 +47,7 @@ pnpm package:win
 
 ## Product boundary
 
-Deep code deliberately does **not** rewrite Harness tool permissions, approval rules, plugins, or agent configuration. A Companion Card is not a tool profile, a skill, a prompt-injection channel, or a relationship-memory system. See [the architecture](docs/ARCHITECTURE.md), [the primary-workbench decision](docs/adr/0001-deep-code-is-the-primary-workbench.md), and [Companion Card policy](docs/COMPANION_CARDS_POLICY.md).
+Deep code deliberately does **not** rewrite Harness tool permissions, approval rules, plugins, or agent configuration. A Companion Card is not a tool profile, a skill, a prompt-injection channel, or a relationship-memory system. See [the architecture](docs/ARCHITECTURE.md), [the primary-workbench decision](docs/adr/0001-deep-code-is-the-primary-workbench.md), [the beginner-protection roadmap](docs/BEGINNER_PROTECTION_ROADMAP.md), [the `colleague-skill` compatibility research](docs/research/colleague-skill-compatibility.md), and [Companion Card policy](docs/COMPANION_CARDS_POLICY.md).
 
 ## Project status
 

@@ -50,6 +50,8 @@ const cancelWorkspaceDialog = document.querySelector('#cancel-workspace-dialog')
 const selectWorkspaceButton = document.querySelector('#select-workspace')
 const selectWorkspaceSide = document.querySelector('#select-workspace-side')
 const workspaceSummary = document.querySelector('#workspace-summary')
+const settingsWorkspacePath = document.querySelector('#settings-workspace-path')
+const openWorkspaceButton = document.querySelector('#open-workspace')
 const explainProjectButton = document.querySelector('#explain-project')
 
 const activeUserPersona = document.querySelector('#active-user-persona')
@@ -220,12 +222,16 @@ async function createTask() {
 async function refreshWorkspace() {
   const result = await window.desktopHost.workspaceStatus()
   workspaceSummary.textContent = result.workspacePath || '尚未选择工作区。'
+  settingsWorkspacePath.textContent = result.workspacePath || '尚未选择工作区'
+  openWorkspaceButton.disabled = !result.workspacePath
 }
 
 async function selectWorkspace() {
   const result = await window.desktopHost.selectWorkspace()
   if (!result.canceled) {
     workspaceSummary.textContent = result.workspacePath
+    settingsWorkspacePath.textContent = result.workspacePath
+    openWorkspaceButton.disabled = false
     careResult.textContent = `当前项目已切换为：\n${result.workspacePath}\n\n新任务会在这里运行。`
   }
 }
@@ -397,6 +403,15 @@ inspectButton.addEventListener('click', async () => {
 })
 selectWorkspaceButton.addEventListener('click', selectWorkspace)
 selectWorkspaceSide.addEventListener('click', selectWorkspace)
+openWorkspaceButton.addEventListener('click', async () => {
+  await runVisibleAction({
+    button: openWorkspaceButton,
+    status: careResult,
+    working: '正在打开当前工作区…',
+    action: () => window.desktopHost.openWorkspace(),
+    success: (result) => `已在文件资源管理器中打开：\n${result.workspacePath}`
+  })
+})
 workspaceButton.addEventListener('click', () => {
   workspaceDialogName.value = '我的第一个项目'
   workspaceDialog.showModal()

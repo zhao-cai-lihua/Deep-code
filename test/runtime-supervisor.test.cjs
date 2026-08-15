@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
-const { RuntimeSupervisor } = require('../src/runtime-supervisor.cjs')
+const { RuntimeSupervisor, resolveNodeExecutable } = require('../src/runtime-supervisor.cjs')
 
 function fakeChild() {
   const child = new EventEmitter()
@@ -26,7 +26,8 @@ test('accepts a parent folder that contains deepseek-harness', async () => {
   const supervisor = new RuntimeSupervisor({
     spawnProcess: () => child,
     pathExists: (path) => path === 'C:\\Desktop' || path === 'C:\\Desktop\\deepseek-harness\\package.json',
-    probeReady: async () => false
+    probeReady: async () => false,
+    platform: 'linux'
   })
   const status = await supervisor.start('C:\\Desktop')
   assert.equal(status.runtimePath, 'C:\\Desktop\\deepseek-harness')
@@ -43,4 +44,34 @@ test('adopts a ready loopback Harness instead of starting a second process', asy
   assert.equal(status.state, 'ready')
   assert.equal(status.owned, false)
   assert.equal(spawned, false)
+})
+
+test('starts Harness through Node directly instead of relying on pnpm in the desktop PATH', async () => {
+  const child = fakeChild()
+  let invocation
+  const supervisor = new RuntimeSupervisor({
+    spawnProcess: (command, args, options) => {
+      invocation = { command, args, options }
+      return child
+    },
+    pathExists: (path) => path === 'C:\\runtime' || path === 'C:\\runtime\\package.json' || path === 'C:\\Program Files\\nodejs\\node.exe',
+    probeReady: async () => false,
+    platform: 'win32',
+    environment: { PATH: 'C:\\Windows\\System32;C:\\Program Files\\nodejs', ProgramFiles: 'C:\\Program Files' }
+  })
+
+  await supervisor.start('C:\\runtime')
+
+  assert.equal(invocation.command, 'C:\\Program Files\\nodejs\\node.exe')
+  assert.deepEqual(invocation.args, ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web'])
+  assert.equal(invocation.options.shell, false)
+})
+
+test('finds node.exe from the desktop process PATH without consulting pnpm', () => {
+  const executable = resolveNodeExecutable({
+    platform: 'win32',
+    environment: { PATH: 'C:\\Windows\\System32;C:\\Program Files\\nodejs' },
+    pathExists: (path) => path === 'C:\\Program Files\\nodejs\\node.exe'
+  })
+  assert.equal(executable, 'C:\\Program Files\\nodejs\\node.exe')
 })

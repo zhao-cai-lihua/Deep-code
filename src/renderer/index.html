@@ -124,8 +124,13 @@
             <section class="settings-card safety-card">
               <h2>新手保护层</h2>
               <p>让错误变得可解释，同时不把密钥、聊天内容或工作区文件写入诊断。</p>
-              <div class="button-row"><button id="inspect" type="button" class="quiet-button">检查 Runtime</button><button id="create-workspace" type="button" class="quiet-button">创建安全工作区</button><button id="export-diagnostics" type="button" class="quiet-button">导出脱敏诊断</button></div>
-              <div class="button-row"><button id="select-workspace" type="button" class="primary-button">选择已有项目文件夹</button></div>
+              <div class="workspace-status-panel">
+                <span class="stack-kind">当前工作区</span>
+                <strong id="settings-workspace-path">尚未选择工作区</strong>
+                <p>Engine 只会以这个文件夹作为当前任务的工作起点；真实访问范围仍由 Harness 权限决定。</p>
+              </div>
+              <div class="button-row"><button id="create-workspace" type="button" class="primary-button">新建安全工作区…</button><button id="select-workspace" type="button" class="quiet-button">选择已有文件夹…</button><button id="open-workspace" type="button" class="quiet-button">打开当前文件夹</button></div>
+              <div class="button-row"><button id="inspect" type="button" class="quiet-button">检查 Engine 环境</button><button id="export-diagnostics" type="button" class="quiet-button">导出脱敏诊断</button></div>
               <pre id="care-result">先检查 Runtime；Deep code 会告诉你缺少什么。</pre>
             </section>
           </div>
@@ -140,10 +145,10 @@
     </dialog>
     <dialog id="workspace-dialog">
       <form id="workspace-dialog-form" method="dialog">
-        <div class="dialog-heading"><div><p class="eyebrow">SAFE WORKSPACE</p><h2>创建一个新工作区</h2></div><button id="cancel-workspace-dialog" class="quiet-button" type="button">取消</button></div>
-        <p>Deep code 会在“文档\\Deep code Workspaces”下创建独立文件夹和新手说明，不会覆盖已有同名文件夹。</p>
+        <div class="dialog-heading"><div><p class="eyebrow">SAFE WORKSPACE</p><h2>设置新工作区</h2></div><button id="cancel-workspace-dialog" class="quiet-button" type="button">取消</button></div>
+        <p>下一步才会真正创建。Deep code 会在“文档\\Deep code Workspaces”下生成独立文件夹和四份起步文档；若它此前创建过同名工作区，则直接重新使用，不覆盖内容。</p>
         <label>工作区名称<input id="workspace-dialog-name" type="text" maxlength="60" value="我的第一个项目" /></label>
-        <div class="button-row"><button id="confirm-workspace-dialog" class="primary-button" type="submit">创建并使用</button></div>
+        <div class="button-row"><button id="confirm-workspace-dialog" class="primary-button" type="submit">现在创建并设为当前项目</button></div>
       </form>
     </dialog>
     <script src="./shell.js"></script>

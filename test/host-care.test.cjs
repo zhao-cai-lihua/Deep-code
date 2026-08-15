@@ -27,6 +27,21 @@ test('initializes a new workspace below the dedicated Documents root with safe s
   assert.match(written.find((file) => file.path.endsWith('AGENTS.md')).content, /只在当前工作区内/)
 })
 
+test('reuses an existing Deep code workspace instead of presenting it as a failed creation', () => {
+  const root = 'C:\\Users\\test\\Documents\\Deep code Workspaces\\first project'
+  const metadata = `${root}\\.deep-code\\project.json`
+  const care = new HostCare({
+    pathExists: (path) => path === root || path === metadata,
+    readText: (path) => path === metadata ? JSON.stringify({ format: 'deep-code.project/v1', name: 'first project' }) : ''
+  })
+
+  const workspace = care.createSafeWorkspace({ documentsPath: 'C:\\Users\\test\\Documents', name: 'first project' })
+
+  assert.equal(workspace.path, root)
+  assert.equal(workspace.created, false)
+  assert.match(workspace.message, /此前创建/)
+})
+
 test('removes secrets from diagnostics before writing', () => {
   let written = ''
   const care = new HostCare({ writeText: (_path, content) => { written = content } })
