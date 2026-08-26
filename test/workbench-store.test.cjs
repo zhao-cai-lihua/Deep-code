@@ -27,6 +27,24 @@ test('selects and deletes task metadata through one store seam', () => {
   assert.equal(afterDelete.threads.length, 1)
 })
 
+test('creates an image-only task without inventing user-authored text', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '', hasAttachments: true })
+  assert.equal(task.prompt, '')
+  assert.equal(task.title, '图片任务')
+})
+
+test('keeps an explicit new-task workspace empty even when old tasks exist', () => {
+  const store = makeStore()
+  store.create({ title: '旧任务一', prompt: 'A' })
+  store.create({ title: '旧任务二', prompt: 'B' })
+
+  const snapshot = store.select('')
+
+  assert.equal(snapshot.activeThreadId, '')
+  assert.equal(snapshot.threads.length, 2)
+})
+
 test('binds one Deep code task to one hidden Engine session', () => {
   const store = makeStore()
   const task = store.create({ prompt: '用人话解释这个项目。' })
@@ -34,4 +52,14 @@ test('binds one Deep code task to one hidden Engine session', () => {
   const bound = store.snapshot().threads[0]
   assert.equal(bound.sessionId, 'session-1')
   assert.equal(bound.engineState, 'running')
+})
+
+test('persists a human-readable model-switch notice independently from errors', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '分析截图' })
+  store.setEngineState(task.id, { state: 'running', notice: '已切换到官方图片模型。' })
+  store.setEngineState(task.id, { state: 'ready' })
+  const saved = store.snapshot().threads[0]
+  assert.equal(saved.engineNotice, '已切换到官方图片模型。')
+  assert.equal(saved.engineError, '')
 })

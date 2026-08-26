@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { HostCare, redact } = require('../src/host-care.cjs')
+const { HostCare, harnessCompatibility, redact } = require('../src/host-care.cjs')
 
 test('recognizes the official Harness package and reports missing setup separately', () => {
   const files = new Map([
@@ -40,6 +40,12 @@ test('reuses an existing Deep code workspace instead of presenting it as a faile
   assert.equal(workspace.path, root)
   assert.equal(workspace.created, false)
   assert.match(workspace.message, /此前创建/)
+})
+
+test('distinguishes a verified Harness baseline from an untested upstream version', () => {
+  assert.equal(harnessCompatibility('0.1.1-rc.2').state, 'pass')
+  assert.equal(harnessCompatibility('0.1.2').state, 'warn')
+  assert.match(harnessCompatibility('0.1.2').detail, /不会被静默覆盖/)
 })
 
 test('removes secrets from diagnostics before writing', () => {

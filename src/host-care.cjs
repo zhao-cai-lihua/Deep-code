@@ -7,6 +7,25 @@ const SECRET_PATTERNS = [
   /(Bearer\s+)([^\s,;]+)/gi
 ]
 
+const VERIFIED_HARNESS_RELEASE = Object.freeze({
+  version: '0.1.1-rc.2',
+  revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+  capabilities: ['durable-image-attachments', 'deepseek-vision-exp', 'websocket-event-mux']
+})
+
+function harnessCompatibility(version) {
+  if (version === VERIFIED_HARNESS_RELEASE.version) {
+    return { state: 'pass', label: `已验证兼容 ${version}`, detail: '图片路由与实时 WebSocket 契约均已通过 Deep code contract tests。' }
+  }
+  return {
+    state: 'warn',
+    label: version ? `尚未验证 Harness ${version}` : '无法确认 Harness 版本',
+    detail: version
+      ? `Deep code 当前验证基线为 ${VERIFIED_HARNESS_RELEASE.version}；此版本不会被静默覆盖，请先运行兼容性测试。`
+      : '请检查官方 runtime 的 package.json。'
+  }
+}
+
 /**
  * Owns beginner-facing runtime inspection, safe workspace creation, and
  * redacted diagnostics. It never reads credentials or Harness session data.
@@ -36,6 +55,7 @@ class HostCare {
       label: official ? `官方 Harness ${manifest.version || 'unknown'}` : `未知 runtime：${manifest.name || '未命名 package'}`,
       detail: official ? '已识别为官方 Harness checkout。' : '未能用 package name 确认官方 Harness；启动前请核对来源。'
     })
+    checks.push({ id: 'compatibility', ...harnessCompatibility(manifest.version) })
     checks.push({
       id: 'dependencies',
       state: this.pathExists(join(runtimePath, 'node_modules')) ? 'pass' : 'warn',
@@ -115,4 +135,4 @@ function redact(value) {
   return result
 }
 
-module.exports = { HostCare, redact }
+module.exports = { HostCare, VERIFIED_HARNESS_RELEASE, harnessCompatibility, redact }

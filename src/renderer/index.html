@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' deep-code-image:" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Deep code</title>
     <link rel="stylesheet" href="./shell.css" />
@@ -10,11 +10,13 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar" aria-label="Deep code 导航">
-        <div class="brand"><span class="brand-mark">D</span><span>Deep code</span><span class="preview">preview</span></div>
+        <div class="brand"><img class="brand-mark" src="./assets/deep-code-whale.png" alt="" /><span>Deep code</span><span class="preview">MVP</span></div>
         <button id="new-task" class="new-task" type="button"><span>＋</span> 新任务</button>
         <nav class="primary-nav" aria-label="主导航">
           <button class="nav-item is-active" type="button" data-page="workbench"><span>▣</span>任务</button>
           <button class="nav-item" type="button" data-page="cards"><span>◌</span>角色与协作卡</button>
+          <button class="nav-item" type="button" data-page="control-center"><span>▦</span>项目与 Skills</button>
+          <button class="nav-item" type="button" data-page="ecosystem"><span>◇</span>生态发现</button>
           <button class="nav-item" type="button" data-page="settings"><span>⚙</span>运行时与设置</button>
         </nav>
         <div class="sidebar-section">
@@ -22,6 +24,7 @@
           <div id="task-list" class="task-list" aria-live="polite"></div>
         </div>
         <div class="sidebar-footer">
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false"><span aria-hidden="true">☀</span><span>切换到明亮界面</span></button>
           <div class="runtime-chip"><span id="runtime-dot" class="status-dot stopped"></span><span id="runtime-short">Harness 未连接</span></div>
           <p>你的任务、卡和运行时状态默认只保存在本机。</p>
         </div>
@@ -29,11 +32,12 @@
 
       <main class="main-panel">
         <section id="page-setup" class="page" aria-labelledby="setup-heading">
-          <header class="topbar"><div><p class="eyebrow">FIRST RUN · DESKTOP APP</p><h1 id="setup-heading">欢迎来到 Deep code。</h1><p class="topbar-copy">三步准备本地 Runtime 和规范工作区。这里是 Windows 桌面程序，可以打开原生文件夹选择器；GitHub 网页本身不能替你访问本地目录。</p></div><button id="skip-setup" class="quiet-button" type="button">稍后设置</button></header>
+          <header class="topbar"><div><p class="eyebrow">FIRST RUN · DESKTOP APP</p><h1 id="setup-heading">欢迎来到 Deep code。</h1><p class="topbar-copy">四步准备本地 Runtime、规范工作区与模型连接。这里是 Windows 桌面程序，可以打开原生文件夹选择器；GitHub 网页本身不能替你访问本地目录。</p></div><button id="skip-setup" class="quiet-button" type="button">稍后设置</button></header>
           <div class="setup-steps">
             <section class="setup-step"><span class="step-number">1</span><div><h2>找到官方 Harness</h2><p>先自动检查桌面和 Deep code 的文档目录；也可以用 Windows 原生选择器手动指定。</p><div class="button-row"><button id="setup-detect-runtime" class="primary-button" type="button">自动检测</button><button id="setup-select-runtime" class="quiet-button" type="button">选择本地文件夹</button></div></div></section>
             <section class="setup-step"><span class="step-number">2</span><div><h2>没有 Harness？自动准备</h2><p>将从官方 GitHub 仓库克隆到 <code>Documents\Deep code Runtime</code>，安装依赖并构建。电脑需要已安装 Git、Node.js 和 pnpm；缺少时会明确告诉你是哪一项。</p><button id="setup-install-runtime" class="quiet-button" type="button">自动安装官方 Harness</button></div></section>
             <section class="setup-step"><span class="step-number">3</span><div><h2>创建第一个工作区</h2><p>自动生成 README、Agent 协作约定、Git 忽略规则与本地项目元数据；不会覆盖同名文件夹。</p><div class="path-row"><input id="setup-workspace-name" type="text" maxlength="60" value="我的第一个项目" /><button id="setup-create-workspace" class="quiet-button" type="button">创建工作区与文档</button></div></div></section>
+            <section class="setup-step"><span class="step-number">4</span><div><h2>确认模型连接</h2><p>点击后会明确启动 Engine，再只读检查模型目录和 API Key 是否已配置。Deep code 只能看到“已配置/未配置”，不会读取密钥内容。</p><button id="setup-check-model" class="quiet-button" type="button">启动 Engine 并检查</button></div></section>
           </div>
           <pre id="setup-progress" aria-live="polite">等待开始。每一步都会在这里明确显示进行中、成功或失败。</pre>
           <div class="setup-finish"><button id="finish-setup" class="primary-button" type="button">进入 Deep code 工作台</button></div>
@@ -48,7 +52,7 @@
           <div class="workbench-layout">
             <section class="conversation-column" aria-live="polite">
               <div id="empty-task" class="welcome-card">
-                <div class="welcome-symbol">✦</div>
+                <div class="welcome-symbol"><img src="./assets/deep-code-whale.png" alt="Deep code 像素鲸鱼" /></div>
                 <h2>从一个真实任务开始。</h2>
                 <p>在这里描述任务。Deep code 会负责组织项目、解释进展和呈现需要你决定的事项；底层执行由本机 Engine 完成。</p>
                 <div class="suggestions">
@@ -63,23 +67,56 @@
                 <h2 id="active-task-title"></h2>
                 <p id="active-task-prompt" class="task-prompt"></p>
                 <div id="task-engine-status" class="task-engine-status" aria-live="polite"></div>
+                <section id="task-outcome" class="task-outcome hidden" aria-live="polite">
+                  <div class="task-outcome-heading"><div><p class="eyebrow">TASK RESULT</p><h3 id="task-outcome-title"></h3></div><span id="task-outcome-badge"></span></div>
+                  <p id="task-outcome-summary"></p>
+                  <div id="task-outcome-sections" class="task-outcome-sections"></div>
+                  <button id="show-outcome-evidence" class="text-button" type="button">查看运行详情与证据</button>
+                </section>
+                <section id="decision-gates" class="decision-gates" aria-live="polite" aria-label="等待你的决定"></section>
+                <section id="activity-timeline" class="activity-timeline hidden" aria-label="Agent 活动">
+                  <div class="activity-heading"><strong>正在发生什么</strong><span id="live-connection-label"></span></div>
+                  <ol id="activity-list"></ol>
+                </section>
                 <div id="conversation-feed" class="conversation-feed"></div>
-                <details id="task-evidence" class="evidence-panel"><summary>查看技术证据</summary><pre id="task-evidence-content">还没有工具记录。</pre></details>
+                <button id="jump-latest" class="jump-latest hidden" type="button">回到最新 ↓</button>
+                <details id="run-details" class="run-details">
+                  <summary id="run-details-label">运行详情</summary>
+                  <div class="run-details-body">
+                    <section><h3>权限与环境</h3><ul id="permission-facts" class="fact-list"></ul></section>
+                    <section><h3>文件改动</h3><ul id="changed-files" class="fact-list"></ul></section>
+                    <section><h3>已执行的操作</h3><div id="tool-cards" class="tool-cards"></div></section>
+                    <details class="technical-details"><summary>完整运行上下文与技术证据</summary><pre id="task-evidence-content">还没有技术记录。</pre></details>
+                  </div>
+                </details>
                 <div class="task-actions"><button id="retry-task" type="button" class="primary-button hidden">准备好后重试</button><button id="preview-handoff" type="button" class="quiet-button">查看会话上下文</button><button id="cancel-task" type="button" class="quiet-button">停止当前操作</button><button id="delete-task" type="button" class="danger-button">删除任务</button></div>
               </article>
               <div class="composer-wrap">
+                <div id="image-draft-rail" class="image-draft-rail hidden" aria-label="待发送图片"></div>
+                <p id="image-draft-status" class="image-draft-status" aria-live="polite"></p>
                 <label class="sr-only" for="task-composer">描述任务</label>
                 <textarea id="task-composer" rows="3" maxlength="12000" placeholder="描述你想完成的事。可以直接说人话，不需要知道命令、端口或项目术语。"></textarea>
-                <div class="composer-footer"><span>Deep code 工作台</span><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div>
+                <div class="composer-footer"><span id="composer-hint">Deep code 工作台</span><div class="composer-actions"><button id="add-images" type="button" class="composer-tool" title="添加截图或图片">＋图片</button><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div></div>
               </div>
             </section>
 
             <aside class="context-panel" aria-label="当前协作上下文">
-              <div class="context-heading"><span>当前协作卡组</span><button class="text-button" type="button" data-page="cards">编辑</button></div>
+              <section id="current-run-context" class="run-context hidden" aria-label="当前运行概览">
+                <div class="context-heading"><span>当前运行</span><button id="open-run-details" class="text-button" type="button">证据</button></div>
+                <strong id="current-run-state">尚未开始</strong>
+                <p id="current-run-model" class="context-copy"></p>
+                <p id="current-run-evidence" class="context-copy"></p>
+                <p id="current-run-usage" class="context-copy"></p>
+              </section>
+              <div id="current-run-divider" class="context-divider hidden"></div>
+              <div class="context-heading"><span>卡组草稿（未应用）</span><button class="text-button" type="button" data-page="cards">编辑</button></div>
               <div id="active-card-stack" class="card-stack"></div>
               <div class="context-divider"></div>
               <div class="context-heading"><span>Deep code Engine</span><button class="text-button" type="button" data-page="settings">诊断</button></div>
               <p id="runtime-summary" class="context-copy">Engine 尚未准备好。</p>
+              <div class="context-divider"></div>
+              <div class="context-heading"><span>模型连接</span><button class="text-button" type="button" data-page="settings">查看</button></div>
+              <p id="model-summary" class="context-copy">等待检查模型状态。</p>
               <div class="context-divider"></div>
               <div class="context-heading"><span>当前项目</span><button id="select-workspace-side" class="text-button" type="button">选择</button></div>
               <p id="workspace-summary" class="context-copy">尚未选择工作区。</p>
@@ -88,7 +125,7 @@
         </section>
 
         <section id="page-cards" class="page" aria-labelledby="cards-heading">
-          <header class="topbar"><div><p class="eyebrow">COMPANION LAYER · LOCAL ONLY</p><h1 id="cards-heading">角色与协作卡</h1><p class="topbar-copy">亲切感来自可组合的协作方式，不来自暗中扩大的权限。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
+          <header class="topbar"><div><p class="eyebrow">COMPANION LAB · NOT APPLIED</p><h1 id="cards-heading">角色与协作卡实验室</h1><p class="topbar-copy">当前版本只保存和预览卡片，尚未把它们交给 Agent，因此不会改变回复风格或能力。应用机制完成前，选择一张卡不等于生效。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
           <div class="settings-grid cards-grid">
             <section class="settings-card card-stack-settings">
               <h2>当前卡组</h2>
@@ -111,15 +148,50 @@
           </div>
         </section>
 
+        <section id="page-control-center" class="page" aria-labelledby="control-center-heading">
+          <header class="topbar"><div><p class="eyebrow">PROJECT & SKILLS CONTROL CENTER</p><h1 id="control-center-heading" tabindex="-1">项目与 Skills</h1><p class="topbar-copy">像浏览器扩展管理页一样，看清当前项目和 Harness 真正提供的 Skills。这里目前只读，不会调用模型、安装扩展或改变权限。</p></div><button id="refresh-control-center" class="quiet-button" type="button">刷新真实清单</button></header>
+          <div class="settings-grid control-center-grid">
+            <section class="settings-card">
+              <div class="editor-heading"><div><h2>当前项目</h2><p>新任务会从这个文件夹开始工作；它不是 Harness 权限范围的替代品。</p></div><span class="local-badge">本机</span></div>
+              <div id="control-project" class="control-project" aria-live="polite">正在读取当前项目…</div>
+            </section>
+            <section class="settings-card">
+              <div class="editor-heading"><div><h2>可用 Skills</h2><p>清单来自当前 Engine Session 的官方 <code>skill.list</code>。显示“仅用户调用”表示 Agent 不会自行调用它。</p></div><span class="local-badge">Harness 真值</span></div>
+              <p id="control-skill-status" class="ecosystem-source" aria-live="polite">正在读取 Skills…</p>
+              <div id="control-skill-list" class="control-skill-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="page-ecosystem" class="page" aria-labelledby="ecosystem-heading">
+          <header class="topbar"><div><p class="eyebrow">OPT-IN · READ ONLY</p><h1 id="ecosystem-heading" tabindex="-1">生态发现</h1><p class="topbar-copy">发现带有 GitHub <code>dsh-plugin</code> topic 的公开项目。这里展示的是社区热度与来源证据，不是官方商店、安全审核或兼容性保证。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
+          <section class="ecosystem-controls settings-card">
+            <div><h2>允许查看社区生态</h2><p>默认关闭。开启或手动更新时才连接 GitHub；不会启动 Engine、调用模型、安装插件或修改 Harness profile。</p></div>
+            <label class="toggle-row"><input id="ecosystem-enabled" type="checkbox" /><span>开启只读生态发现</span></label>
+            <button id="refresh-ecosystem" class="quiet-button" type="button">更新公开项目</button>
+          </section>
+          <div id="ecosystem-source" class="ecosystem-source" aria-live="polite">生态发现尚未开启。</div>
+          <div id="ecosystem-list" class="ecosystem-list"></div>
+        </section>
+
         <section id="page-settings" class="page" aria-labelledby="settings-heading">
           <header class="topbar"><div><p class="eyebrow">ENGINE & RECOVERY</p><h1 id="settings-heading">设置与故障恢复</h1><p class="topbar-copy">平时不需要理解这里。Deep code 使用官方 Harness 作为隐藏执行引擎，并把它的真实状态翻译到工作台。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
           <div class="settings-grid runtime-grid">
             <section class="settings-card runtime-card">
               <h2>Deep code Engine</h2>
-              <p>由官方 DeepSeek Harness 提供执行能力。这个路径仅用于安装、升级和故障恢复。</p>
+              <p>由官方 DeepSeek Harness 提供执行能力。启动只会运行本机 Engine，不会调用模型，也不消耗模型 token；发送任务或创建真实验证任务才会调用模型。</p>
               <label>Engine 文件夹<div class="path-row"><input id="runtime-path" type="text" readonly placeholder="尚未找到本机 Engine" /><button id="select-runtime" type="button" class="quiet-button">手动定位</button></div></label>
               <div class="runtime-status"><span id="status-dot" class="status-dot stopped"></span><div><strong id="status-label">尚未启动</strong><p id="status-message">Harness 未运行。</p></div></div>
               <div class="button-row"><button id="start" type="button" class="primary-button">启动 Engine</button><button id="stop" type="button" class="danger-button">停止</button></div>
+            </section>
+            <section class="settings-card model-card">
+              <h2>模型连接</h2>
+              <p>把 Harness 的 provider、模型目录和凭据状态翻译成人话。这里只检查状态，不读取或显示 API Key。</p>
+              <div class="runtime-status"><span id="model-status-dot" class="status-dot stopped"></span><div><strong id="model-status-label">等待检查</strong><p id="model-status-message">启动 Engine 后即可检查。</p></div></div>
+              <div id="model-catalog-summary" class="model-catalog-summary">尚未载入模型目录。</div>
+              <p id="model-credential-note" class="credential-note">载入官方凭据能力中…</p>
+              <div class="button-row"><button id="configure-model-credential" type="button" class="primary-button">设置 API Key…</button><button id="clear-model-credential" type="button" class="danger-button">清除凭据</button><button id="check-model-connection" type="button" class="quiet-button">重新检查</button><button id="verify-model-connection" type="button" class="quiet-button">创建真实验证任务</button></div>
+              <pre id="model-credential-result" aria-live="polite">保存状态和真实模型调用是两回事。Deep code 会分别说明。</pre>
             </section>
             <section class="settings-card safety-card">
               <h2>新手保护层</h2>
@@ -151,6 +223,19 @@
         <div class="button-row"><button id="confirm-workspace-dialog" class="primary-button" type="submit">现在创建并设为当前项目</button></div>
       </form>
     </dialog>
+    <dialog id="credential-dialog">
+      <form id="credential-dialog-form" method="dialog">
+        <div class="dialog-heading"><div><p class="eyebrow">WRITE-ONLY CREDENTIAL</p><h2>设置 DeepSeek API Key</h2></div><button id="cancel-credential-dialog" class="quiet-button" type="button">取消</button></div>
+        <p>密钥会直接交给本机 Harness 的官方 Credentials 存储。Deep code 不保存副本、不会回显旧值，也不会把它写进日志或诊断包。</p>
+        <label>新的 API Key<input id="model-api-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="8192" placeholder="粘贴新的 DeepSeek API Key" /></label>
+        <p class="credential-warning">点击保存只证明 Harness 接受并保存了凭据，不代表网络和模型调用已经验证。保存后可单独创建真实验证任务。</p>
+        <div class="button-row"><button id="save-model-credential" class="primary-button" type="submit">安全保存到 Harness</button></div>
+      </form>
+    </dialog>
+    <script src="../../node_modules/markdown-it/dist/browser/markdown-it.umd.min.js"></script>
+    <script src="./markdown-runtime.js"></script>
+    <script src="./reading-runtime.js"></script>
+    <script src="./task-view-state.cjs"></script>
     <script src="./shell.js"></script>
   </body>
 </html>
