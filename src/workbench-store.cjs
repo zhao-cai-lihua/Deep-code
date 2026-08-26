@@ -30,7 +30,7 @@ function defaultState() {
 
 function validateThread(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('任务格式错误。')
-  const prompt = cleanText(raw.prompt, '任务内容', MAX_PROMPT)
+  const prompt = cleanText(raw.prompt, '任务内容', MAX_PROMPT, { required: false })
   return {
     id: cleanText(raw.id, '任务标识', 120),
     title: cleanText(raw.title, '任务标题', MAX_TITLE),
@@ -38,6 +38,7 @@ function validateThread(raw) {
     sessionId: typeof raw.sessionId === 'string' ? raw.sessionId : '',
     engineState: ['draft', 'running', 'ready', 'error'].includes(raw.engineState) ? raw.engineState : 'draft',
     engineError: typeof raw.engineError === 'string' ? raw.engineError.slice(0, 1200) : '',
+    engineNotice: typeof raw.engineNotice === 'string' ? raw.engineNotice.slice(0, 1200) : '',
     createdAt: cleanText(raw.createdAt, '创建时间', 80),
     updatedAt: cleanText(raw.updatedAt, '更新时间', 80)
   }
@@ -68,20 +69,25 @@ class WorkbenchStore {
   snapshot() {
     const state = this.load()
     const threads = [...state.threads].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    const activeThreadId = threads.some((thread) => thread.id === state.activeThreadId) ? state.activeThreadId : (threads[0]?.id || '')
+    const activeThreadId = state.activeThreadId === ''
+      ? ''
+      : threads.some((thread) => thread.id === state.activeThreadId)
+        ? state.activeThreadId
+        : (threads[0]?.id || '')
     return copy({ threads, activeThreadId })
   }
 
-  create({ title, prompt }) {
-    const body = cleanText(prompt, '任务内容', MAX_PROMPT)
+  create({ title, prompt, hasAttachments = false }) {
+    const body = cleanText(prompt, '任务内容', MAX_PROMPT, { required: !hasAttachments })
     const now = new Date().toISOString()
     const thread = {
       id: randomUUID(),
-      title: title && String(title).trim() ? cleanText(title, '任务标题', MAX_TITLE) : titleFromPrompt(body),
+      title: title && String(title).trim() ? cleanText(title, '任务标题', MAX_TITLE) : (body ? titleFromPrompt(body) : '图片任务'),
       prompt: body,
       sessionId: '',
       engineState: 'draft',
       engineError: '',
+      engineNotice: '',
       createdAt: now,
       updatedAt: now
     }
@@ -106,7 +112,7 @@ class WorkbenchStore {
     return this.snapshot()
   }
 
-  setEngineState(id, { sessionId, state, error = '' }) {
+  setEngineState(id, { sessionId, state, error = '', notice }) {
     const current = this.load()
     let found = false
     const now = new Date().toISOString()
@@ -118,6 +124,7 @@ class WorkbenchStore {
         sessionId: sessionId === undefined ? thread.sessionId : String(sessionId || ''),
         engineState: ['draft', 'running', 'ready', 'error'].includes(state) ? state : thread.engineState,
         engineError: String(error || '').slice(0, 1200),
+        engineNotice: notice === undefined ? thread.engineNotice : String(notice || '').slice(0, 1200),
         updatedAt: now
       }
     })

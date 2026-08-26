@@ -1,6 +1,7 @@
 # Dependencies and packaged application output
 node_modules/
 dist/
+dist-candidate*/
 out/
 release/
 

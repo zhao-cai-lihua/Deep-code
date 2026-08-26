@@ -29,6 +29,12 @@ function resolveNodeExecutable({
   return executable
 }
 
+function resolveHarnessEntrypoint(runtimePath, pathExists = existsSync) {
+  const builtEntrypoint = join(runtimePath, 'apps', 'cli', 'lib', 'bin.js')
+  if (pathExists(builtEntrypoint)) return ['apps/cli/lib/bin.js', 'web', '--no-open']
+  return ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', '--no-open']
+}
+
 /** Owns one official Harness child process and a bounded diagnostic log. */
 class RuntimeSupervisor extends EventEmitter {
   constructor({
@@ -49,6 +55,7 @@ class RuntimeSupervisor extends EventEmitter {
     this.child = null
     this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, message: 'Harness 未运行。' }
     this.logs = []
+    this.startingAt = 0
   }
 
   snapshot() {
@@ -61,7 +68,14 @@ class RuntimeSupervisor extends EventEmitter {
       this.logs.push({ stream, line, at: new Date().toISOString() })
       if (this.logs.length > this.maxLogLines) this.logs.shift()
       const match = line.match(LOCAL_URL)
-      if (match) this.setStatus({ state: 'ready', url: `http://127.0.0.1:${match[1]}`, message: 'Harness 已就绪。' })
+      if (match) {
+        const elapsedSeconds = this.startingAt ? Math.max(0.1, (Date.now() - this.startingAt) / 1000).toFixed(1) : null
+        this.setStatus({
+          state: 'ready',
+          url: `http://127.0.0.1:${match[1]}`,
+          message: elapsedSeconds ? `Harness 已就绪，用时 ${elapsedSeconds} 秒。` : 'Harness 已就绪。'
+        })
+      }
     }
     this.emit('log', this.snapshot())
   }
@@ -94,6 +108,7 @@ class RuntimeSupervisor extends EventEmitter {
       return this.snapshot()
     }
     this.logs = []
+    this.startingAt = Date.now()
     this.setStatus({ state: 'starting', url: null, runtimePath, owned: true, message: '正在启动官方 Harness runtime…' })
     // Start the official CLI entrypoint directly through Node. Desktop apps do
     // not inherit development-shell PATH helpers, so relying on a global pnpm
@@ -103,7 +118,7 @@ class RuntimeSupervisor extends EventEmitter {
       environment: this.environment,
       pathExists: this.pathExists
     })
-    const child = this.spawnProcess(nodeExecutable, ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web'], {
+    const child = this.spawnProcess(nodeExecutable, resolveHarnessEntrypoint(runtimePath, this.pathExists), {
       cwd: runtimePath,
       env: this.environment,
       shell: false,
@@ -122,6 +137,35 @@ class RuntimeSupervisor extends EventEmitter {
       this.setStatus({ state: 'stopped', url: null, owned: false, message })
     })
     return this.snapshot()
+  }
+
+  waitUntilReady({ timeoutMs = 20000 } = {}) {
+    const current = this.snapshot()
+    if (current.state === 'ready' && current.url) return Promise.resolve(current)
+    if (current.state === 'error' || current.state === 'stopped') {
+      return Promise.reject(new Error(current.message || 'Harness 没有启动。'))
+    }
+    return new Promise((resolve, reject) => {
+      let settled = false
+      const finish = (callback, value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        this.off('status', onStatus)
+        callback(value)
+      }
+      const onStatus = (status) => {
+        if (status.state === 'ready' && status.url) finish(resolve, status)
+        else if (status.state === 'error' || status.state === 'stopped') {
+          finish(reject, new Error(status.message || 'Harness 没有启动。'))
+        }
+      }
+      const timer = setTimeout(() => {
+        finish(reject, new Error(`Harness 启动超过 ${Math.ceil(timeoutMs / 1000)} 秒，仍未提供本机地址。`))
+      }, timeoutMs)
+      this.on('status', onStatus)
+      onStatus(this.snapshot())
+    })
   }
 
   stop() {
@@ -149,4 +193,4 @@ function probeDefaultHarness() {
   })
 }
 
-module.exports = { RuntimeSupervisor, probeDefaultHarness, resolveNodeExecutable }
+module.exports = { RuntimeSupervisor, probeDefaultHarness, resolveHarnessEntrypoint, resolveNodeExecutable }
