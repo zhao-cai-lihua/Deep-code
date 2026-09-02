@@ -37,7 +37,55 @@ function unique(values) {
   return [...new Set(values)]
 }
 
-function assessWorkReceipt({ changes = [], verifications = [], recovery = null } = {}) {
+function pathMatches(left, right) {
+  const a = normalizedPath(left).toLowerCase()
+  const b = normalizedPath(right).toLowerCase()
+  return a === b || a.endsWith(`/${b}`) || b.endsWith(`/${a}`)
+}
+
+function assessRecovery({ baseline, changes, recovery }) {
+  if (recovery) {
+    return { state: 'available', label: '已有恢复指引', detail: String(recovery.nextAction || '按当前任务的恢复说明继续。') }
+  }
+  if (!changes.length) {
+    return { state: 'not-needed', label: '没有确认到文件改动', detail: '本轮回执没有需要撤回的已确认工作区文件改动。' }
+  }
+  if (!baseline || baseline.state === 'unavailable') {
+    return {
+      state: 'unknown', label: '无法判断改动归属',
+      detail: '没有可靠的任务开始前 Git 基线，也没有 Git checkpoint 证据。请不要把文件列表理解为可安全撤回的 checkpoint。'
+    }
+  }
+  if (baseline.state === 'not-git') {
+    return {
+      state: 'unavailable', label: '这个项目没有 Git 恢复基础',
+      detail: '任务开始时这个工作区不是 Git 仓库；Deep Code 能展示 Harness 确认的文件，但不能提供 Git 撤回保证。'
+    }
+  }
+  if (baseline.state === 'clean') {
+    return {
+      state: 'attributable', label: '本轮文件改动可归因性较高',
+      detail: '任务开始前 Git 工作区干净，因此本轮确认文件更容易与已有工作区分；但尚未创建 checkpoint，当前仍不承诺一键撤回。'
+    }
+  }
+  const dirtyPaths = Array.isArray(baseline.dirtyPaths) ? baseline.dirtyPaths : []
+  const overlap = unique(changes
+    .filter((change) => dirtyPaths.some((path) => pathMatches(change.path, path)))
+    .map((change) => change.path))
+  if (overlap.length) {
+    return {
+      state: 'overlap', label: '本轮改动与原有改动发生重叠',
+      detail: `任务前已有修改，本轮又触及其中 ${overlap.length} 个路径。Deep Code 不会自动撤回这些文件，以免覆盖你的原有工作。`,
+      paths: overlap
+    }
+  }
+  return {
+    state: 'separated', label: '本轮文件与原有改动未发现重叠',
+    detail: '任务开始前已有其他未提交改动，但 Harness 确认的本轮文件没有与它们重叠；仍未创建 checkpoint，不承诺完整撤回。'
+  }
+}
+
+function assessWorkReceipt({ changes = [], verifications = [], recovery = null, baseline = null } = {}) {
   const normalizedChanges = changes
     .map((change) => ({ ...change, path: normalizedPath(change?.path), operation: String(change?.operation || '') }))
     .filter((change) => change.path)
@@ -75,23 +123,7 @@ function assessWorkReceipt({ changes = [], verifications = [], recovery = null }
     warnings.push('依赖文件发生变化；Deep code 尚未确认包来源、许可证、漏洞或安装脚本。')
   }
 
-  const recoveryAssessment = recovery
-    ? {
-        state: 'available',
-        label: '已有恢复指引',
-        detail: String(recovery.nextAction || '按当前任务的恢复说明继续。')
-      }
-    : normalizedChanges.length
-      ? {
-          state: 'unknown',
-          label: '尚未确认一键撤回点',
-          detail: 'Harness 确认了文件改动，但当前回执没有 Git checkpoint 证据。请不要把“有文件列表”理解为“所有操作都可撤回”。'
-        }
-      : {
-          state: 'not-needed',
-          label: '没有确认到文件改动',
-          detail: '本轮回执没有需要撤回的已确认工作区文件改动。'
-        }
+  const recoveryAssessment = assessRecovery({ baseline, changes: normalizedChanges, recovery })
 
   return { risks, warnings, recoveryAssessment }
 }

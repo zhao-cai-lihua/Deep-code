@@ -19,6 +19,7 @@ const { ImageDraftStore } = require('./image-draft-store.cjs')
 const { EcosystemCatalog } = require('./ecosystem-catalog.cjs')
 const { PluginInstaller } = require('./plugin-installer.cjs')
 const { chooseModelRoute } = require('./model-router.cjs')
+const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -28,6 +29,7 @@ protocol.registerSchemesAsPrivileged([{
 const supervisor = new RuntimeSupervisor()
 const hostCare = new HostCare()
 const dshAdapter = new DshAdapter()
+const workspaceBaseline = new WorkspaceBaseline()
 const MODEL_CONNECTION_TEST_PROMPT = '这是 Deep code 发起的模型连接验证。请不要调用工具、读取文件或修改任何内容，只回复一句：模型连接验证成功。'
 let mainWindow
 let settings
@@ -116,11 +118,14 @@ async function ensureEngineReady() {
 async function launchTask(thread, { images = [], routing = null } = {}) {
   try {
     workbench.clearRecovery(thread.id)
-    if (!settings.workspacePath) throw new Error('请先创建一个安全工作区，或在设置中选择项目文件夹。')
+    const workspacePath = thread.workspacePath || settings.workspacePath
+    if (!workspacePath) throw new Error('请先创建一个安全工作区，或在设置中选择项目文件夹。')
+    const baseline = await workspaceBaseline.capture(workspacePath)
+    workbench.setWorkspaceBaseline(thread.id, { workspacePath, baseline })
     const runtime = await ensureEngineReady()
     const sessionId = (await dshAdapter.createSession({
       baseUrl: runtime.url,
-      cwd: settings.workspacePath,
+      cwd: workspacePath,
       ...(thread.sessionId ? { sessionId: thread.sessionId } : {})
     })).sessionId
     workbench.setEngineState(thread.id, { sessionId, state: 'running', notice: images.length ? undefined : '' })
@@ -559,7 +564,7 @@ ipcMain.handle('control-center:snapshot', async () => {
   }
   if (!thread?.sessionId) return result
   try {
-    await dshAdapter.createSession({ baseUrl: runtime.url, cwd: settings.workspacePath, sessionId: thread.sessionId })
+    await dshAdapter.createSession({ baseUrl: runtime.url, cwd: thread.workspacePath || settings.workspacePath, sessionId: thread.sessionId })
     const catalog = await dshAdapter.listSkills({ baseUrl: runtime.url, sessionId: thread.sessionId })
     result.skills = Array.isArray(catalog?.skills) ? catalog.skills.map((skill) => ({
       name: String(skill?.name || ''),
@@ -605,7 +610,7 @@ ipcMain.handle('workbench:retry-task', async (_event, id) => {
   workbench.clearRecovery(thread.id)
   const runtime = await ensureEngineReady()
   if (thread.sessionId) {
-    await dshAdapter.createSession({ baseUrl: runtime.url, cwd: settings.workspacePath, sessionId: thread.sessionId })
+    await dshAdapter.createSession({ baseUrl: runtime.url, cwd: thread.workspacePath || settings.workspacePath, sessionId: thread.sessionId })
     const agent = await dshAdapter.snapshot({ baseUrl: runtime.url, sessionId: thread.sessionId })
     if (retryDisposition(agent) === 'reconnect') {
       ensureLiveSession(runtime.url, thread.sessionId)
@@ -624,7 +629,11 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
   if (!thread?.sessionId) throw new Error('这个任务还没有连接到 Engine 会话。')
   workbench.clearRecovery(thread.id)
   const runtime = await ensureEngineReady()
-  await dshAdapter.createSession({ baseUrl: runtime.url, cwd: settings.workspacePath, sessionId: thread.sessionId })
+  const workspacePath = thread.workspacePath || settings.workspacePath
+  if (!workspacePath) throw new Error('这个任务没有可用的工作区。请先在设置中选择项目文件夹。')
+  const baseline = await workspaceBaseline.capture(workspacePath)
+  workbench.setWorkspaceBaseline(thread.id, { workspacePath, baseline })
+  await dshAdapter.createSession({ baseUrl: runtime.url, cwd: workspacePath, sessionId: thread.sessionId })
   ensureLiveSession(runtime.url, thread.sessionId)
   const ids = Array.isArray(attachmentIds) ? attachmentIds.map(String) : []
   const images = imageDrafts.resolve(thread.id, ids)

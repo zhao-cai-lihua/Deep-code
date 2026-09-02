@@ -254,7 +254,7 @@ test('an admitted first prompt is not repeated above the conversation and reconn
   assert.match(shell, /retryTaskButton\.classList\.remove\('hidden'\)/)
   assert.match(shell, /canRetry[\s\S]*重新连接任务[\s\S]*重新发送任务/)
   assert.match(main, /retryDisposition\(agent\) === 'reconnect'/)
-  assert.match(main, /createSession\(\{ baseUrl: runtime\.url, cwd: settings\.workspacePath, sessionId: thread\.sessionId \}\)/)
+  assert.match(main, /createSession\(\{ baseUrl: runtime\.url, cwd: thread\.workspacePath \|\| settings\.workspacePath, sessionId: thread\.sessionId \}\)/)
 })
 
 test('the unapplied companion-card experiment is absent from the product and runtime bridge', () => {

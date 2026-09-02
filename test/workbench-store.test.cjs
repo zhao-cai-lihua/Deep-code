@@ -77,3 +77,26 @@ test('persists a structured recovery reason and clears it only when work resumes
   store.clearRecovery(task.id)
   assert.equal(store.snapshot().threads[0].recovery, null)
 })
+
+test('binds a task to its workspace and persists a bounded Git baseline', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '修改项目' })
+  store.setWorkspaceBaseline(task.id, {
+    workspacePath: 'C:\\projects\\one',
+    baseline: {
+      version: 1,
+      state: 'dirty',
+      workspacePath: 'C:\\projects\\one',
+      repoRoot: 'C:\\projects\\one',
+      head: 'abc123',
+      dirtyPaths: ['src/existing.cjs'],
+      capturedAt: '2026-09-02T00:00:00.000Z',
+      message: '任务开始前已有 1 个未提交路径。'
+    }
+  })
+
+  const saved = store.snapshot().threads[0]
+  assert.equal(saved.workspacePath, 'C:\\projects\\one')
+  assert.equal(saved.baseline.state, 'dirty')
+  assert.deepEqual(saved.baseline.dirtyPaths, ['src/existing.cjs'])
+})

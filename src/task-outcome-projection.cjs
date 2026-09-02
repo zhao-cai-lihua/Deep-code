@@ -34,7 +34,7 @@ function projectTaskOutcome(thread = {}) {
   const warnings = []
   const terminalState = details.terminal?.state
   const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
-  const assessment = assessWorkReceipt({ changes, verifications, recovery })
+  const assessment = assessWorkReceipt({ changes, verifications, recovery, baseline: thread.baseline || null })
 
   if (changes.length && !verifications.length) {
     warnings.push('Harness 记录了文件改动，但没有看到明确的测试、检查或构建命令。完成状态不等于已经验证。')

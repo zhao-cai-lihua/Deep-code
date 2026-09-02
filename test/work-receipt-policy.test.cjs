@@ -40,3 +40,28 @@ test('raises review scope when a turn changes many files', () => {
   })
   assert.ok(assessment.risks.some((risk) => risk.id === 'large-change'))
 })
+
+test('uses a clean task-start baseline as attribution evidence without promising rollback', () => {
+  const assessment = assessWorkReceipt({
+    changes: [{ path: 'src/app.cjs', operation: '修改' }],
+    baseline: { state: 'clean', dirtyPaths: [] }
+  })
+  assert.equal(assessment.recoveryAssessment.state, 'attributable')
+  assert.match(assessment.recoveryAssessment.detail, /不承诺一键撤回/)
+})
+
+test('refuses automatic rollback when Harness changes overlap pre-existing work', () => {
+  const assessment = assessWorkReceipt({
+    changes: [{ path: 'C:\\repo\\src\\app.cjs', operation: '修改' }],
+    baseline: { state: 'dirty', dirtyPaths: ['src/app.cjs', 'notes/user.md'] }
+  })
+  assert.equal(assessment.recoveryAssessment.state, 'overlap')
+  assert.deepEqual(assessment.recoveryAssessment.paths, ['C:/repo/src/app.cjs'])
+  assert.match(assessment.recoveryAssessment.detail, /不会自动撤回/)
+})
+
+test('distinguishes non-overlapping pre-existing work and non-Git workspaces', () => {
+  const changes = [{ path: 'src/new.cjs', operation: '修改' }]
+  assert.equal(assessWorkReceipt({ changes, baseline: { state: 'dirty', dirtyPaths: ['notes/user.md'] } }).recoveryAssessment.state, 'separated')
+  assert.equal(assessWorkReceipt({ changes, baseline: { state: 'not-git', dirtyPaths: [] } }).recoveryAssessment.state, 'unavailable')
+})
