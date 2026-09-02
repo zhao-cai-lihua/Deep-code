@@ -174,6 +174,12 @@ test('completed work has a Harness-backed visual receipt without introducing a s
   assert.match(main, /projectTaskOutcome\(thread\)/)
 })
 
+test('work receipts translate high-impact changes and rollback uncertainty for beginners', () => {
+  assert.match(shell, /需要你留意的高影响改动/)
+  assert.match(shell, /能否撤回/)
+  assert.match(shell, /recoveryAssessment/)
+})
+
 test('the sidebar run panel shows verified run state, effective model, evidence, and explicit unavailable usage', () => {
   assert.match(html, /id="current-run-context"/)
   assert.match(html, /id="current-run-model"/)

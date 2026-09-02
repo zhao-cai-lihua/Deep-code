@@ -27,6 +27,8 @@ test('summarizes confirmed changes and explicit verification without guessing fr
   assert.deepEqual(outcome.changes.map((item) => item.path), ['src/app.js', 'test/app.test.js'])
   assert.deepEqual(outcome.verifications, [{ label: 'npm test', state: 'passed', detail: '退出代码 0' }])
   assert.deepEqual(outcome.warnings, [])
+  assert.deepEqual(outcome.risks, [])
+  assert.equal(outcome.recoveryAssessment.state, 'unknown')
   assert.equal(outcome.map.source, 'harness-work-receipt')
   assert.deepEqual(outcome.map.nodes.map((node) => node.id), ['result', 'changes', 'verification', 'next'])
   assert.match(outcome.map.nodes.find((node) => node.id === 'changes').title, /2 个确认改动/)
@@ -101,4 +103,22 @@ test('turns a user-wait timeout into an honest recovery path', () => {
   assert.equal(outcome.recovery.kind, 'waiting-timeout')
   assert.match(outcome.impact, /没有替你选择/)
   assert.equal(outcome.nextAction, '重新连接任务后再回答。')
+  assert.equal(outcome.recoveryAssessment.state, 'available')
+})
+
+test('makes high-impact files visible even when ordinary tests pass', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'ready',
+    agent: {
+      runDetails: {
+        changedFiles: [
+          { path: 'package.json', operation: '修改' },
+          { path: '.github/workflows/release.yml', operation: '修改' }
+        ],
+        toolCards: [{ type: 'terminal', state: 'done', command: 'npm test', exitCode: 0 }]
+      }
+    }
+  })
+  assert.deepEqual(outcome.risks.map((risk) => risk.id), ['dependencies', 'automation'])
+  assert.match(outcome.warnings.join(' '), /许可证/)
 })

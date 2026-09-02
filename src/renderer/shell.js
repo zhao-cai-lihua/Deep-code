@@ -885,7 +885,9 @@ function renderTaskOutcome(thread) {
   appendOutcomeSection('确认的文件改动', outcome.changes.map((item) => `${item.operation} · ${item.path}`))
   const verificationLabel = (state) => state === 'passed' ? '通过' : state === 'failed' ? '未通过' : '未确认'
   appendOutcomeSection('明确的验证', outcome.verifications.map((item) => `${verificationLabel(item.state)} · ${item.label}（${item.detail}）`), 'outcome-verifications')
+  appendOutcomeSection('需要你留意的高影响改动', (outcome.risks || []).map((item) => `${item.label}：${item.detail}`), 'outcome-risks')
   appendOutcomeSection('仍需留意', outcome.warnings, 'outcome-warnings')
+  appendOutcomeSection('能否撤回', outcome.recoveryAssessment ? [`${outcome.recoveryAssessment.label}：${outcome.recoveryAssessment.detail}`] : [])
   appendOutcomeSection('这会影响什么', outcome.impact ? [outcome.impact] : [])
   appendOutcomeSection('接下来只需做什么', outcome.nextAction ? [outcome.nextAction] : [])
 }
