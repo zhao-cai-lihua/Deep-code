@@ -4,14 +4,14 @@
   if (root) root.DeepCodeTaskViewState = api
 })(typeof window === 'undefined' ? globalThis : window, function taskViewStateFactory() {
   const EMPTY = Object.freeze({
-    runDetailsOpen: false,
+    activeView: 'conversation',
     technicalDetailsOpen: false,
     openToolCards: Object.freeze([])
   })
 
   function normalize(snapshot = EMPTY) {
     return {
-      runDetailsOpen: snapshot.runDetailsOpen === true,
+      activeView: ['trace', 'receipt'].includes(snapshot.activeView) ? snapshot.activeView : 'conversation',
       technicalDetailsOpen: snapshot.technicalDetailsOpen === true,
       openToolCards: [...new Set((snapshot.openToolCards || []).map(String))]
     }

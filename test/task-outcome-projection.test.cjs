@@ -27,6 +27,9 @@ test('summarizes confirmed changes and explicit verification without guessing fr
   assert.deepEqual(outcome.changes.map((item) => item.path), ['src/app.js', 'test/app.test.js'])
   assert.deepEqual(outcome.verifications, [{ label: 'npm test', state: 'passed', detail: '退出代码 0' }])
   assert.deepEqual(outcome.warnings, [])
+  assert.equal(outcome.map.source, 'harness-work-receipt')
+  assert.deepEqual(outcome.map.nodes.map((node) => node.id), ['result', 'changes', 'verification', 'next'])
+  assert.match(outcome.map.nodes.find((node) => node.id === 'changes').title, /2 个确认改动/)
 })
 
 test('makes missing verification visible when files changed', () => {
@@ -37,6 +40,7 @@ test('makes missing verification visible when files changed', () => {
 
   assert.deepEqual(outcome.verifications, [])
   assert.match(outcome.warnings[0], /没有看到明确的测试、检查或构建命令/)
+  assert.equal(outcome.map.nodes.find((node) => node.id === 'attention').state, 'warning')
 })
 
 test('reports failed verification and task failure as recorded facts', () => {
@@ -80,4 +84,21 @@ test('a verification without an explicit successful exit code stays unknown', ()
   })
   assert.equal(outcome.verifications[0].state, 'unknown')
   assert.match(outcome.warnings.join(' '), /没有提供足以确认通过的终态/)
+})
+
+test('turns a user-wait timeout into an honest recovery path', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'error',
+    engineError: '这一轮因等待你的回答超过 5 分钟而停止。',
+    recovery: {
+      kind: 'waiting-timeout',
+      cause: 'Harness 正在等待你的回答；5 分钟内没有收到回答。',
+      safety: '没有替你选择任何答案。',
+      nextAction: '重新连接任务后再回答。'
+    },
+    agent: { runDetails: { toolCards: [], changedFiles: [] } }
+  })
+  assert.equal(outcome.recovery.kind, 'waiting-timeout')
+  assert.match(outcome.impact, /没有替你选择/)
+  assert.equal(outcome.nextAction, '重新连接任务后再回答。')
 })

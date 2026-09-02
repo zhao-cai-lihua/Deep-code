@@ -28,6 +28,22 @@ function defaultState() {
   return { version: 2, threads: [], activeThreadId: '' }
 }
 
+function validateRecovery(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const kind = typeof raw.kind === 'string' ? raw.kind.slice(0, 80) : ''
+  const cause = typeof raw.cause === 'string' ? raw.cause.slice(0, 1200) : ''
+  const safety = typeof raw.safety === 'string' ? raw.safety.slice(0, 1200) : ''
+  const nextAction = typeof raw.nextAction === 'string' ? raw.nextAction.slice(0, 1200) : ''
+  if (!kind || !cause || !nextAction) return null
+  return {
+    kind,
+    cause,
+    safety,
+    nextAction,
+    occurredAt: typeof raw.occurredAt === 'string' ? raw.occurredAt.slice(0, 80) : ''
+  }
+}
+
 function validateThread(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('任务格式错误。')
   const prompt = cleanText(raw.prompt, '任务内容', MAX_PROMPT, { required: false })
@@ -39,6 +55,7 @@ function validateThread(raw) {
     engineState: ['draft', 'running', 'ready', 'error'].includes(raw.engineState) ? raw.engineState : 'draft',
     engineError: typeof raw.engineError === 'string' ? raw.engineError.slice(0, 1200) : '',
     engineNotice: typeof raw.engineNotice === 'string' ? raw.engineNotice.slice(0, 1200) : '',
+    recovery: validateRecovery(raw.recovery),
     createdAt: cleanText(raw.createdAt, '创建时间', 80),
     updatedAt: cleanText(raw.updatedAt, '更新时间', 80)
   }
@@ -88,6 +105,7 @@ class WorkbenchStore {
       engineState: 'draft',
       engineError: '',
       engineNotice: '',
+      recovery: null,
       createdAt: now,
       updatedAt: now
     }
@@ -127,6 +145,34 @@ class WorkbenchStore {
         engineNotice: notice === undefined ? thread.engineNotice : String(notice || '').slice(0, 1200),
         updatedAt: now
       }
+    })
+    if (!found) throw new Error('找不到要更新的任务。')
+    this.persist({ version: 2, threads, activeThreadId: current.activeThreadId })
+    return this.snapshot()
+  }
+
+  setRecovery(id, recovery) {
+    const current = this.load()
+    let found = false
+    const normalized = validateRecovery({ ...recovery, occurredAt: recovery?.occurredAt || new Date().toISOString() })
+    if (!normalized) throw new Error('恢复说明格式不完整。')
+    const threads = current.threads.map((thread) => {
+      if (thread.id !== id) return thread
+      found = true
+      return { ...thread, recovery: normalized, updatedAt: normalized.occurredAt }
+    })
+    if (!found) throw new Error('找不到要更新的任务。')
+    this.persist({ version: 2, threads, activeThreadId: current.activeThreadId })
+    return this.snapshot()
+  }
+
+  clearRecovery(id) {
+    const current = this.load()
+    let found = false
+    const threads = current.threads.map((thread) => {
+      if (thread.id !== id) return thread
+      found = true
+      return { ...thread, recovery: null }
     })
     if (!found) throw new Error('找不到要更新的任务。')
     this.persist({ version: 2, threads, activeThreadId: current.activeThreadId })

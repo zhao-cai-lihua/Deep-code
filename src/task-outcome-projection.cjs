@@ -1,4 +1,5 @@
 const VERIFICATION_COMMAND = /(?:^|\s|[\\/])(test|tests|testing|check|checks|lint|typecheck|type-check|build|verify|verification|pytest|vitest|jest|mocha|eslint|tsc|cargo test|go test|dotnet test)(?:\s|$|[:./-])/i
+const { projectOutcomeMap } = require('./outcome-map-projection.cjs')
 
 function text(value, fallback = '') {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback
@@ -31,6 +32,7 @@ function projectTaskOutcome(thread = {}) {
   const failedTools = tools.filter((card) => card?.state === 'error').length
   const warnings = []
   const terminalState = details.terminal?.state
+  const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
 
   if (changes.length && !verifications.length) {
     warnings.push('Harness 记录了文件改动，但没有看到明确的测试、检查或构建命令。完成状态不等于已经验证。')
@@ -40,7 +42,7 @@ function projectTaskOutcome(thread = {}) {
 
   if (thread.engineState === 'error' || terminalState === 'failed' || terminalState === 'interrupted') {
     const interrupted = terminalState === 'interrupted'
-    return {
+    const outcome = {
       visible: true,
       state: 'error',
       title: interrupted ? '这一轮已停止' : '这轮没有完成',
@@ -49,8 +51,14 @@ function projectTaskOutcome(thread = {}) {
         : `Harness 报告这一轮失败（${text(details.terminal?.reason, '原因未知')}）。`),
       changes,
       verifications,
-      warnings
+      warnings,
+      impact: recovery?.safety || (changes.length
+        ? '本轮已经停止，但上面列出的已确认文件改动仍保留在工作区。'
+        : '本轮已经停止；Harness 没有确认到文件改动。'),
+      nextAction: recovery?.nextAction || '先查看轨迹中的失败证据，再决定重试还是修改任务说明。',
+      recovery
     }
+    return { ...outcome, map: projectOutcomeMap(outcome) }
   }
 
   const operationCount = tools.length
@@ -60,7 +68,19 @@ function projectTaskOutcome(thread = {}) {
       ? `Harness 已完成任务，记录 ${operationCount} 项工具操作，没有确认到文件改动。`
       : 'Harness 已完成任务，没有确认到文件改动或工具操作。'
 
-  return { visible: true, state: 'success', title: '任务已完成', summary, changes, verifications, warnings }
+  const outcome = {
+    visible: true,
+    state: 'success',
+    title: '任务已完成',
+    summary,
+    changes,
+    verifications,
+    warnings,
+    impact: changes.length ? `已确认的改动保存在当前工作区，共 ${changes.length} 个文件。` : '没有确认到工作区文件改动。',
+    nextAction: warnings.length ? '先处理“仍需留意”中的未确认事项。' : '这一轮没有需要你立即处理的事项。',
+    recovery: null
+  }
+  return { ...outcome, map: projectOutcomeMap(outcome) }
 }
 
 module.exports = { projectTaskOutcome, verificationFrom }

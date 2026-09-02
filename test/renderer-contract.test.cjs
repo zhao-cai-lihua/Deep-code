@@ -52,12 +52,23 @@ test('credential configuration is write-only and real verification stays a visib
   assert.match(html, /id="configure-model-credential"/)
   assert.match(html, /id="clear-model-credential"/)
   assert.match(html, /id="verify-model-connection"/)
-  assert.match(preload, /saveDeepSeekCredential/)
-  assert.match(preload, /clearDeepSeekCredential/)
+  assert.match(html, /id="credential-provider-choice"/)
+  assert.match(preload, /saveModelCredential/)
+  assert.match(preload, /clearModelCredential/)
   assert.match(preload, /createConnectionTest/)
   assert.doesNotMatch(shell, /localStorage\.(?:setItem|getItem)\([^)]*(?:model|credential|api.?key)/i)
   assert.doesNotMatch(shell, /sessionStorage/)
   assert.doesNotMatch(shell, /credentials\.set|credentials\.unset|DEEPSEEK_API_KEY/)
+})
+
+test('model services can be created from the Harness provider directory without exposing wire details to the Renderer', () => {
+  assert.match(html, /id="add-model-provider"/)
+  assert.match(html, /id="provider-dialog"/)
+  assert.match(html, /id="provider-api-key"[^>]*type="password"/)
+  assert.match(preload, /addModelProvider/)
+  assert.match(main, /dshAdapter\.provisionCatalogProvider/)
+  assert.match(shell, /desktopHost\.addModelProvider/)
+  assert.doesNotMatch(shell, /settings\.mutate|credentials\.set|OPENAI_API_KEY|ANTHROPIC_API_KEY/)
 })
 
 test('Decision Gates use human actions while the Renderer stays outside the Harness wire protocol', () => {
@@ -68,6 +79,36 @@ test('Decision Gates use human actions while the Renderer stays outside the Harn
   assert.match(shell, /提交回答/)
   assert.doesNotMatch(shell, /api\/respond|approvalId|rpcId|allowed-once|question\/requested/)
   assert.doesNotMatch(preload, /api\/events\.mux|api\/respond|allowed-once/)
+})
+
+test('an unanswered Decision Gate pauses snapshot polling so selected options and typed answers remain stable', () => {
+  assert.match(shell, /thread\.agent\?\.live\?\.interactions\?\.length[\s\S]*return/)
+  assert.match(shell, /等待你的回答时暂停自动刷新/)
+})
+
+test('Decision Gate activity refreshes its idle timeout and recovery stays visible in the conversation', () => {
+  assert.match(preload, /workbench:touch-interaction/)
+  assert.match(main, /liveSession\.touchInteraction/)
+  assert.match(shell, /form\.addEventListener\('input', touchIdleWindow\)/)
+  assert.match(html, /id="task-recovery"/)
+  assert.match(shell, /recovery\.nextAction/)
+})
+
+test('recovery guidance appears at the latest edge of the conversation instead of only in the sidebar', () => {
+  const feedIndex = html.indexOf('id="conversation-feed"')
+  const decisionIndex = html.indexOf('id="decision-gates"')
+  const recoveryIndex = html.indexOf('id="task-recovery"')
+  const composerIndex = html.indexOf('id="task-composer"')
+  assert.ok(feedIndex >= 0 && decisionIndex >= 0 && recoveryIndex >= 0 && composerIndex >= 0)
+  assert.ok(feedIndex < decisionIndex)
+  assert.ok(decisionIndex < recoveryIndex)
+  assert.ok(recoveryIndex < composerIndex)
+})
+
+test('a running task exposes a stop control beside the composer', () => {
+  assert.match(html, /id="composer-stop"/)
+  assert.match(shell, /composerStopButton\.addEventListener\('click', stopActiveTask\)/)
+  assert.match(shell, /composerStopButton\.classList\.toggle\('hidden', thread\.engineState !== 'running'\)/)
 })
 
 test('conversation separates the final answer from collapsible run evidence', () => {
@@ -113,23 +154,49 @@ test('Engine startup explains that only model tasks consume model tokens', () =>
   assert.match(html, /发送任务或创建真实验证任务才会调用模型/)
 })
 
-test('completed tasks show a human result card before technical evidence', () => {
+test('completed tasks show a compact human result in the fixed sidebar with evidence in trace', () => {
   assert.match(html, /id="task-outcome"/)
   assert.match(html, /id="task-outcome-sections"/)
-  assert.match(html, /查看运行详情与证据/)
+  assert.match(html, /id="sidebar-run-panel"/)
+  assert.match(html, /data-task-view="trace"/)
+  assert.match(shell, /setTaskView\('trace'\)/)
   assert.match(shell, /renderTaskOutcome\(thread\)/)
   assert.match(shell, /state === 'passed' \? '通过' : state === 'failed' \? '未通过' : '未确认'/)
   assert.match(main, /projectTaskOutcome\(thread\)/)
   assert.doesNotMatch(shell, /Everything is probably perfect/)
 })
 
-test('the context panel shows verified run state, effective model, evidence, and explicit unavailable usage', () => {
+test('completed work has a Harness-backed visual receipt without introducing a second execution truth', () => {
+  assert.match(html, /data-task-view="receipt"/)
+  assert.match(html, /id="outcome-map"/)
+  assert.match(shell, /renderOutcomeMap\(outcome\?\.map\)/)
+  assert.match(shell, /setTaskView\('trace'\)/)
+  assert.match(main, /projectTaskOutcome\(thread\)/)
+})
+
+test('the sidebar run panel shows verified run state, effective model, evidence, and explicit unavailable usage', () => {
   assert.match(html, /id="current-run-context"/)
   assert.match(html, /id="current-run-model"/)
-  assert.match(shell, /Session 当前模型：/)
+  assert.match(shell, /本轮实际采用/)
+  assert.match(shell, /Session 已选择/)
   assert.match(shell, /toolCount[\s\S]*changedFileCount/)
   assert.match(shell, /run\.usage\?\.available/)
   assert.doesNotMatch(shell, /estimatedCost|estimateTokens/)
+})
+
+test('the composer exposes explicit model selection while Harness remains selection truth', () => {
+  assert.doesNotMatch(html, /id="work-mode"|目标 Goal|规划 Plan|执行 Build|验收 Verify/)
+  assert.match(html, /id="model-route-dialog"/)
+  assert.match(html, /id="model-choice"/)
+  assert.match(html, /id="effort-choice"/)
+  assert.match(html, /沿用 Harness 当前设置/)
+  assert.match(shell, /modelRoutingCatalog/)
+  assert.match(preload, /workbench:model-catalog/)
+  assert.match(main, /chooseModelRoute/)
+  assert.match(main, /dshAdapter\.modelDirectory/)
+  assert.match(main, /dshAdapter\.selectModel/)
+  assert.doesNotMatch(main + shell, /inferRole|strongestEffort|scoreModel|自动选择/)
+  assert.doesNotMatch(shell, /gpt-5\.6-sol|gpt-5\.6-luna|deepseek-v4-pro/)
 })
 
 test('image drafts stay task-scoped and send only through the desktop host', () => {
@@ -147,14 +214,18 @@ test('image drafts stay task-scoped and send only through the desktop host', () 
   assert.doesNotMatch(shell, /FileReader|arrayBuffer\(|readAsDataURL/)
 })
 
-test('ecosystem discovery is opt-in, read-only, and never offers installation', () => {
+test('ecosystem discovery stays opt-in and gates real installation behind static checks and confirmation', () => {
   assert.match(html, /id="page-ecosystem"/)
   assert.match(html, /id="ecosystem-enabled"/)
-  assert.match(html, /热度.*不是官方商店|社区热度与来源证据/)
+  assert.match(html, /热度不是信任评分/)
   assert.match(preload, /ecosystem:set-enabled/)
+  assert.match(preload, /ecosystem:prepare-install/)
+  assert.match(preload, /ecosystem:install/)
   assert.match(main, /EcosystemCatalog/)
   assert.match(shell, /查看上游源代码/)
-  assert.doesNotMatch(html + shell, /一键安装|自动安装插件|installEcosystem|dsh plugin --profile/)
+  assert.match(shell, /检查并安装/)
+  assert.match(shell, /window\.confirm/)
+  assert.doesNotMatch(html + shell, /一键安装|自动安装插件/)
 })
 
 test('projects and Skills have a read-only control center backed by Harness truth', () => {
@@ -180,10 +251,17 @@ test('an admitted first prompt is not repeated above the conversation and reconn
   assert.match(main, /createSession\(\{ baseUrl: runtime\.url, cwd: settings\.workspacePath, sessionId: thread\.sessionId \}\)/)
 })
 
-test('companion cards are labeled as an unapplied experiment', () => {
-  assert.match(html, /卡组草稿（未应用）/)
-  assert.match(html, /尚未把它们交给 Agent/)
-  assert.match(html, /选择一张卡不等于生效/)
+test('the unapplied companion-card experiment is absent from the product and runtime bridge', () => {
+  assert.doesNotMatch(html, /角色与协作卡|卡组草稿|page-cards/)
+  assert.doesNotMatch(shell, /cardSnapshot|refreshCards|setActiveCard/)
+  assert.doesNotMatch(preload + main, /cards:snapshot|cards:set-active|ReplyModeStore|CompanionCardStore/)
+})
+
+test('workspace creation and selection are available in the fixed left sidebar', () => {
+  assert.match(html, /id="sidebar-create-workspace"/)
+  assert.match(html, /id="sidebar-select-workspace"/)
+  assert.match(shell, /sidebarCreateWorkspace\.addEventListener/)
+  assert.match(shell, /sidebarSelectWorkspace\.addEventListener/)
 })
 
 test('MVP visual identity stays local, themeable, and respectful of reduced motion', () => {

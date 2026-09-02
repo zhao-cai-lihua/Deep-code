@@ -10,23 +10,47 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar" aria-label="Deep code 导航">
-        <div class="brand"><img class="brand-mark" src="./assets/deep-code-whale.png" alt="" /><span>Deep code</span><span class="preview">MVP</span></div>
+        <div class="brand"><img class="brand-mark" src="./assets/deep-code-whale.png" alt="" /><span>Deep code</span></div>
         <button id="new-task" class="new-task" type="button"><span>＋</span> 新任务</button>
         <nav class="primary-nav" aria-label="主导航">
           <button class="nav-item is-active" type="button" data-page="workbench"><span>▣</span>任务</button>
-          <button class="nav-item" type="button" data-page="cards"><span>◌</span>角色与协作卡</button>
           <button class="nav-item" type="button" data-page="control-center"><span>▦</span>项目与 Skills</button>
           <button class="nav-item" type="button" data-page="ecosystem"><span>◇</span>生态发现</button>
           <button class="nav-item" type="button" data-page="settings"><span>⚙</span>运行时与设置</button>
         </nav>
+        <section class="sidebar-workspace" aria-label="当前工作区">
+          <div class="section-label"><span>工作区</span><button id="sidebar-select-workspace" class="sidebar-icon-button" type="button" title="选择已有工作区">⌕</button></div>
+          <strong id="sidebar-workspace-name">尚未选择</strong>
+          <p id="workspace-summary">新任务需要一个本地工作区。</p>
+          <button id="sidebar-create-workspace" class="sidebar-action" type="button"><span>＋</span> 新建工作区</button>
+        </section>
         <div class="sidebar-section">
           <div class="section-label"><span>本地任务</span><span id="task-count">0</span></div>
           <div id="task-list" class="task-list" aria-live="polite"></div>
         </div>
+        <section id="sidebar-run-panel" class="sidebar-run-panel hidden" aria-label="当前任务状态">
+          <div class="section-label"><span>本轮状态</span><button id="open-run-details" class="sidebar-icon-button" type="button">轨迹 →</button></div>
+          <section id="current-run-context" class="run-context hidden" aria-label="当前运行概览">
+            <strong id="current-run-state">尚未开始</strong>
+            <p id="current-run-model"></p>
+            <p id="current-run-evidence"></p>
+            <p id="current-run-usage"></p>
+          </section>
+          <section id="task-outcome" class="task-outcome hidden" aria-live="polite">
+            <div class="task-outcome-heading"><div><p class="eyebrow">RESULT</p><h3 id="task-outcome-title"></h3></div><span id="task-outcome-badge"></span></div>
+            <p id="task-outcome-summary"></p>
+            <details class="sidebar-evidence"><summary>确认项与提醒</summary><div id="task-outcome-sections" class="task-outcome-sections"></div></details>
+            <button id="show-outcome-evidence" class="text-button" type="button">查看证据</button>
+          </section>
+          <section id="activity-timeline" class="activity-timeline hidden" aria-label="Agent 活动">
+            <div class="activity-heading"><strong>正在发生什么</strong><span id="live-connection-label"></span></div>
+            <ol id="activity-list"></ol>
+          </section>
+        </section>
         <div class="sidebar-footer">
           <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false"><span aria-hidden="true">☀</span><span>切换到明亮界面</span></button>
           <div class="runtime-chip"><span id="runtime-dot" class="status-dot stopped"></span><span id="runtime-short">Harness 未连接</span></div>
-          <p>你的任务、卡和运行时状态默认只保存在本机。</p>
+          <p>任务与运行状态默认只保存在本机。</p>
         </div>
       </aside>
 
@@ -44,9 +68,9 @@
         </section>
 
         <section id="page-workbench" class="page is-active" aria-labelledby="workbench-heading">
-          <header class="topbar">
+          <header class="topbar workbench-topbar">
             <div><p class="eyebrow">LOCAL WORKBENCH</p><h1 id="workbench-heading">今天要推进什么？</h1></div>
-            <div class="topbar-actions"><button class="avatar" type="button" data-page="cards" title="打开角色与协作卡">砚</button></div>
+            <nav id="task-view-tabs" class="task-view-tabs hidden" aria-label="任务视图"><button class="is-active" type="button" data-task-view="conversation">对话</button><button type="button" data-task-view="receipt">回执</button><button type="button" data-task-view="trace">轨迹</button></nav>
           </header>
 
           <div class="workbench-layout">
@@ -65,86 +89,44 @@
               <article id="active-task" class="active-task hidden">
                 <div class="task-kicker">DEEP CODE TASK</div>
                 <h2 id="active-task-title"></h2>
-                <p id="active-task-prompt" class="task-prompt"></p>
-                <div id="task-engine-status" class="task-engine-status" aria-live="polite"></div>
-                <section id="task-outcome" class="task-outcome hidden" aria-live="polite">
-                  <div class="task-outcome-heading"><div><p class="eyebrow">TASK RESULT</p><h3 id="task-outcome-title"></h3></div><span id="task-outcome-badge"></span></div>
-                  <p id="task-outcome-summary"></p>
-                  <div id="task-outcome-sections" class="task-outcome-sections"></div>
-                  <button id="show-outcome-evidence" class="text-button" type="button">查看运行详情与证据</button>
+                <section id="conversation-view" class="task-view is-active" aria-label="对话">
+                  <p id="active-task-prompt" class="task-prompt"></p>
+                  <div id="task-engine-status" class="task-engine-status" aria-live="polite"></div>
+                  <div id="conversation-feed" class="conversation-feed"></div>
+                  <section id="decision-gates" class="decision-gates" aria-live="polite" aria-label="等待你的决定"></section>
+                  <section id="task-recovery" class="task-recovery hidden" aria-live="polite"><strong>怎样继续</strong><p id="task-recovery-cause"></p><p id="task-recovery-safety"></p><p id="task-recovery-next"></p></section>
+                  <button id="jump-latest" class="jump-latest hidden" type="button">回到最新 ↓</button>
                 </section>
-                <section id="decision-gates" class="decision-gates" aria-live="polite" aria-label="等待你的决定"></section>
-                <section id="activity-timeline" class="activity-timeline hidden" aria-label="Agent 活动">
-                  <div class="activity-heading"><strong>正在发生什么</strong><span id="live-connection-label"></span></div>
-                  <ol id="activity-list"></ol>
+                <section id="receipt-view" class="task-view" aria-label="工作回执">
+                  <div class="trace-heading"><div><p class="eyebrow">WORK RECEIPT</p><h3>这轮工作留下了什么？</h3></div><p>只把 Harness 已确认的结果画出来。点击卡片可以转到对应技术证据。</p></div>
+                  <section id="outcome-map" class="outcome-map hidden" aria-live="polite">
+                    <div id="outcome-map-flow" class="outcome-map-flow"></div>
+                    <p id="outcome-map-legend" class="outcome-map-legend"></p>
+                  </section>
+                  <section id="outcome-map-empty" class="outcome-map-empty">任务结束后，这里会出现文件、验证、风险和下一步的证据地图。</section>
                 </section>
-                <div id="conversation-feed" class="conversation-feed"></div>
-                <button id="jump-latest" class="jump-latest hidden" type="button">回到最新 ↓</button>
-                <details id="run-details" class="run-details">
-                  <summary id="run-details-label">运行详情</summary>
+                <section id="trace-view" class="task-view" aria-label="轨迹">
+                  <div class="trace-heading"><div><p class="eyebrow">HARNESS TRACE</p><h3 id="run-details-label">本轮轨迹</h3></div><p>权限、文件与工具操作来自 Harness 事件，只在这里展开。</p></div>
+                  <div id="run-details" class="run-details">
                   <div class="run-details-body">
-                    <section><h3>权限与环境</h3><ul id="permission-facts" class="fact-list"></ul></section>
-                    <section><h3>文件改动</h3><ul id="changed-files" class="fact-list"></ul></section>
-                    <section><h3>已执行的操作</h3><div id="tool-cards" class="tool-cards"></div></section>
+                    <section id="trace-permissions"><h3>权限与环境</h3><ul id="permission-facts" class="fact-list"></ul></section>
+                    <section id="trace-changes"><h3>文件改动</h3><ul id="changed-files" class="fact-list"></ul></section>
+                    <section id="trace-tools"><h3>已执行的操作</h3><div id="tool-cards" class="tool-cards"></div></section>
                     <details class="technical-details"><summary>完整运行上下文与技术证据</summary><pre id="task-evidence-content">还没有技术记录。</pre></details>
                   </div>
-                </details>
-                <div class="task-actions"><button id="retry-task" type="button" class="primary-button hidden">准备好后重试</button><button id="preview-handoff" type="button" class="quiet-button">查看会话上下文</button><button id="cancel-task" type="button" class="quiet-button">停止当前操作</button><button id="delete-task" type="button" class="danger-button">删除任务</button></div>
+                  </div>
+                </section>
+                <div class="task-actions"><button id="retry-task" type="button" class="primary-button hidden">准备好后重试</button><button id="preview-handoff" type="button" class="quiet-button">查看任务说明</button><button id="cancel-task" type="button" class="quiet-button">停止当前操作</button><button id="delete-task" type="button" class="danger-button">删除任务</button></div>
               </article>
               <div class="composer-wrap">
                 <div id="image-draft-rail" class="image-draft-rail hidden" aria-label="待发送图片"></div>
                 <p id="image-draft-status" class="image-draft-status" aria-live="polite"></p>
                 <label class="sr-only" for="task-composer">描述任务</label>
                 <textarea id="task-composer" rows="3" maxlength="12000" placeholder="描述你想完成的事。可以直接说人话，不需要知道命令、端口或项目术语。"></textarea>
-                <div class="composer-footer"><span id="composer-hint">Deep code 工作台</span><div class="composer-actions"><button id="add-images" type="button" class="composer-tool" title="添加截图或图片">＋图片</button><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div></div>
+                <div class="composer-footer"><span id="composer-hint">Deep code 工作台</span><div class="composer-actions"><button id="model-route-button" type="button" class="composer-tool" title="选择模型与推理强度">模型：Harness 当前设置</button><button id="composer-stop" type="button" class="composer-stop hidden" title="停止当前生成">停止</button><button id="add-images" type="button" class="composer-tool" title="添加截图或图片">＋图片</button><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div></div>
               </div>
             </section>
 
-            <aside class="context-panel" aria-label="当前协作上下文">
-              <section id="current-run-context" class="run-context hidden" aria-label="当前运行概览">
-                <div class="context-heading"><span>当前运行</span><button id="open-run-details" class="text-button" type="button">证据</button></div>
-                <strong id="current-run-state">尚未开始</strong>
-                <p id="current-run-model" class="context-copy"></p>
-                <p id="current-run-evidence" class="context-copy"></p>
-                <p id="current-run-usage" class="context-copy"></p>
-              </section>
-              <div id="current-run-divider" class="context-divider hidden"></div>
-              <div class="context-heading"><span>卡组草稿（未应用）</span><button class="text-button" type="button" data-page="cards">编辑</button></div>
-              <div id="active-card-stack" class="card-stack"></div>
-              <div class="context-divider"></div>
-              <div class="context-heading"><span>Deep code Engine</span><button class="text-button" type="button" data-page="settings">诊断</button></div>
-              <p id="runtime-summary" class="context-copy">Engine 尚未准备好。</p>
-              <div class="context-divider"></div>
-              <div class="context-heading"><span>模型连接</span><button class="text-button" type="button" data-page="settings">查看</button></div>
-              <p id="model-summary" class="context-copy">等待检查模型状态。</p>
-              <div class="context-divider"></div>
-              <div class="context-heading"><span>当前项目</span><button id="select-workspace-side" class="text-button" type="button">选择</button></div>
-              <p id="workspace-summary" class="context-copy">尚未选择工作区。</p>
-            </aside>
-          </div>
-        </section>
-
-        <section id="page-cards" class="page" aria-labelledby="cards-heading">
-          <header class="topbar"><div><p class="eyebrow">COMPANION LAB · NOT APPLIED</p><h1 id="cards-heading">角色与协作卡实验室</h1><p class="topbar-copy">当前版本只保存和预览卡片，尚未把它们交给 Agent，因此不会改变回复风格或能力。应用机制完成前，选择一张卡不等于生效。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
-          <div class="settings-grid cards-grid">
-            <section class="settings-card card-stack-settings">
-              <h2>当前卡组</h2>
-              <p>选择不会修改 Harness；未来应用前会逐字预览，并且只允许新会话使用。</p>
-              <label>用户人格<select id="active-user-persona"></select></label>
-              <label>Agent Character<select id="active-agent-character"></select></label>
-              <label>互动风格<select id="active-interaction-style"></select></label>
-              <pre id="card-stack-note">载入本地卡组中…</pre>
-            </section>
-            <section class="settings-card card-editor">
-              <div class="editor-heading"><div><h2>卡库</h2><p>内置“砚星”是可复制编辑的 User Persona 起点。</p></div><span class="local-badge">仅本地</span></div>
-              <label>已保存的卡<select id="card-list"><option value="">新建一张角色或协作卡</option></select></label>
-              <div class="form-grid"><label>类型<select id="card-kind"><option value="user-persona">User Persona</option><option value="agent-character">Agent Character</option><option value="interaction-style">Interaction Style</option></select></label><label>标签<input id="card-tags" type="text" maxlength="340" placeholder="中文，共同思考，创作" /></label></div>
-              <div class="form-grid"><label>名称<input id="card-name" type="text" maxlength="80" placeholder="例如：砚星 / Yanxing" /></label><label>简介<input id="card-summary" type="text" maxlength="280" placeholder="它适合什么协作场景？" /></label></div>
-              <label>模型可见内容<textarea id="card-model-text" maxlength="6000" placeholder="只写可被模型看到的协作方式、表达风格、边界或稳定背景。"></textarea></label>
-              <label>仅本地说明<textarea id="card-human-notes" maxlength="2000" placeholder="来源、适用场景、是否准备公开。不会发送给模型。"></textarea></label>
-              <div class="button-row"><button id="save-card" type="button" class="primary-button">保存为本地卡</button><button id="import-card" type="button" class="quiet-button">导入并预览</button><button id="export-card" type="button" class="quiet-button">导出</button><button id="delete-card" type="button" class="danger-button">删除</button></div>
-              <pre id="card-result">内置“砚星”用户人格卡已作为本地起点。</pre>
-            </section>
           </div>
         </section>
 
@@ -164,10 +146,10 @@
         </section>
 
         <section id="page-ecosystem" class="page" aria-labelledby="ecosystem-heading">
-          <header class="topbar"><div><p class="eyebrow">OPT-IN · READ ONLY</p><h1 id="ecosystem-heading" tabindex="-1">生态发现</h1><p class="topbar-copy">发现带有 GitHub <code>dsh-plugin</code> topic 的公开项目。这里展示的是社区热度与来源证据，不是官方商店、安全审核或兼容性保证。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
+          <header class="topbar"><div><p class="eyebrow">OPT-IN · CHECK BEFORE INSTALL</p><h1 id="ecosystem-heading" tabindex="-1">生态发现</h1><p class="topbar-copy">发现带有 GitHub <code>dsh-plugin</code> topic 的公开项目。热度不是信任评分；安装前会固定源码版本、检查官方 Bundle 声明并再次征求你的确认。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
           <section class="ecosystem-controls settings-card">
-            <div><h2>允许查看社区生态</h2><p>默认关闭。开启或手动更新时才连接 GitHub；不会启动 Engine、调用模型、安装插件或修改 Harness profile。</p></div>
-            <label class="toggle-row"><input id="ecosystem-enabled" type="checkbox" /><span>开启只读生态发现</span></label>
+            <div><h2>允许查看社区生态</h2><p>默认关闭。浏览不会启动 Engine 或调用模型；只有逐项点击安装、看完固定版本与风险提示并确认后，才会修改官方 web profile。</p></div>
+            <label class="toggle-row"><input id="ecosystem-enabled" type="checkbox" /><span>开启生态发现</span></label>
             <button id="refresh-ecosystem" class="quiet-button" type="button">更新公开项目</button>
           </section>
           <div id="ecosystem-source" class="ecosystem-source" aria-live="polite">生态发现尚未开启。</div>
@@ -190,7 +172,7 @@
               <div class="runtime-status"><span id="model-status-dot" class="status-dot stopped"></span><div><strong id="model-status-label">等待检查</strong><p id="model-status-message">启动 Engine 后即可检查。</p></div></div>
               <div id="model-catalog-summary" class="model-catalog-summary">尚未载入模型目录。</div>
               <p id="model-credential-note" class="credential-note">载入官方凭据能力中…</p>
-              <div class="button-row"><button id="configure-model-credential" type="button" class="primary-button">设置 API Key…</button><button id="clear-model-credential" type="button" class="danger-button">清除凭据</button><button id="check-model-connection" type="button" class="quiet-button">重新检查</button><button id="verify-model-connection" type="button" class="quiet-button">创建真实验证任务</button></div>
+              <div class="button-row"><button id="add-model-provider" type="button" class="primary-button">添加模型服务…</button><button id="configure-model-credential" type="button" class="quiet-button">替换 API Key…</button><button id="clear-model-credential" type="button" class="danger-button">清除凭据</button><button id="check-model-connection" type="button" class="quiet-button">重新检查</button><button id="verify-model-connection" type="button" class="quiet-button">创建真实验证任务</button></div>
               <pre id="model-credential-result" aria-live="polite">保存状态和真实模型调用是两回事。Deep code 会分别说明。</pre>
             </section>
             <section class="settings-card safety-card">
@@ -211,8 +193,8 @@
       </main>
     </div>
     <dialog id="handoff-dialog">
-      <div class="dialog-heading"><div><p class="eyebrow">EXACT MODEL-VISIBLE PREVIEW</p><h2>新会话交接预览</h2></div><button id="close-handoff" class="quiet-button" type="button">关闭</button></div>
-      <p>以下文本目前只供审阅，尚未发送或写入 Harness。工具与批准策略永远不从角色卡继承。</p>
+      <div class="dialog-heading"><div><p class="eyebrow">TASK-ONLY HANDOFF</p><h2>任务说明</h2></div><button id="close-handoff" class="quiet-button" type="button">关闭</button></div>
+      <p>以下文本来自当前任务，只供复制交接；它不会改变 Harness 权限、工具或批准策略。</p>
       <pre id="handoff-text"></pre>
     </dialog>
     <dialog id="workspace-dialog">
@@ -225,11 +207,35 @@
     </dialog>
     <dialog id="credential-dialog">
       <form id="credential-dialog-form" method="dialog">
-        <div class="dialog-heading"><div><p class="eyebrow">WRITE-ONLY CREDENTIAL</p><h2>设置 DeepSeek API Key</h2></div><button id="cancel-credential-dialog" class="quiet-button" type="button">取消</button></div>
+        <div class="dialog-heading"><div><p class="eyebrow">WRITE-ONLY CREDENTIAL</p><h2>设置 Provider API Key</h2></div><button id="cancel-credential-dialog" class="quiet-button" type="button">取消</button></div>
         <p>密钥会直接交给本机 Harness 的官方 Credentials 存储。Deep code 不保存副本、不会回显旧值，也不会把它写进日志或诊断包。</p>
-        <label>新的 API Key<input id="model-api-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="8192" placeholder="粘贴新的 DeepSeek API Key" /></label>
+        <label>Provider<select id="credential-provider-choice"></select></label>
+        <p id="credential-provider-description" class="credential-note">只列出 Harness 当前配置明确声明了简单 API Key 的 Provider。</p>
+        <label>新的 API Key<input id="model-api-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="8192" placeholder="粘贴新的 API Key" /></label>
         <p class="credential-warning">点击保存只证明 Harness 接受并保存了凭据，不代表网络和模型调用已经验证。保存后可单独创建真实验证任务。</p>
         <div class="button-row"><button id="save-model-credential" class="primary-button" type="submit">安全保存到 Harness</button></div>
+      </form>
+    </dialog>
+    <dialog id="provider-dialog">
+      <form id="provider-dialog-form" method="dialog">
+        <div class="dialog-heading"><div><p class="eyebrow">MODEL SERVICE</p><h2>添加模型服务</h2></div><button id="cancel-provider-dialog" class="quiet-button" type="button">取消</button></div>
+        <p>这里只列出当前 Harness 已公布、可以用简单 API Key 启用的服务。复杂云账号认证不会伪装成一个 Key 输入框。</p>
+        <label>模型厂商<select id="provider-choice"></select></label>
+        <p id="provider-choice-description" class="credential-note"></p>
+        <label>API Key<input id="provider-api-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="8192" placeholder="粘贴这个厂商的 API Key" /></label>
+        <p class="credential-warning">Deep code 会先创建 Provider Profile，再把密钥单向交给 Harness。两步状态会分别报告；不会在 Deep code 中保存密钥副本。</p>
+        <div class="button-row"><button id="save-model-provider" class="primary-button" type="submit">添加并保存到 Harness</button></div>
+      </form>
+    </dialog>
+    <dialog id="model-route-dialog">
+      <form id="model-route-form" method="dialog">
+        <div class="dialog-heading"><div><p class="eyebrow">MODEL & EFFORT</p><h2>选择模型与推理强度</h2></div><button id="cancel-model-route" class="quiet-button" type="button">取消</button></div>
+        <p>列表和当前选择都来自 Harness。选择“沿用 Harness 当前设置”时，Deep code 不会根据任务文字替你切换模型或提高推理强度。</p>
+        <label>模型<select id="model-choice"><option value="">沿用 Harness 当前设置</option></select></label>
+        <p id="model-choice-description" class="credential-note">不指定模型；沿用当前 Session 的模型与推理强度。</p>
+        <label>推理强度<select id="effort-choice"><option value="">模型默认</option></select></label>
+        <p id="effort-choice-description" class="credential-note">只显示所选模型由 Adapter 实际公布的强度。</p>
+        <div class="button-row"><button id="apply-model-route" class="primary-button" type="submit">应用到后续消息</button></div>
       </form>
     </dialog>
     <script src="../../node_modules/markdown-it/dist/browser/markdown-it.umd.min.js"></script>

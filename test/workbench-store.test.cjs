@@ -63,3 +63,17 @@ test('persists a human-readable model-switch notice independently from errors', 
   assert.equal(saved.engineNotice, '已切换到官方图片模型。')
   assert.equal(saved.engineError, '')
 })
+
+test('persists a structured recovery reason and clears it only when work resumes', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '等待我回答' })
+  store.setRecovery(task.id, {
+    kind: 'waiting-timeout',
+    cause: '等待用户回答超过 5 分钟。',
+    safety: '没有替用户选择任何答案。',
+    nextAction: '重新发送任务后再回答。'
+  })
+  assert.equal(store.snapshot().threads[0].recovery.kind, 'waiting-timeout')
+  store.clearRecovery(task.id)
+  assert.equal(store.snapshot().threads[0].recovery, null)
+})

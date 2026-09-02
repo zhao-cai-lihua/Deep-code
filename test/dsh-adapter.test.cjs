@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { DshAdapter, humanizeHistory } = require('../src/dsh-adapter.cjs')
+const { DshAdapter, humanizeHistory, deriveCredentialRef } = require('../src/dsh-adapter.cjs')
 
 test('calls only the loopback DSH RPC bridge and unwraps its result', async () => {
   let request
@@ -107,6 +107,49 @@ test('selects the official vision route before an image prompt and never guesses
   ])
 })
 
+test('loads and selects through the official session model directory seam', async () => {
+  const requests = []
+  const directory = {
+    current: { provider: 'openai', model: 'gpt-5.6-terra', reasoningEffort: 'medium' },
+    routable: true,
+    groups: [{ id: 'openai', name: 'OpenAI', models: [{
+      id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna',
+      reasoning: { efforts: [{ id: 'max', name: 'Max' }], defaultEffort: 'max' }
+    }] }],
+    failures: []
+  }
+  const adapter = new DshAdapter({ fetchImpl: async (url, init) => {
+    const method = url.split('/api/')[1]
+    const payload = JSON.parse(init.body).payload
+    requests.push({ method, payload })
+    const value = method === 'session.models'
+      ? directory
+      : { selected: { provider: 'openai', model: 'gpt-5.6-luna', reasoningEffort: 'max' } }
+    return { ok: true, json: async () => ({ result: { ok: true, value } }) }
+  } })
+
+  assert.deepEqual(await adapter.modelDirectory({ baseUrl: 'http://127.0.0.1:4321', sessionId: 's-route' }), directory)
+  const selected = await adapter.selectModel({
+    baseUrl: 'http://127.0.0.1:4321', sessionId: 's-route',
+    selection: { provider: 'openai', model: 'gpt-5.6-luna', reasoningEffort: 'max' }
+  })
+  assert.deepEqual(selected, { provider: 'openai', model: 'gpt-5.6-luna', reasoningEffort: 'max' })
+  assert.deepEqual(requests.at(-1), { method: 'session.selectModel', payload: {
+    sessionId: 's-route', provider: 'openai', model: 'gpt-5.6-luna', reasoningEffort: 'max'
+  } })
+})
+
+test('loads the host model catalog for a new-task picker without creating a Session', async () => {
+  let request
+  const adapter = new DshAdapter({ fetchImpl: async (_url, init) => {
+    request = JSON.parse(init.body)
+    return { ok: true, json: async () => ({ result: { ok: true, value: deepSeekCatalog['llm.models'] } }) }
+  } })
+  const catalog = await adapter.globalModelDirectory({ baseUrl: 'http://127.0.0.1:4321' })
+  assert.equal(request.method, 'llm.models')
+  assert.equal(catalog.groups[0].models.length, 2)
+})
+
 test('keeps image drafts recoverable when the official vision route is unavailable', async () => {
   const adapter = new DshAdapter({ fetchImpl: async () => ({
     ok: true,
@@ -140,7 +183,9 @@ test('projects the effective Session model without guessing token or cost data',
   const adapter = new DshAdapter({ fetchImpl: async (url) => {
     const method = url.split('/api/')[1]
     const value = ({
-      'session.history': { events: [], hasMore: false },
+      'session.history': { events: [{ event: { type: 'request/header', data: { header: { config: {
+        provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'high'
+      } } } } }], hasMore: false },
       'session.list': { items: [{ sessionId: 's-model', running: false }] },
       'session.models': {
         current: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
@@ -153,7 +198,12 @@ test('projects the effective Session model without guessing token or cost data',
   const snapshot = await adapter.snapshot({ baseUrl: 'http://127.0.0.1:4321', sessionId: 's-model' })
 
   assert.deepEqual(snapshot.model, {
-    available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash'
+    available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoningEffort: ''
+  })
+  assert.equal(snapshot.model.reasoningEffort, '')
+  assert.deepEqual(snapshot.effectiveModel, {
+    available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash',
+    reasoningEffort: 'high', evidence: 'request/header'
   })
 })
 
@@ -171,8 +221,8 @@ function rpcFetch(responses) {
 const deepSeekCatalog = {
   'llm.providers': {
     providers: [
-      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', active: true },
-      { provider: 'openai', displayName: 'OpenAI', settingsNs: 'llm-openai', active: false }
+      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true },
+      { provider: 'openai', displayName: 'OpenAI', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: false }
     ]
   },
   'llm.models': {
@@ -181,6 +231,10 @@ const deepSeekCatalog = {
       { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro' }
     ] }],
     failures: []
+  },
+  'settings.describe': {
+    writable: true,
+    namespaces: [{ ns: 'llm-deepseek', value: { apiKeyEnv: 'DEEPSEEK_API_KEY' }, secrets: [], revision: 0, applies: 'live' }]
   }
 }
 
@@ -195,7 +249,7 @@ test('reports a ready model connection without exposing credential values', asyn
   assert.equal(snapshot.activeProviders[0].name, 'DeepSeek')
   assert.equal(snapshot.activeProviders[0].modelCount, 2)
   assert.deepEqual(snapshot.activeProviders[0].credential, { ref: 'DEEPSEEK_API_KEY', configured: true, source: 'file', writable: true })
-  assert.deepEqual(snapshot.credentialManagement, { supported: true, writable: true, configured: true, source: 'file' })
+  assert.deepEqual(snapshot.credentialManagement, { supported: true, writable: true, configured: true, providerCount: 1 })
   assert.doesNotMatch(JSON.stringify(snapshot), /sk-|secret|credentialValue/)
 })
 
@@ -209,7 +263,7 @@ test('distinguishes a model catalog from a configured credential', async () => {
   assert.equal(snapshot.state, 'needs-credential')
   assert.match(snapshot.message, /API Key/)
   assert.equal(snapshot.modelCount, 2)
-  assert.deepEqual(snapshot.credentialManagement, { supported: true, writable: true, configured: false })
+  assert.deepEqual(snapshot.credentialManagement, { supported: true, writable: true, configured: false, providerCount: 1 })
 })
 
 test('keeps provider failures visible as a partial connection', async () => {
@@ -222,22 +276,51 @@ test('keeps provider failures visible as a partial connection', async () => {
   const snapshot = await adapter.connectionSnapshot({ baseUrl: 'http://127.0.0.1:4321' })
   assert.equal(snapshot.state, 'partial')
   assert.equal(snapshot.failures.length, 2)
-  assert.deepEqual(snapshot.credentialManagement, { supported: false, writable: false, configured: false })
+  assert.deepEqual(snapshot.credentialManagement, { supported: true, writable: false, configured: false, providerCount: 1 })
   assert.match(snapshot.title, /未完全确认/)
 })
 
 test('does not claim authentication for a provider whose credential contract is unknown', async () => {
   const adapter = new DshAdapter({ fetchImpl: rpcFetch({
     'llm.providers': { providers: [{ provider: 'local-custom', displayName: 'Custom', active: true }] },
-    'llm.models': { groups: [{ id: 'local-custom', models: [{ id: 'model-1', name: 'Model 1' }] }], failures: [] }
+    'llm.models': { groups: [{ id: 'local-custom', models: [{ id: 'model-1', name: 'Model 1' }] }], failures: [] },
+    'settings.describe': { writable: true, namespaces: [] }
   }) })
 
   const snapshot = await adapter.connectionSnapshot({ baseUrl: 'http://127.0.0.1:4321' })
-  assert.equal(snapshot.state, 'partial')
+  assert.equal(snapshot.state, 'ready')
   assert.equal(snapshot.activeProviders[0].credential, null)
 })
 
-test('writes and clears only the fixed DeepSeek credential reference', async () => {
+test('derives multiple simple API Key references from Harness provider settings', async () => {
+  const adapter = new DshAdapter({ fetchImpl: rpcFetch({
+    'llm.providers': { providers: [
+      { provider: 'openai', displayName: 'OpenAI', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true },
+      { provider: 'anthropic', displayName: 'Anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], active: true }
+    ] },
+    'llm.models': { groups: [
+      { id: 'openai', models: [{ id: 'gpt-test' }] },
+      { id: 'anthropic', models: [{ id: 'claude-test' }] }
+    ], failures: [] },
+    'settings.describe': { writable: true, namespaces: [{
+      ns: 'llm-pi-ai',
+      value: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY' }, anthropic: { apiKeyEnv: 'ANTHROPIC_API_KEY' } } },
+      secrets: [], revision: 0, applies: 'live'
+    }] },
+    'credentials.describe': { credentials: {
+      OPENAI_API_KEY: { configured: true, source: 'file', writable: true },
+      ANTHROPIC_API_KEY: { configured: false, writable: true }
+    } }
+  }) })
+
+  const snapshot = await adapter.connectionSnapshot({ baseUrl: 'http://127.0.0.1:4321' })
+  assert.deepEqual(snapshot.evidence.credentialRefsChecked, ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'])
+  assert.equal(snapshot.activeProviders[0].credential.ref, 'OPENAI_API_KEY')
+  assert.equal(snapshot.activeProviders[1].credential.ref, 'ANTHROPIC_API_KEY')
+  assert.deepEqual(snapshot.credentialManagement, { supported: true, writable: true, configured: false, providerCount: 2 })
+})
+
+test('writes and clears only an explicitly supplied valid Harness credential reference', async () => {
   const requests = []
   const adapter = new DshAdapter({
     fetchImpl: async (url, init) => {
@@ -246,8 +329,8 @@ test('writes and clears only the fixed DeepSeek credential reference', async () 
     }
   })
 
-  await adapter.saveDeepSeekCredential({ baseUrl: 'http://127.0.0.1:4321', value: 'dsk-test-value' })
-  await adapter.clearDeepSeekCredential({ baseUrl: 'http://127.0.0.1:4321' })
+  await adapter.saveCredential({ baseUrl: 'http://127.0.0.1:4321', ref: 'DEEPSEEK_API_KEY', value: 'dsk-test-value' })
+  await adapter.clearCredential({ baseUrl: 'http://127.0.0.1:4321', ref: 'DEEPSEEK_API_KEY' })
   assert.deepEqual(requests, [
     { method: 'credentials.set', payload: { ref: 'DEEPSEEK_API_KEY', value: 'dsk-test-value' } },
     { method: 'credentials.unset', payload: { ref: 'DEEPSEEK_API_KEY' } }
@@ -259,11 +342,69 @@ test('never repeats a submitted credential in validation or upstream errors', as
   const adapter = new DshAdapter({ fetchImpl: rpcFetch({ 'credentials.set': new Error(`credential ${secret} rejected`) }) })
 
   await assert.rejects(
-    () => adapter.saveDeepSeekCredential({ baseUrl: 'http://127.0.0.1:4321', value: secret }),
+    () => adapter.saveCredential({ baseUrl: 'http://127.0.0.1:4321', ref: 'DEEPSEEK_API_KEY', value: secret }),
     (error) => !error.message.includes(secret) && /没有保存/.test(error.message)
   )
   await assert.rejects(
-    () => adapter.saveDeepSeekCredential({ baseUrl: 'http://127.0.0.1:4321', value: '  accidental-space  ' }),
+    () => adapter.saveCredential({ baseUrl: 'http://127.0.0.1:4321', ref: 'DEEPSEEK_API_KEY', value: '  accidental-space  ' }),
     /首尾.*空格/
+  )
+})
+
+test('lists dormant simple providers and provisions one through profile then write-only credential', async () => {
+  const requests = []
+  const responses = {
+    'llm.providers': { providers: [
+      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true },
+      { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: false },
+      { provider: 'amazon-bedrock', displayName: 'amazon-bedrock', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'amazon-bedrock'], active: false }
+    ] },
+    'llm.models': { groups: [{ id: 'deepseek-official', name: 'DeepSeek', models: [] }], failures: [] },
+    'settings.describe': { writable: true, namespaces: [
+      { ns: 'llm-deepseek', value: { apiKeyEnv: 'DEEPSEEK_API_KEY' }, revision: 0 },
+      { ns: 'llm-pi-ai', value: { providers: {} }, revision: 7 }
+    ] },
+    'credentials.describe': { credentials: { DEEPSEEK_API_KEY: { configured: true, writable: true } } },
+    'settings.mutate': { ns: 'llm-pi-ai', revision: 8 },
+    'credentials.set': {}
+  }
+  const adapter = new DshAdapter({ fetchImpl: async (url, init) => {
+    const method = url.split('/api/')[1]
+    requests.push({ method, payload: JSON.parse(init.body).payload })
+    return { ok: true, json: async () => ({ result: { ok: true, value: responses[method] } }) }
+  } })
+
+  const snapshot = await adapter.connectionSnapshot({ baseUrl: 'http://127.0.0.1:4321' })
+  assert.deepEqual(snapshot.provisioning.providers.map((provider) => provider.id), ['openai'])
+  assert.equal(snapshot.provisioning.supported, true)
+  assert.equal(deriveCredentialRef('qwen-token-plan-cn'), 'QWEN_TOKEN_PLAN_CN_API_KEY')
+
+  await adapter.provisionCatalogProvider({ baseUrl: 'http://127.0.0.1:4321', provider: 'openai', value: 'sk-valid-value' })
+  assert.deepEqual(requests.slice(-2), [
+    { method: 'settings.mutate', payload: {
+      ns: 'llm-pi-ai',
+      ops: [{ op: 'set', path: ['providers', 'openai'], value: { apiKeyEnv: 'OPENAI_API_KEY' } }],
+      expectedRevision: 7
+    } },
+    { method: 'credentials.set', payload: { ref: 'OPENAI_API_KEY', value: 'sk-valid-value' } }
+  ])
+})
+
+test('reports profile creation honestly when the provider credential stage fails', async () => {
+  const secret = 'sk-private-value'
+  const adapter = new DshAdapter({ fetchImpl: async (url) => {
+    const method = url.split('/api/')[1]
+    const value = method === 'llm.providers'
+      ? { providers: [{ provider: 'anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], active: false }] }
+      : method === 'settings.describe'
+        ? { writable: true, namespaces: [{ ns: 'llm-pi-ai', revision: 2 }] }
+        : {}
+    if (method === 'credentials.set') return { ok: true, json: async () => ({ result: { ok: false, error: { message: `rejected ${secret}` } } }) }
+    return { ok: true, json: async () => ({ result: { ok: true, value } }) }
+  } })
+
+  await assert.rejects(
+    adapter.provisionCatalogProvider({ baseUrl: 'http://127.0.0.1:4321', provider: 'anthropic', value: secret }),
+    (error) => /已经创建.*密钥阶段失败/.test(error.message) && !error.message.includes(secret)
   )
 })

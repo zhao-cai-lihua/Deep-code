@@ -6,7 +6,8 @@ test('projects only current active work and verified model/evidence facts', () =
   const result = projectTaskRun({
     engineState: 'running',
     agent: {
-      model: { available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash-vision-exp', name: 'DeepSeek Vision' },
+      model: { available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash-vision-exp', name: 'DeepSeek Vision', reasoningEffort: 'high' },
+      effectiveModel: { available: true, provider: 'deepseek-official', id: 'deepseek-v4-pro', name: 'DeepSeek Pro', reasoningEffort: 'max' },
       live: {
         status: 'connected',
         activities: [
@@ -21,8 +22,10 @@ test('projects only current active work and verified model/evidence facts', () =
   })
 
   assert.equal(result.state, 'waiting')
-  assert.equal(result.model.id, 'deepseek-v4-flash-vision-exp')
-  assert.equal(result.model.scope, 'session-current')
+  assert.equal(result.model.id, 'deepseek-v4-pro')
+  assert.equal(result.model.scope, 'request-effective')
+  assert.equal(result.model.reasoningEffort, 'max')
+  assert.equal(result.model.confirmed, true)
   assert.deepEqual(result.activeItems.map((item) => item.id), ['current'])
   assert.deepEqual(result.evidence, { toolCount: 1, changedFileCount: 1 })
   assert.deepEqual(result.usage, { available: false, label: 'Harness 未提供本轮 token 或费用。' })
