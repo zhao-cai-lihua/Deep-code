@@ -25,6 +25,8 @@ test('workspace creation uses an in-app form and never depends on window.prompt'
 test('workspace protection shows the active path and distinguishes opening the form from creating files', () => {
   assert.match(html, /id="settings-workspace-path"/)
   assert.match(html, /id="open-workspace"/)
+  assert.match(html, /id="sidebar-open-workspace"/)
+  assert.match(shell, /位置：\$\{normalized\}/)
   assert.match(html, /下一步才会真正创建/)
   assert.match(preload, /openWorkspace/)
 })
@@ -69,6 +71,11 @@ test('model services can be created from the Harness provider directory without 
   assert.match(main, /dshAdapter\.provisionCatalogProvider/)
   assert.match(shell, /desktopHost\.addModelProvider/)
   assert.doesNotMatch(shell, /settings\.mutate|credentials\.set|OPENAI_API_KEY|ANTHROPIC_API_KEY/)
+})
+
+test('adding a model provider uses the real Engine readiness seam', () => {
+  assert.match(main, /host:add-model-provider[\s\S]*?await ensureEngineReady\(\)/)
+  assert.doesNotMatch(main, /ensureRuntimeReady\(/)
 })
 
 test('Decision Gates use human actions while the Renderer stays outside the Harness wire protocol', () => {

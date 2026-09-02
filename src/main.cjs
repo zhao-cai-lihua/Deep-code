@@ -380,7 +380,7 @@ ipcMain.handle('host:copy-text', (_event, value) => {
 })
 ipcMain.handle('host:model-connection', () => modelConnectionSnapshot())
 ipcMain.handle('host:add-model-provider', async (_event, input) => {
-  const runtime = await ensureRuntimeReady()
+  const runtime = await ensureEngineReady()
   await dshAdapter.provisionCatalogProvider({
     baseUrl: runtime.url,
     provider: input?.provider,

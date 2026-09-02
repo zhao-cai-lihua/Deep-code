@@ -47,6 +47,12 @@ function assessRecovery({ baseline, changes, recovery }) {
   if (recovery) {
     return { state: 'available', label: '已有恢复指引', detail: String(recovery.nextAction || '按当前任务的恢复说明继续。') }
   }
+  if (!changes.length && baseline?.state === 'dirty') {
+    return {
+      state: 'unconfirmed', label: '无法确认是否触及原有改动',
+      detail: `任务开始前已有 ${Array.isArray(baseline.dirtyPaths) ? baseline.dirtyPaths.length : 0} 个未提交路径，但 Harness 没有确认本轮文件列表，因此无法判断是否触及它们。`
+    }
+  }
   if (!changes.length) {
     return { state: 'not-needed', label: '没有确认到文件改动', detail: '本轮回执没有需要撤回的已确认工作区文件改动。' }
   }

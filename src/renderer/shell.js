@@ -88,6 +88,7 @@ const inspectButton = document.querySelector('#inspect')
 const workspaceButton = document.querySelector('#create-workspace')
 const sidebarCreateWorkspace = document.querySelector('#sidebar-create-workspace')
 const sidebarSelectWorkspace = document.querySelector('#sidebar-select-workspace')
+const sidebarOpenWorkspace = document.querySelector('#sidebar-open-workspace')
 const sidebarWorkspaceName = document.querySelector('#sidebar-workspace-name')
 const diagnosticsButton = document.querySelector('#export-diagnostics')
 const careResult = document.querySelector('#care-result')
@@ -1367,13 +1368,14 @@ async function refreshWorkspace() {
   renderWorkspace(result.workspacePath)
   settingsWorkspacePath.textContent = result.workspacePath || '尚未选择工作区'
   openWorkspaceButton.disabled = !result.workspacePath
+  sidebarOpenWorkspace.disabled = !result.workspacePath
 }
 
 function renderWorkspace(workspacePath) {
   const normalized = String(workspacePath || '')
   const segments = normalized.split(/[\\/]/).filter(Boolean)
   sidebarWorkspaceName.textContent = segments.at(-1) || '尚未选择'
-  workspaceSummary.textContent = normalized || '新任务需要一个本地工作区。'
+  workspaceSummary.textContent = normalized ? `位置：${normalized}` : '新任务需要一个本地工作区。'
   workspaceSummary.title = normalized
 }
 
@@ -1383,6 +1385,7 @@ async function selectWorkspace() {
     renderWorkspace(result.workspacePath)
     settingsWorkspacePath.textContent = result.workspacePath
     openWorkspaceButton.disabled = false
+    sidebarOpenWorkspace.disabled = false
     careResult.textContent = `当前项目已切换为：\n${result.workspacePath}\n\n新任务会在这里运行。`
   }
 }
@@ -1709,6 +1712,18 @@ setupCreateWorkspace.addEventListener('click', async () => {
     success: (result) => `${result.message}\n${result.path}\n\n已生成：\n${result.files.join('\n')}\n\n这一步已经完成。`
   })
   if (result) await refreshWorkspace()
+})
+sidebarOpenWorkspace.addEventListener('click', async () => {
+  sidebarOpenWorkspace.disabled = true
+  try {
+    const result = await window.desktopHost.openWorkspace()
+    workspaceSummary.textContent = `已打开：${result.workspacePath}`
+    workspaceSummary.title = result.workspacePath
+  } catch (error) {
+    workspaceSummary.textContent = `没有打开：${error.message}`
+  } finally {
+    sidebarOpenWorkspace.disabled = false
+  }
 })
 setupCheckModel.addEventListener('click', async () => {
   await runVisibleAction({

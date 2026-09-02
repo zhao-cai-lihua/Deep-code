@@ -315,7 +315,8 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 .sidebar-workspace { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 11px; padding: 10px; background: rgba(255, 255, 255, .025); }
 .sidebar-workspace .section-label, .sidebar-run-panel .section-label { padding: 0; }
 .sidebar-workspace strong { overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.sidebar-workspace p { overflow: hidden; margin: 0; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+.sidebar-workspace p { margin: 0; overflow-wrap: anywhere; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.sidebar-workspace-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 6px; }
 .sidebar-action { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 7px 8px; background: var(--accent-soft); color: var(--text); font-size: 10px; }
 .sidebar-action:hover { border-color: var(--line-strong); }
 .sidebar-icon-button { border: 0; padding: 0; background: transparent; color: var(--accent); font-size: 10px; }

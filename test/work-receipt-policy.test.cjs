@@ -65,3 +65,9 @@ test('distinguishes non-overlapping pre-existing work and non-Git workspaces', (
   assert.equal(assessWorkReceipt({ changes, baseline: { state: 'dirty', dirtyPaths: ['notes/user.md'] } }).recoveryAssessment.state, 'separated')
   assert.equal(assessWorkReceipt({ changes, baseline: { state: 'not-git', dirtyPaths: [] } }).recoveryAssessment.state, 'unavailable')
 })
+
+test('does not call a dirty baseline safe when Harness confirms no changed path', () => {
+  const assessment = assessWorkReceipt({ changes: [], baseline: { state: 'dirty', dirtyPaths: ['research.txt'] } })
+  assert.equal(assessment.recoveryAssessment.state, 'unconfirmed')
+  assert.match(assessment.recoveryAssessment.detail, /无法判断是否触及/)
+})
