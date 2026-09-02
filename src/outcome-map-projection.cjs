@@ -11,6 +11,13 @@ function verificationState(verifications) {
   return 'success'
 }
 
+function attributionState(value) {
+  if (value === 'attributable') return 'success'
+  if (value === 'overlap') return 'error'
+  if (value === 'separated') return 'warning'
+  return 'neutral'
+}
+
 // This is a visual projection of the Work Receipt, not another execution truth.
 // Every claim must already exist in the Harness-backed outcome passed by the caller.
 function projectOutcomeMap(outcome = {}) {
@@ -18,6 +25,7 @@ function projectOutcomeMap(outcome = {}) {
   const changes = Array.isArray(outcome.changes) ? outcome.changes : []
   const verifications = Array.isArray(outcome.verifications) ? outcome.verifications : []
   const warnings = Array.isArray(outcome.warnings) ? outcome.warnings : []
+  const attribution = outcome.recoveryAssessment || null
   const nodes = [
     {
       id: 'result', kind: 'result', state: outcome.state === 'success' ? 'success' : 'error', eyebrow: '结果',
@@ -38,6 +46,16 @@ function projectOutcomeMap(outcome = {}) {
     }
   ]
 
+  if (attribution) {
+    const workspace = outcome.workspace?.available ? outcome.workspace.label : '未记录项目'
+    nodes.push({
+      id: 'attribution', kind: 'evidence', state: attributionState(attribution.state), eyebrow: '改动归属',
+      title: `${workspace} · ${attribution.label}`,
+      summary: attribution.detail || '没有足够证据判断本轮文件与原有工作的关系。',
+      evidenceTarget: 'technical'
+    })
+  }
+
   if (warnings.length) {
     nodes.push({
       id: 'attention', kind: 'attention', state: 'warning', eyebrow: '仍需留意', title: `${warnings.length} 项尚未闭环`,
@@ -55,7 +73,7 @@ function projectOutcomeMap(outcome = {}) {
   return {
     visible: true,
     version: 1,
-    source: 'harness-work-receipt',
+    source: 'harness-and-local-workspace-evidence',
     nodes,
     edges: orderedIds.slice(1).map((id, index) => ({ from: orderedIds[index], to: id })),
     legend: '绿色表示 Harness 已确认；黄色表示仍需核实；灰色表示没有足够证据；红色表示本轮未完成。'

@@ -851,6 +851,12 @@ function renderRunDetails(thread) {
   const evidence = thread.agent?.evidence || []
   const context = details.runtimeContext || []
   const sections = []
+  if (thread.baseline) {
+    const baseline = thread.baseline
+    const head = baseline.head ? String(baseline.head).slice(0, 12) : '没有可确认的 HEAD'
+    const dirtyCount = Array.isArray(baseline.dirtyPaths) ? baseline.dirtyPaths.length : 0
+    sections.push(`任务开始前的本地 Git 基线\n\n项目：${thread.workspacePath || baseline.workspacePath || '未记录'}\n记录时间：${baseline.capturedAt || '未记录'}\n状态：${baseline.message || baseline.state}\nHEAD：${head}\n任务前已有未提交路径：${dirtyCount} 个\n\n这份基线只记录路径级状态，不包含文件正文，也不是可撤回 checkpoint。`)
+  }
   if (context.length) sections.push(`运行上下文（不作为你的发言显示）\n\n${context.map((item) => `[${item.source?.plugin || item.source?.kind || 'Harness'}] ${item.raw}`).join('\n\n')}`)
   if (evidence.length) sections.push(`Harness 技术证据\n\n${evidence.map((item) => `${item.type}\n${JSON.stringify(item.detail, null, 2)}`).join('\n\n')}`)
   taskEvidenceContent.textContent = sections.join('\n\n---\n\n') || '还没有技术记录。'
@@ -887,7 +893,7 @@ function renderTaskOutcome(thread) {
   appendOutcomeSection('明确的验证', outcome.verifications.map((item) => `${verificationLabel(item.state)} · ${item.label}（${item.detail}）`), 'outcome-verifications')
   appendOutcomeSection('需要你留意的高影响改动', (outcome.risks || []).map((item) => `${item.label}：${item.detail}`), 'outcome-risks')
   appendOutcomeSection('仍需留意', outcome.warnings, 'outcome-warnings')
-  appendOutcomeSection('能否撤回', outcome.recoveryAssessment ? [`${outcome.recoveryAssessment.label}：${outcome.recoveryAssessment.detail}`] : [])
+  appendOutcomeSection('任务与改动归属', outcome.recoveryAssessment ? [`${outcome.workspace?.label || '未记录项目'}：${outcome.recoveryAssessment.label}。${outcome.recoveryAssessment.detail}`] : [])
   appendOutcomeSection('这会影响什么', outcome.impact ? [outcome.impact] : [])
   appendOutcomeSection('接下来只需做什么', outcome.nextAction ? [outcome.nextAction] : [])
 }

@@ -176,8 +176,10 @@ test('completed work has a Harness-backed visual receipt without introducing a s
 
 test('work receipts translate high-impact changes and rollback uncertainty for beginners', () => {
   assert.match(shell, /需要你留意的高影响改动/)
-  assert.match(shell, /能否撤回/)
+  assert.match(shell, /任务与改动归属/)
   assert.match(shell, /recoveryAssessment/)
+  assert.match(shell, /任务开始前的本地 Git 基线/)
+  assert.match(html, /改动归属来自任务开始前的本地 Git 基线/)
 })
 
 test('the sidebar run panel shows verified run state, effective model, evidence, and explicit unavailable usage', () => {

@@ -6,6 +6,18 @@ function text(value, fallback = '') {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback
 }
 
+function workspaceProjection(thread) {
+  const workspacePath = text(thread.workspacePath, text(thread.baseline?.workspacePath))
+  const parts = workspacePath.split(/[\\/]+/).filter(Boolean)
+  return {
+    available: Boolean(workspacePath),
+    label: parts.at(-1) || '未记录项目',
+    baselineState: text(thread.baseline?.state, 'unavailable'),
+    capturedAt: text(thread.baseline?.capturedAt),
+    preExistingChangeCount: Array.isArray(thread.baseline?.dirtyPaths) ? thread.baseline.dirtyPaths.length : 0
+  }
+}
+
 function verificationFrom(card) {
   if (card?.type !== 'terminal') return null
   const label = text(card.command, text(card.title, '验证命令'))
@@ -35,6 +47,7 @@ function projectTaskOutcome(thread = {}) {
   const terminalState = details.terminal?.state
   const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
   const assessment = assessWorkReceipt({ changes, verifications, recovery, baseline: thread.baseline || null })
+  const workspace = workspaceProjection(thread)
 
   if (changes.length && !verifications.length) {
     warnings.push('Harness 记录了文件改动，但没有看到明确的测试、检查或构建命令。完成状态不等于已经验证。')
@@ -61,7 +74,8 @@ function projectTaskOutcome(thread = {}) {
         : '本轮已经停止；Harness 没有确认到文件改动。'),
       nextAction: recovery?.nextAction || '先查看轨迹中的失败证据，再决定重试还是修改任务说明。',
       recovery,
-      recoveryAssessment: assessment.recoveryAssessment
+      recoveryAssessment: assessment.recoveryAssessment,
+      workspace
     }
     return { ...outcome, map: projectOutcomeMap(outcome) }
   }
@@ -85,7 +99,8 @@ function projectTaskOutcome(thread = {}) {
     impact: changes.length ? `已确认的改动保存在当前工作区，共 ${changes.length} 个文件。` : '没有确认到工作区文件改动。',
     nextAction: warnings.length ? '先处理“仍需留意”中的未确认事项。' : '这一轮没有需要你立即处理的事项。',
     recovery: null,
-    recoveryAssessment: assessment.recoveryAssessment
+    recoveryAssessment: assessment.recoveryAssessment,
+    workspace
   }
   return { ...outcome, map: projectOutcomeMap(outcome) }
 }

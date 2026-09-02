@@ -29,9 +29,25 @@ test('summarizes confirmed changes and explicit verification without guessing fr
   assert.deepEqual(outcome.warnings, [])
   assert.deepEqual(outcome.risks, [])
   assert.equal(outcome.recoveryAssessment.state, 'unknown')
-  assert.equal(outcome.map.source, 'harness-work-receipt')
-  assert.deepEqual(outcome.map.nodes.map((node) => node.id), ['result', 'changes', 'verification', 'next'])
+  assert.equal(outcome.map.source, 'harness-and-local-workspace-evidence')
+  assert.deepEqual(outcome.map.nodes.map((node) => node.id), ['result', 'changes', 'verification', 'attribution', 'next'])
   assert.match(outcome.map.nodes.find((node) => node.id === 'changes').title, /2 个确认改动/)
+})
+
+test('projects task-bound workspace attribution into the visual receipt', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'ready',
+    workspacePath: 'C:\\projects\\friendly-app',
+    baseline: { state: 'clean', dirtyPaths: [], capturedAt: '2026-09-02T00:00:00.000Z' },
+    agent: { runDetails: { changedFiles: [{ path: 'src/app.js', operation: '修改' }], toolCards: [] } }
+  })
+
+  assert.equal(outcome.workspace.label, 'friendly-app')
+  assert.equal(outcome.workspace.preExistingChangeCount, 0)
+  const attribution = outcome.map.nodes.find((node) => node.id === 'attribution')
+  assert.equal(attribution.state, 'success')
+  assert.match(attribution.title, /friendly-app/)
+  assert.match(attribution.summary, /不承诺一键撤回/)
 })
 
 test('makes missing verification visible when files changed', () => {
