@@ -298,6 +298,19 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 :root[data-theme="light"] .settings-card pre, :root[data-theme="light"] .logs-panel pre, :root[data-theme="light"] .setup-steps + pre { border-color: #254461; background: #10253d; color: #dcecff; }
 :root[data-theme="light"] dialog { border-color: var(--line-strong); background: rgba(248, 252, 255, .96); color: var(--text); }
 
+.memory-grid { grid-template-columns: minmax(300px, .8fr) minmax(420px, 1.2fr); align-items: start; }
+.memory-confirmed { grid-column: 2; }
+.memory-list { display: grid; gap: 12px; margin-top: 16px; color: #aeb1bb; font-size: 12px; }
+.memory-card { border: 1px solid #30343f; border-radius: 10px; padding: 14px; background: #14161c; }
+.memory-card h3 { margin: 0; color: #eceef4; font-size: 14px; }
+.memory-card > p { color: #c3c6d0; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.memory-card details { border-top: 1px solid #2d3039; padding-top: 10px; color: #9297a4; }
+.memory-card summary { cursor: pointer; color: #aeb4c0; }
+.memory-card details p { line-height: 1.55; overflow-wrap: anywhere; }
+:root[data-theme="light"] .memory-card { border-color: var(--line); background: rgba(255,255,255,.55); }
+:root[data-theme="light"] .memory-card h3 { color: var(--text); }
+@media (max-width: 980px) { .memory-grid { grid-template-columns: 1fr; }.memory-confirmed { grid-column: auto; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;

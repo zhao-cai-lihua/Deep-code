@@ -15,6 +15,7 @@
         <nav class="primary-nav" aria-label="主导航">
           <button class="nav-item is-active" type="button" data-page="workbench"><span>▣</span>任务</button>
           <button class="nav-item" type="button" data-page="control-center"><span>▦</span>项目与 Skills</button>
+          <button class="nav-item" type="button" data-page="memory"><span>◫</span>记忆</button>
           <button class="nav-item" type="button" data-page="ecosystem"><span>◇</span>生态发现</button>
           <button class="nav-item" type="button" data-page="settings"><span>⚙</span>运行时与设置</button>
         </nav>
@@ -154,6 +155,32 @@
           </section>
           <div id="ecosystem-source" class="ecosystem-source" aria-live="polite">生态发现尚未开启。</div>
           <div id="ecosystem-list" class="ecosystem-list"></div>
+        </section>
+
+        <section id="page-memory" class="page" aria-labelledby="memory-heading">
+          <header class="topbar"><div><p class="eyebrow">LOCAL · REVIEW BEFORE USE</p><h1 id="memory-heading" tabindex="-1">记忆收件箱</h1><p class="topbar-copy">把值得长期保留的偏好、决定和经验写成可审核的本地卡片。候选记忆不会进入任务提示词，也不会调用模型。</p></div><button id="open-memory-folder" class="quiet-button" type="button">打开本地文件</button></header>
+          <div class="settings-grid memory-grid">
+            <section class="settings-card memory-editor">
+              <div class="editor-heading"><div><h2>新建候选记忆</h2><p>先进入收件箱，确认以后才成为长期记忆。不要填写 API Key、密码或整段私密聊天。</p></div><span class="local-badge">仅本机</span></div>
+              <form id="memory-form">
+                <div class="form-grid"><label>类型<select id="memory-kind"><option value="preference">协作偏好</option><option value="decision">项目决定</option><option value="handoff">交接事实</option><option value="learning">验证经验</option></select></label><label>适用范围<select id="memory-scope"><option value="project">当前项目</option><option value="global">所有项目</option></select></label></div>
+                <label>标题<input id="memory-title" maxlength="160" required placeholder="例如：先用人话解释，再展示技术证据" /></label>
+                <label>希望记住什么<textarea id="memory-content" maxlength="4000" required></textarea></label>
+                <label>为什么值得记住<textarea id="memory-reason" maxlength="4000" required></textarea></label>
+                <label>哪些情况不适用<textarea id="memory-limits" maxlength="4000" required placeholder="写清例外，避免旧经验被无限泛化。"></textarea></label>
+                <div class="button-row"><button class="primary-button" type="submit">放入候选收件箱</button></div>
+              </form>
+              <p id="memory-status" class="ecosystem-source" aria-live="polite">候选记忆尚未连接 Engine Prompt。</p>
+            </section>
+            <section class="settings-card">
+              <div class="editor-heading"><div><h2>等待你审核</h2><p>确认、拒绝或删除都只修改本机 Markdown 文件，不调用模型。</p></div><span id="memory-candidate-count" class="local-badge">0 项</span></div>
+              <div id="memory-candidate-list" class="memory-list"></div>
+            </section>
+            <section class="settings-card memory-confirmed">
+              <div class="editor-heading"><div><h2>已确认</h2><p>这是长期记忆资产，但当前版本仍不会自动注入任务。</p></div><span id="memory-confirmed-count" class="local-badge">0 项</span></div>
+              <div id="memory-confirmed-list" class="memory-list"></div>
+            </section>
+          </div>
         </section>
 
         <section id="page-settings" class="page" aria-labelledby="settings-heading">

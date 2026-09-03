@@ -60,3 +60,23 @@ test('rejects invalid kinds and does not accept an unreviewed candidate as an ac
     assert.throws(() => store.review('missing', 'superseded'), /只能确认或拒绝/)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
+
+test('deletes exactly one reviewed record without touching another memory', () => {
+  const { root, store } = fixture()
+  try {
+    const first = store.createCandidate({
+      kind: 'preference', scope: 'global', sourceRefs: ['user:manual'], title: 'Explain terms',
+      content: 'Explain unfamiliar terms in ordinary language.', reason: 'Reduces onboarding cost.', limits: 'Keep exact technical names when needed.'
+    })
+    const confirmed = store.review(first.id, 'confirmed')
+    const otherStore = new MemoryCandidateStore(root, { now: () => new Date('2026-09-03T12:01:00.000Z'), id: () => 'candidate-2' })
+    const second = otherStore.createCandidate({
+      kind: 'learning', scope: 'global', sourceRefs: ['user:manual'], title: 'Keep evidence',
+      content: 'Keep runtime evidence separate.', reason: 'Prevents invented success.', limits: 'Not a replacement for Harness truth.'
+    })
+    assert.deepEqual(store.remove(confirmed.id), { id: confirmed.id, status: 'confirmed', removed: true })
+    assert.equal(existsSync(confirmed.path), false)
+    assert.equal(store.list('candidate')[0].id, second.id)
+    assert.throws(() => store.remove(confirmed.id), /找不到/)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})

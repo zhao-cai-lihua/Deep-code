@@ -145,6 +145,19 @@ const refreshControlCenterButton = document.querySelector('#refresh-control-cent
 const controlProject = document.querySelector('#control-project')
 const controlSkillStatus = document.querySelector('#control-skill-status')
 const controlSkillList = document.querySelector('#control-skill-list')
+const memoryForm = document.querySelector('#memory-form')
+const memoryKind = document.querySelector('#memory-kind')
+const memoryScope = document.querySelector('#memory-scope')
+const memoryTitle = document.querySelector('#memory-title')
+const memoryContent = document.querySelector('#memory-content')
+const memoryReason = document.querySelector('#memory-reason')
+const memoryLimits = document.querySelector('#memory-limits')
+const memoryStatus = document.querySelector('#memory-status')
+const memoryCandidateCount = document.querySelector('#memory-candidate-count')
+const memoryConfirmedCount = document.querySelector('#memory-confirmed-count')
+const memoryCandidateList = document.querySelector('#memory-candidate-list')
+const memoryConfirmedList = document.querySelector('#memory-confirmed-list')
+const openMemoryFolderButton = document.querySelector('#open-memory-folder')
 
 let workbench = { threads: [], activeThreadId: '' }
 let currentWorkspacePath = ''
@@ -241,6 +254,7 @@ function showPage(name) {
   nextPage.querySelector('h1')?.focus({ preventScroll: true })
   if (name === 'workbench') requestAnimationFrame(updateJumpLatest)
   if (name === 'control-center') refreshControlCenter().catch((error) => { controlSkillStatus.textContent = error.message })
+  if (name === 'memory') refreshMemory().catch((error) => { memoryStatus.textContent = `无法读取记忆：${error.message}` })
 }
 
 function preferredTheme() {
@@ -425,6 +439,100 @@ function renderControlCenter(snapshot) {
 
 async function refreshControlCenter() {
   renderControlCenter(await window.desktopHost.controlCenterSnapshot())
+}
+
+function memoryScopeLabel(scope) {
+  if (scope === 'global') return '所有项目'
+  if (!String(scope || '').startsWith('project:')) return '未知范围'
+  const path = String(scope).slice('project:'.length)
+  return `项目：${path.split(/[\\/]/).filter(Boolean).at(-1) || '当前项目'}`
+}
+
+function memoryKindLabel(kind) {
+  return ({ preference: '协作偏好', decision: '项目决定', handoff: '交接事实', learning: '验证经验' })[kind] || '记忆'
+}
+
+function createMemoryCard(record, status) {
+  const card = document.createElement('article')
+  card.className = 'memory-card'
+  const heading = document.createElement('div')
+  heading.className = 'ecosystem-card-heading'
+  const title = document.createElement('h3')
+  title.textContent = record.title
+  const badge = document.createElement('span')
+  badge.textContent = `${memoryKindLabel(record.kind)} · ${memoryScopeLabel(record.scope)}`
+  heading.append(title, badge)
+  const content = document.createElement('p')
+  content.textContent = record.content
+  const details = document.createElement('details')
+  const summary = document.createElement('summary')
+  summary.textContent = '查看来源、保留理由与例外'
+  const reason = document.createElement('p')
+  reason.textContent = `为什么保留：${record.reason}`
+  const limits = document.createElement('p')
+  limits.textContent = `不适用范围：${record.limits}`
+  const source = document.createElement('p')
+  source.textContent = `来源：${(record.sourceRefs || []).join('、') || '未注明'}`
+  details.append(summary, reason, limits, source)
+  const actions = document.createElement('div')
+  actions.className = 'button-row'
+  if (status === 'candidate') {
+    const confirm = document.createElement('button')
+    confirm.type = 'button'
+    confirm.className = 'primary-button'
+    confirm.textContent = '确认保留'
+    confirm.addEventListener('click', async () => {
+      confirm.disabled = true
+      try { renderMemory(await window.desktopHost.reviewMemoryCandidate(record.id, 'confirmed')); memoryStatus.textContent = '已确认。它仍未接入任务提示词。' }
+      catch (error) { memoryStatus.textContent = `没有确认：${error.message}`; confirm.disabled = false }
+    })
+    const reject = document.createElement('button')
+    reject.type = 'button'
+    reject.className = 'quiet-button'
+    reject.textContent = '拒绝'
+    reject.addEventListener('click', async () => {
+      reject.disabled = true
+      try { renderMemory(await window.desktopHost.reviewMemoryCandidate(record.id, 'rejected')); memoryStatus.textContent = '已拒绝并移入本地归档。' }
+      catch (error) { memoryStatus.textContent = `没有拒绝：${error.message}`; reject.disabled = false }
+    })
+    actions.append(confirm, reject)
+  }
+  const remove = document.createElement('button')
+  remove.type = 'button'
+  remove.className = 'danger-button'
+  remove.textContent = '删除'
+  remove.addEventListener('click', async () => {
+    if (remove.dataset.confirm !== 'true') {
+      remove.dataset.confirm = 'true'
+      remove.textContent = '再次点击确认删除'
+      setTimeout(() => { remove.dataset.confirm = ''; remove.textContent = '删除' }, 10000)
+      return
+    }
+    remove.disabled = true
+    try { renderMemory(await window.desktopHost.removeMemory(record.id)); memoryStatus.textContent = '已从本机永久删除这条记忆。' }
+    catch (error) { memoryStatus.textContent = `没有删除：${error.message}`; remove.disabled = false }
+  })
+  actions.append(remove)
+  card.append(heading, content, details, actions)
+  return card
+}
+
+function renderMemory(snapshot) {
+  memoryCandidateList.replaceChildren()
+  memoryConfirmedList.replaceChildren()
+  memoryCandidateCount.textContent = `${snapshot.candidates.length} 项`
+  memoryConfirmedCount.textContent = `${snapshot.confirmed.length} 项`
+  for (const record of snapshot.candidates) memoryCandidateList.append(createMemoryCard(record, 'candidate'))
+  for (const record of snapshot.confirmed) memoryConfirmedList.append(createMemoryCard(record, 'confirmed'))
+  if (!snapshot.candidates.length) memoryCandidateList.textContent = '收件箱是空的。只有你主动保存的内容才会出现在这里。'
+  if (!snapshot.confirmed.length) memoryConfirmedList.textContent = '还没有已确认记忆。'
+  memoryStatus.textContent = snapshot.enginePromptConnected
+    ? '已确认记忆可能用于任务。'
+    : `候选和已确认记忆均未接入 Engine Prompt。另有 ${snapshot.rejectedCount || 0} 条拒绝记录保存在本地归档。`
+}
+
+async function refreshMemory() {
+  renderMemory(await window.desktopHost.memorySnapshot())
 }
 
 function renderModelConnection(snapshot) {
@@ -1460,6 +1568,35 @@ refreshControlCenterButton.addEventListener('click', async () => {
   controlSkillStatus.textContent = '正在向本机 Harness 读取当前项目的 Skills 清单…'
   try { await refreshControlCenter() } catch (error) { controlSkillStatus.textContent = `刷新失败：${error.message}` }
   finally { refreshControlCenterButton.disabled = false }
+})
+memoryForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const submit = memoryForm.querySelector('[type="submit"]')
+  submit.disabled = true
+  memoryStatus.textContent = '正在写入本地候选收件箱；不会调用模型…'
+  try {
+    const snapshot = await window.desktopHost.createMemoryCandidate({
+      kind: memoryKind.value,
+      scope: memoryScope.value,
+      sensitivity: 'private',
+      title: memoryTitle.value,
+      content: memoryContent.value,
+      reason: memoryReason.value,
+      limits: memoryLimits.value
+    })
+    memoryForm.reset()
+    renderMemory(snapshot)
+    memoryStatus.textContent = '候选已保存，尚未成为长期记忆，也不会影响任务回复。'
+  } catch (error) { memoryStatus.textContent = `没有保存：${error.message}` }
+  finally { submit.disabled = false }
+})
+openMemoryFolderButton.addEventListener('click', async () => {
+  openMemoryFolderButton.disabled = true
+  try {
+    const result = await window.desktopHost.openMemoryFolder()
+    memoryStatus.textContent = `已打开：${result.path}`
+  } catch (error) { memoryStatus.textContent = `无法打开：${error.message}` }
+  finally { openMemoryFolderButton.disabled = false }
 })
 mainPanel.addEventListener('scroll', updateJumpLatest, { passive: true })
 jumpLatestButton.addEventListener('click', () => {

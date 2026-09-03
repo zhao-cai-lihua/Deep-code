@@ -274,6 +274,23 @@ test('projects and Skills have a read-only control center backed by Harness trut
   assert.doesNotMatch(html + shell, /一键启用 Skill|安装全部 Skills/)
 })
 
+test('local memory is reviewable and remains disconnected from Engine prompts', () => {
+  assert.match(html, /id="page-memory"/)
+  assert.match(html, /候选记忆不会进入任务提示词/)
+  assert.match(html, /id="memory-candidate-list"/)
+  assert.match(html, /id="memory-confirmed-list"/)
+  assert.match(preload, /memory:snapshot/)
+  assert.match(preload, /memory:review/)
+  assert.match(main, /new MemoryCandidateStore/)
+  assert.match(main, /enginePromptConnected: false/)
+  assert.match(main, /sourceRefs: \['user:manual'\]/)
+  assert.match(main, /sensitivity: 'private'/)
+  assert.match(main, /candidates: memoryStore\.list\('candidate'\)\.map\(present\)/)
+  assert.match(shell, /reviewMemoryCandidate\(record\.id, 'confirmed'\)/)
+  assert.match(shell, /reviewMemoryCandidate\(record\.id, 'rejected'\)/)
+  assert.doesNotMatch(main, /buildProjectBriefPrompt\([^)]*memory|dshAdapter\.prompt\([^)]*memory/)
+})
+
 test('new task opens a blank top-level workspace instead of following the previous task to the bottom', () => {
   assert.match(shell, /selectTask\(''\)/)
   assert.match(shell, /forceFollowNextRender = false\s+mainPanel\.scrollTop = 0\s+renderWorkbench\(\)/)

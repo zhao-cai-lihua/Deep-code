@@ -2,7 +2,7 @@
 
 Updated: 2026-09-03  
 Branch: `codex/v0.6.1-ui-clarity`  
-Current local test build: `0.6.1-beta.8`
+Current local test build: `0.6.1-beta.9`
 
 ## Product truth
 
@@ -21,13 +21,14 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: 161 passed, 0 failed on the current branch (beta.8 plus the memory Store slice).
+- `npm test`: 163 passed, 0 failed for beta.9.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
 - A missing Git `HEAD` is labeled as workspace/Git evidence and explicitly separated from model connectivity.
 - Each task remains bound to the workspace captured when its Engine Session began.
 - Candidate memories require provenance, remain outside Engine prompts, and move cleanly into confirmed or rejected storage only after review.
+- The local Memory Inbox exposes explicit create, confirm, reject, delete, and open-folder actions without exposing Store paths through its Renderer interface.
 
 ## Current decisions
 
@@ -39,11 +40,11 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Add a user-visible memory inbox over the tested local Store; keep candidate creation explicit and do not connect candidates to Engine prompts.
-2. Add review, rejection, deletion, and scope controls before any confirmed memory can influence a new task.
+1. Manually verify the beta.9 Memory Inbox lifecycle and responsive layout; do not enter secrets or private chat archives during testing.
+2. Design a bounded retrieval preview that shows exactly which confirmed memories would be used before any prompt injection is enabled.
 3. Build a dedicated Model Service Manager that distinguishes catalog, saved, verified, and failed states.
 4. Add a model-routing failure recovery card separate from Git/work-receipt evidence.
-5. Package a new test build only when the next user-visible slice is ready.
+5. Keep automatic memory extraction out of scope until manual candidate review is proven useful.
 
 ## Known uncertainty
 

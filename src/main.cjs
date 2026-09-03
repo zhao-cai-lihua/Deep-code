@@ -20,6 +20,7 @@ const { EcosystemCatalog } = require('./ecosystem-catalog.cjs')
 const { PluginInstaller } = require('./plugin-installer.cjs')
 const { chooseModelRoute } = require('./model-router.cjs')
 const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
+const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -39,6 +40,7 @@ let liveSession
 let imageDrafts
 let ecosystemCatalog
 let pluginInstaller
+let memoryStore
 const requestedModelRoutes = new Map()
 
 function closeLiveSession() {
@@ -349,6 +351,8 @@ app.whenReady().then(() => {
   })
   ecosystemCatalog = new EcosystemCatalog()
   pluginInstaller = new PluginInstaller()
+  memoryStore = new MemoryCandidateStore(join(app.getPath('userData'), 'memory-vault'))
+  memoryStore.initialize()
   setupAssistant = new SetupAssistant()
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false))
   supervisor.on('status', publishStatus)
@@ -599,6 +603,58 @@ ipcMain.handle('control-center:snapshot', async () => {
     result.skillsMessage = `无法读取 Skills：${error.message}`
   }
   return result
+})
+function memorySnapshot() {
+  const present = (record) => ({
+    id: record.id,
+    kind: record.kind,
+    scope: record.scope,
+    status: record.status,
+    sensitivity: record.sensitivity,
+    sourceRefs: [...record.sourceRefs],
+    createdAt: record.createdAt,
+    title: record.title,
+    content: record.content,
+    reason: record.reason,
+    limits: record.limits
+  })
+  return {
+    candidates: memoryStore.list('candidate').map(present),
+    confirmed: memoryStore.list('confirmed').map(present),
+    rejectedCount: memoryStore.list('rejected').length,
+    enginePromptConnected: false
+  }
+}
+ipcMain.handle('memory:snapshot', () => memorySnapshot())
+ipcMain.handle('memory:create', (_event, input) => {
+  if (input?.scope !== 'global' && !settings.workspacePath) throw new Error('还没有当前项目。请先选择工作区，或明确改为“所有项目”。')
+  const scope = input?.scope === 'global' ? 'global' : `project:${settings.workspacePath}`
+  memoryStore.createCandidate({
+    kind: String(input?.kind || ''),
+    scope,
+    sensitivity: 'private',
+    sourceRefs: ['user:manual'],
+    title: String(input?.title || ''),
+    content: String(input?.content || ''),
+    reason: String(input?.reason || ''),
+    limits: String(input?.limits || '')
+  })
+  return memorySnapshot()
+})
+ipcMain.handle('memory:review', (_event, id, status) => {
+  memoryStore.review(id, status)
+  return memorySnapshot()
+})
+ipcMain.handle('memory:remove', (_event, id) => {
+  memoryStore.remove(id)
+  return memorySnapshot()
+})
+ipcMain.handle('memory:open-folder', async () => {
+  const target = join(app.getPath('userData'), 'memory-vault')
+  memoryStore.initialize()
+  const error = await shell.openPath(target)
+  if (error) throw new Error(`无法打开记忆文件夹：${error}`)
+  return { path: target }
 })
 ipcMain.handle('workbench:remove-image', (_event, scopeId, id) => imageDrafts.remove(imageDraftScope(scopeId), id))
 ipcMain.handle('workbench:create-task', async (_event, draft) => {

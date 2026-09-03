@@ -123,6 +123,18 @@ class MemoryCandidateStore {
     unlinkSync(candidate.path)
     return { ...next, path: target }
   }
+
+  remove(id) {
+    const requested = String(id || '')
+    if (!requested) throw new Error('记忆编号不能为空。')
+    for (const status of STATUSES) {
+      const record = this.list(status).find((item) => item.id === requested)
+      if (!record) continue
+      unlinkSync(record.path)
+      return { id: record.id, status: record.status, removed: true }
+    }
+    throw new Error('找不到要删除的记忆。')
+  }
 }
 
 module.exports = { MemoryCandidateStore, parseMemoryRecord: parse, renderMemoryRecord: render }
