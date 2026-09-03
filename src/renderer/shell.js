@@ -158,6 +158,10 @@ const memoryConfirmedCount = document.querySelector('#memory-confirmed-count')
 const memoryCandidateList = document.querySelector('#memory-candidate-list')
 const memoryConfirmedList = document.querySelector('#memory-confirmed-list')
 const openMemoryFolderButton = document.querySelector('#open-memory-folder')
+const memoryPreviewQuery = document.querySelector('#memory-preview-query')
+const previewMemoryButton = document.querySelector('#preview-memory')
+const memoryPreviewStatus = document.querySelector('#memory-preview-status')
+const memoryPreviewResults = document.querySelector('#memory-preview-results')
 
 let workbench = { threads: [], activeThreadId: '' }
 let currentWorkspacePath = ''
@@ -533,6 +537,29 @@ function renderMemory(snapshot) {
 
 async function refreshMemory() {
   renderMemory(await window.desktopHost.memorySnapshot())
+}
+
+function renderMemoryPreview(preview) {
+  memoryPreviewResults.replaceChildren()
+  if (!preview.matches.length) {
+    memoryPreviewResults.textContent = `检查了 ${preview.eligibleCount} 条适用记忆，没有找到明确的文字匹配。没有内容会被加入任务。`
+  } else {
+    for (const match of preview.matches) {
+      const card = document.createElement('article')
+      card.className = 'memory-preview-card'
+      const title = document.createElement('strong')
+      title.textContent = match.title
+      const reason = document.createElement('p')
+      reason.textContent = match.reasons.join('；')
+      const content = document.createElement('p')
+      content.textContent = match.content
+      const limits = document.createElement('small')
+      limits.textContent = `例外：${match.limits}`
+      card.append(title, reason, content, limits)
+      memoryPreviewResults.append(card)
+    }
+  }
+  memoryPreviewStatus.textContent = `本机规则检查了 ${preview.consideredCount} 条已确认记忆，其中 ${preview.eligibleCount} 条作用域适用，找到 ${preview.matches.length} 条候选；约 ${preview.estimatedCharacters} 个字符。没有调用模型，也没有修改任务。`
 }
 
 function renderModelConnection(snapshot) {
@@ -1597,6 +1624,13 @@ openMemoryFolderButton.addEventListener('click', async () => {
     memoryStatus.textContent = `已打开：${result.path}`
   } catch (error) { memoryStatus.textContent = `无法打开：${error.message}` }
   finally { openMemoryFolderButton.disabled = false }
+})
+previewMemoryButton.addEventListener('click', async () => {
+  previewMemoryButton.disabled = true
+  memoryPreviewStatus.textContent = '正在本机进行确定性匹配；不会调用模型…'
+  try { renderMemoryPreview(await window.desktopHost.previewMemoryRetrieval(memoryPreviewQuery.value)) }
+  catch (error) { memoryPreviewStatus.textContent = `无法预览：${error.message}` }
+  finally { previewMemoryButton.disabled = false }
 })
 mainPanel.addEventListener('scroll', updateJumpLatest, { passive: true })
 jumpLatestButton.addEventListener('click', () => {

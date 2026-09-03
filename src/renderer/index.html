@@ -178,6 +178,12 @@
             </section>
             <section class="settings-card memory-confirmed">
               <div class="editor-heading"><div><h2>已确认</h2><p>这是长期记忆资产，但当前版本仍不会自动注入任务。</p></div><span id="memory-confirmed-count" class="local-badge">0 项</span></div>
+              <div class="memory-preview-panel">
+                <label>取回预览<textarea id="memory-preview-query" maxlength="2000" placeholder="描述一个准备开始的任务，看看哪些已确认记忆可能相关。"></textarea></label>
+                <div class="button-row"><button id="preview-memory" class="quiet-button" type="button">只在本机预览</button></div>
+                <p id="memory-preview-status" class="ecosystem-source" aria-live="polite">不会调用模型，也不会修改任务。</p>
+                <div id="memory-preview-results" class="memory-preview-results"></div>
+              </div>
               <div id="memory-confirmed-list" class="memory-list"></div>
             </section>
           </div>

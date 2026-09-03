@@ -307,8 +307,16 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 .memory-card details { border-top: 1px solid #2d3039; padding-top: 10px; color: #9297a4; }
 .memory-card summary { cursor: pointer; color: #aeb4c0; }
 .memory-card details p { line-height: 1.55; overflow-wrap: anywhere; }
+.memory-preview-panel { margin-top: 16px; border-bottom: 1px solid #2d3039; padding-bottom: 16px; }
+.memory-preview-panel textarea { min-height: 70px; }
+.memory-preview-results { display: grid; gap: 9px; margin-top: 12px; color: #9297a4; font-size: 11px; }
+.memory-preview-card { border-left: 2px solid #638fc1; padding: 8px 10px; background: rgba(99,143,193,.06); }
+.memory-preview-card strong { color: #e2e6ed; font-size: 12px; }
+.memory-preview-card p { margin: 5px 0; color: #abb0bb; line-height: 1.5; white-space: pre-wrap; }
+.memory-preview-card small { color: #858b98; }
 :root[data-theme="light"] .memory-card { border-color: var(--line); background: rgba(255,255,255,.55); }
 :root[data-theme="light"] .memory-card h3 { color: var(--text); }
+:root[data-theme="light"] .memory-preview-card strong { color: var(--text); }
 @media (max-width: 980px) { .memory-grid { grid-template-columns: 1fr; }.memory-confirmed { grid-column: auto; } }
 
 @media (prefers-reduced-motion: reduce) {

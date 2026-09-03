@@ -21,6 +21,7 @@ const { PluginInstaller } = require('./plugin-installer.cjs')
 const { chooseModelRoute } = require('./model-router.cjs')
 const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
 const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
+const { previewMemoryRetrieval } = require('./memory-retrieval.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -656,6 +657,11 @@ ipcMain.handle('memory:open-folder', async () => {
   if (error) throw new Error(`无法打开记忆文件夹：${error}`)
   return { path: target }
 })
+ipcMain.handle('memory:preview', (_event, query) => previewMemoryRetrieval({
+  records: memoryStore.list('confirmed'),
+  query,
+  projectPath: settings.workspacePath || ''
+}))
 ipcMain.handle('workbench:remove-image', (_event, scopeId, id) => imageDrafts.remove(imageDraftScope(scopeId), id))
 ipcMain.handle('workbench:create-task', async (_event, draft) => {
   const attachmentIds = Array.isArray(draft?.attachmentIds) ? draft.attachmentIds.map(String) : []

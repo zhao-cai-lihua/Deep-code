@@ -291,6 +291,16 @@ test('local memory is reviewable and remains disconnected from Engine prompts', 
   assert.doesNotMatch(main, /buildProjectBriefPrompt\([^)]*memory|dshAdapter\.prompt\([^)]*memory/)
 })
 
+test('memory retrieval previews scope and match evidence without changing a task', () => {
+  assert.match(html, /id="memory-preview-query"/)
+  assert.match(html, /id="memory-preview-results"/)
+  assert.match(preload, /memory:preview/)
+  assert.match(main, /previewMemoryRetrieval/)
+  assert.match(shell, /preview\.modelCalled|没有调用模型/)
+  assert.match(shell, /preview\.estimatedCharacters/)
+  assert.doesNotMatch(shell, /sendMessage\([^)]*memoryPreview|createTask\([^)]*memoryPreview/)
+})
+
 test('new task opens a blank top-level workspace instead of following the previous task to the bottom', () => {
   assert.match(shell, /selectTask\(''\)/)
   assert.match(shell, /forceFollowNextRender = false\s+mainPanel\.scrollTop = 0\s+renderWorkbench\(\)/)
