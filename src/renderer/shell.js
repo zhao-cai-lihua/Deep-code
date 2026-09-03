@@ -466,13 +466,20 @@ function renderModelConnection(snapshot) {
       : `${management.providerCount || credentialProviders.length} 个 Provider 公布了简单 API Key 配置。密钥只会单向交给 Harness。`
 }
 
-function renderProviderChoices() {
+function updateProviderChoiceDescription() {
   const providers = modelConnectionState.provisioning?.providers || []
-  providerChoice.replaceChildren(...providers.map((provider) => new Option(provider.name, provider.id)))
   const selected = providers.find((provider) => provider.id === providerChoice.value) || providers[0]
   providerChoiceDescription.textContent = selected
-    ? `${selected.name} · 由当前 Harness catalog 提供配置，不由 Deep code 猜测接口。`
+    ? `${selected.name} · 将只为这个 Harness route 保存密钥；Deep code 不会根据密钥内容猜测厂商。`
     : '当前 Harness 没有公布可用的简单 API Key Provider。'
+}
+
+function renderProviderChoices() {
+  const providers = modelConnectionState.provisioning?.providers || []
+  const previousProvider = providerChoice.value
+  providerChoice.replaceChildren(...providers.map((provider) => new Option(provider.name, provider.id)))
+  if (providers.some((provider) => provider.id === previousProvider)) providerChoice.value = previousProvider
+  updateProviderChoiceDescription()
 }
 
 function selectedCredentialProvider({ configuredOnly = false } = {}) {
@@ -1382,11 +1389,16 @@ function renderWorkspace(workspacePath) {
 async function selectWorkspace() {
   const result = await window.desktopHost.selectWorkspace()
   if (!result.canceled) {
+    workbench = await window.desktopHost.selectTask('')
     renderWorkspace(result.workspacePath)
     settingsWorkspacePath.textContent = result.workspacePath
     openWorkspaceButton.disabled = false
     sidebarOpenWorkspace.disabled = false
-    careResult.textContent = `当前项目已切换为：\n${result.workspacePath}\n\n新任务会在这里运行。`
+    careResult.textContent = `新任务工作区已切换为：\n${result.workspacePath}\n\n已打开空白新任务页。旧任务仍留在各自启动时的项目中，不会被偷偷迁移。`
+    showPage('workbench')
+    forceFollowNextRender = false
+    mainPanel.scrollTop = 0
+    renderWorkbench()
   }
 }
 
@@ -1523,7 +1535,7 @@ configureModelCredentialButton.addEventListener('click', () => {
   modelApiKey.focus()
 })
 credentialProviderChoice.addEventListener('change', updateCredentialProviderDescription)
-providerChoice.addEventListener('change', renderProviderChoices)
+providerChoice.addEventListener('change', updateProviderChoiceDescription)
 addModelProviderButton.addEventListener('click', () => {
   providerApiKey.value = ''
   renderProviderChoices()
@@ -1546,11 +1558,11 @@ providerDialogForm.addEventListener('submit', async (event) => {
   modelCredentialResult.textContent = '正在创建 Provider Profile，并把 API Key 单向交给 Harness…'
   modelCredentialResult.dataset.state = 'working'
   try {
-    const snapshot = await window.desktopHost.addModelProvider(provider, value)
+    const result = await window.desktopHost.addModelProvider(provider, value)
     providerApiKey.value = ''
     providerDialog.close()
-    renderModelConnection(snapshot)
-    modelCredentialResult.textContent = '模型服务与凭据已经保存。下一步可创建一个可见的真实验证任务。'
+    renderModelConnection(result.snapshot)
+    modelCredentialResult.textContent = `${result.provisioned.name}（${result.provisioned.provider}）与凭据已经保存，但尚未验证连接。下一步可创建一个可见的真实验证任务。`
     modelCredentialResult.dataset.state = 'success'
   } catch (error) {
     providerApiKey.value = ''

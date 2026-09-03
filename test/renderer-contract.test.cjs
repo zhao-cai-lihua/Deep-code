@@ -73,6 +73,15 @@ test('model services can be created from the Harness provider directory without 
   assert.doesNotMatch(shell, /settings\.mutate|credentials\.set|OPENAI_API_KEY|ANTHROPIC_API_KEY/)
 })
 
+test('provider selection remains stable and success echoes the exact provisioned Harness route', () => {
+  assert.match(shell, /providerChoice\.addEventListener\('change', updateProviderChoiceDescription\)/)
+  assert.doesNotMatch(shell, /providerChoice\.addEventListener\('change', renderProviderChoices\)/)
+  assert.match(shell, /const previousProvider = providerChoice\.value[\s\S]*providerChoice\.value = previousProvider/)
+  assert.match(main, /const provisioned = await dshAdapter\.provisionCatalogProvider[\s\S]*return \{ provisioned, snapshot \}/)
+  assert.match(main, /active\.credential\?\.ref !== provisioned\.credentialRef/)
+  assert.match(shell, /result\.provisioned\.name[\s\S]*result\.provisioned\.provider/)
+})
+
 test('adding a model provider uses the real Engine readiness seam', () => {
   assert.match(main, /host:add-model-provider[\s\S]*?await ensureEngineReady\(\)/)
   assert.doesNotMatch(main, /ensureRuntimeReady\(/)
@@ -277,6 +286,7 @@ test('workspace creation and selection are available in the fixed left sidebar',
   assert.match(html, /id="sidebar-select-workspace"/)
   assert.match(shell, /sidebarCreateWorkspace\.addEventListener/)
   assert.match(shell, /sidebarSelectWorkspace\.addEventListener/)
+  assert.match(shell, /async function selectWorkspace\(\)[\s\S]*selectTask\(''\)[\s\S]*旧任务仍留在各自启动时的项目中/)
 })
 
 test('MVP visual identity stays local, themeable, and respectful of reduced motion', () => {

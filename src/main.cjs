@@ -381,12 +381,17 @@ ipcMain.handle('host:copy-text', (_event, value) => {
 ipcMain.handle('host:model-connection', () => modelConnectionSnapshot())
 ipcMain.handle('host:add-model-provider', async (_event, input) => {
   const runtime = await ensureEngineReady()
-  await dshAdapter.provisionCatalogProvider({
+  const provisioned = await dshAdapter.provisionCatalogProvider({
     baseUrl: runtime.url,
     provider: input?.provider,
     value: input?.value
   })
-  return modelConnectionSnapshot()
+  const snapshot = await modelConnectionSnapshot()
+  const active = snapshot.activeProviders.find((provider) => provider.id === provisioned.provider)
+  if (!active || active.credential?.ref !== provisioned.credentialRef || active.credential?.configured !== true) {
+    throw new Error(`Harness 没有用脱敏状态确认“${provisioned.name}”的 Profile 与凭据已经写入。请刷新状态后检查，不要改用其他 Provider 重试。`)
+  }
+  return { provisioned, snapshot }
 })
 ipcMain.handle('host:save-model-credential', async (_event, ref, value) => {
   const runtime = runningEngine()
