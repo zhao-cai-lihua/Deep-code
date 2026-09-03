@@ -276,6 +276,7 @@ class DshAdapter {
       return {
         id: String(provider.provider || ''),
         name: String(provider.displayName || group?.name || provider.provider || '未命名提供方'),
+        removable: Boolean(SIMPLE_CATALOG_PROVIDERS[provider.provider] && provider.settingsNs && Array.isArray(provider.settingsPath) && provider.settingsPath.length),
         modelCount: models.length,
         models,
         credential: ref ? {
@@ -372,6 +373,37 @@ class DshAdapter {
     } catch (error) {
       throw safeCredentialError(error, secret)
     }
+  }
+
+  async removeCatalogProvider({ baseUrl, provider }) {
+    const providerId = String(provider || '')
+    if (!SIMPLE_CATALOG_PROVIDERS[providerId]) throw new Error('这个 Provider 不是由 Deep code 简单服务目录管理的，不能在这里移除。')
+    const [directory, settings] = await Promise.all([
+      this.rpc(baseUrl, 'llm.providers', {}),
+      this.rpc(baseUrl, 'settings.describe', {})
+    ])
+    const entry = (directory?.providers || []).find((item) => item?.provider === providerId)
+    if (!entry?.active) throw new Error('这个 Provider 当前没有处于已添加状态。')
+    if (!entry.settingsNs || !Array.isArray(entry.settingsPath) || entry.settingsPath.length === 0) throw new Error('Harness 没有公布这个 Provider Profile 的可删除地址。')
+    if (settings?.writable !== true) throw new Error('当前 Harness 设置为只读，不能移除模型服务。')
+    const namespace = (settings.namespaces || []).find((item) => item?.ns === entry.settingsNs)
+    if (!namespace || !Number.isInteger(namespace.revision)) throw new Error('当前 Harness 没有提供可安全删除的设置版本。')
+    const ref = credentialRefForProvider(entry, settings) || deriveCredentialRef(providerId)
+    try {
+      await this.rpc(baseUrl, 'credentials.unset', { ref })
+    } catch (error) {
+      throw safeCredentialError(new Error(`没有移除“${SIMPLE_CATALOG_PROVIDERS[providerId]}”：凭据清除失败，因此 Profile 保持不变。${error.message}`))
+    }
+    try {
+      await this.rpc(baseUrl, 'settings.mutate', {
+        ns: entry.settingsNs,
+        ops: [{ op: 'unset', path: entry.settingsPath }],
+        expectedRevision: namespace.revision
+      })
+    } catch (error) {
+      throw new Error(`“${SIMPLE_CATALOG_PROVIDERS[providerId]}”的凭据已经清除，但 Provider Profile 尚未移除：${error.message}`)
+    }
+    return { removed: true, provider: providerId, name: SIMPLE_CATALOG_PROVIDERS[providerId], credentialRef: ref }
   }
 
   async clearCredential({ baseUrl, ref }) {

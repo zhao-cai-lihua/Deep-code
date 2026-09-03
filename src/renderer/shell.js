@@ -25,6 +25,8 @@ const cancelModelRoute = document.querySelector('#cancel-model-route')
 const emptyTask = document.querySelector('#empty-task')
 const activeTask = document.querySelector('#active-task')
 const activeTaskTitle = document.querySelector('#active-task-title')
+const activeTaskWorkspace = document.querySelector('#active-task-workspace')
+const useTaskWorkspaceButton = document.querySelector('#use-task-workspace')
 const activeTaskPrompt = document.querySelector('#active-task-prompt')
 const taskViewTabs = document.querySelector('#task-view-tabs')
 const conversationView = document.querySelector('#conversation-view')
@@ -109,6 +111,7 @@ const credentialProviderChoice = document.querySelector('#credential-provider-ch
 const credentialProviderDescription = document.querySelector('#credential-provider-description')
 const modelApiKey = document.querySelector('#model-api-key')
 const saveModelCredentialButton = document.querySelector('#save-model-credential')
+const removeModelProviderButton = document.querySelector('#remove-model-provider')
 const cancelCredentialDialog = document.querySelector('#cancel-credential-dialog')
 const providerDialog = document.querySelector('#provider-dialog')
 const providerDialogForm = document.querySelector('#provider-dialog-form')
@@ -144,6 +147,7 @@ const controlSkillStatus = document.querySelector('#control-skill-status')
 const controlSkillList = document.querySelector('#control-skill-list')
 
 let workbench = { threads: [], activeThreadId: '' }
+let currentWorkspacePath = ''
 let lastRuntimeState = ''
 let lastRenderedThreadId = ''
 let forceFollowNextRender = true
@@ -494,6 +498,7 @@ function updateCredentialProviderDescription() {
   credentialProviderDescription.textContent = provider
     ? `${provider.name} · ${provider.credential.ref} · ${provider.credential.configured ? '已配置，可替换' : '尚未配置'}`
     : '当前没有 Harness 允许 Deep code 写入的简单 API Key。'
+  removeModelProviderButton.disabled = !provider?.removable
 }
 
 async function refreshModelConnection() {
@@ -861,7 +866,7 @@ function renderRunDetails(thread) {
   const sections = []
   if (thread.baseline) {
     const baseline = thread.baseline
-    const head = baseline.head ? String(baseline.head).slice(0, 12) : '没有可确认的 HEAD'
+    const head = baseline.head ? String(baseline.head).slice(0, 12) : '此工作区没有可用的 Git HEAD（与模型连接无关）'
     const dirtyCount = Array.isArray(baseline.dirtyPaths) ? baseline.dirtyPaths.length : 0
     sections.push(`任务开始前的本地 Git 基线\n\n项目：${thread.workspacePath || baseline.workspacePath || '未记录'}\n记录时间：${baseline.capturedAt || '未记录'}\n状态：${baseline.message || baseline.state}\nHEAD：${head}\n任务前已有未提交路径：${dirtyCount} 个\n\n这份基线只记录路径级状态，不包含文件正文，也不是可撤回 checkpoint。`)
   }
@@ -1269,6 +1274,9 @@ function renderWorkbench() {
   activeTask.classList.toggle('hidden', !thread)
   if (thread) {
     activeTaskTitle.textContent = thread.title
+    activeTaskWorkspace.textContent = thread.workspacePath ? `此任务的项目：${thread.workspacePath}` : '此任务尚未记录项目。'
+    activeTaskWorkspace.title = thread.workspacePath || ''
+    useTaskWorkspaceButton.classList.toggle('hidden', !thread.workspacePath || thread.workspacePath === currentWorkspacePath)
     const agentMessages = thread.agent?.messages || []
     const hasHumanMessage = agentMessages.some((message) => message.role === 'user')
     activeTaskPrompt.classList.toggle('hidden', hasHumanMessage)
@@ -1372,6 +1380,7 @@ async function createTask() {
 
 async function refreshWorkspace() {
   const result = await window.desktopHost.workspaceStatus()
+  currentWorkspacePath = result.workspacePath || ''
   renderWorkspace(result.workspacePath)
   settingsWorkspacePath.textContent = result.workspacePath || '尚未选择工作区'
   openWorkspaceButton.disabled = !result.workspacePath
@@ -1380,6 +1389,7 @@ async function refreshWorkspace() {
 
 function renderWorkspace(workspacePath) {
   const normalized = String(workspacePath || '')
+  currentWorkspacePath = normalized
   const segments = normalized.split(/[\\/]/).filter(Boolean)
   sidebarWorkspaceName.textContent = segments.at(-1) || '尚未选择'
   workspaceSummary.textContent = normalized ? `位置：${normalized}` : '新任务需要一个本地工作区。'
@@ -1603,6 +1613,27 @@ credentialDialogForm.addEventListener('submit', async (event) => {
     saveModelCredentialButton.removeAttribute('aria-busy')
   }
 })
+removeModelProviderButton.addEventListener('click', async () => {
+  const provider = selectedCredentialProvider()
+  if (!provider?.removable) return
+  const accepted = window.confirm(`移除 ${provider.name}（${provider.id}）吗？\n\nDeep code 会先清除它的凭据并移除 Provider Profile。这个操作不会删除其他模型服务。`)
+  if (!accepted) return
+  removeModelProviderButton.disabled = true
+  modelCredentialResult.textContent = `正在移除 ${provider.name}…`
+  modelCredentialResult.dataset.state = 'working'
+  try {
+    const result = await window.desktopHost.removeModelProvider(provider.id)
+    credentialDialog.close()
+    renderModelConnection(result.snapshot)
+    modelCredentialResult.textContent = `${result.removed.name} 的凭据和 Provider Profile 已移除。`
+    modelCredentialResult.dataset.state = 'success'
+  } catch (error) {
+    modelCredentialResult.textContent = `没有完全移除：${error.message}`
+    modelCredentialResult.dataset.state = 'error'
+  } finally {
+    removeModelProviderButton.disabled = false
+  }
+})
 clearModelCredentialButton.addEventListener('click', async () => {
   const provider = selectedCredentialProvider({ configuredOnly: true })
   if (!provider) return
@@ -1649,6 +1680,21 @@ inspectButton.addEventListener('click', async () => {
 })
 selectWorkspaceButton.addEventListener('click', selectWorkspace)
 sidebarSelectWorkspace.addEventListener('click', selectWorkspace)
+useTaskWorkspaceButton.addEventListener('click', async () => {
+  const thread = activeThread()
+  if (!thread?.workspacePath) return
+  try {
+    const result = await window.desktopHost.useTaskWorkspace(thread.id)
+    renderWorkspace(result.workspacePath)
+    settingsWorkspacePath.textContent = result.workspacePath
+    openWorkspaceButton.disabled = false
+    sidebarOpenWorkspace.disabled = false
+    careResult.textContent = `已切换到此任务的项目：\n${result.workspacePath}\n\n现在的新任务也会默认使用这里；当前任务的 Engine Session 没有被重建。`
+    renderWorkbench()
+  } catch (error) {
+    careResult.textContent = `没有切换：${error.message}`
+  }
+})
 openWorkspaceButton.addEventListener('click', async () => {
   await runVisibleAction({
     button: openWorkspaceButton,

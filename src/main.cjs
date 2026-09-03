@@ -405,6 +405,13 @@ ipcMain.handle('host:clear-model-credential', async (_event, ref) => {
   await dshAdapter.clearCredential({ baseUrl: runtime.url, ref: String(ref || '') })
   return modelConnectionSnapshot()
 })
+ipcMain.handle('host:remove-model-provider', async (_event, provider) => {
+  const runtime = runningEngine()
+  const removed = await dshAdapter.removeCatalogProvider({ baseUrl: runtime.url, provider: String(provider || '') })
+  const snapshot = await modelConnectionSnapshot()
+  if (snapshot.activeProviders.some((item) => item.id === removed.provider)) throw new Error(`Harness 尚未确认“${removed.name}”已经退出可用服务。凭据已清除，请刷新后重试移除 Profile。`)
+  return { removed, snapshot }
+})
 ipcMain.handle('host:inspect-runtime', (_event, selectedPath) => {
   const selected = String(selectedPath || settings.runtimePath || '')
   try {
@@ -468,6 +475,14 @@ ipcMain.handle('host:select-workspace', async () => {
   return { canceled: false, workspacePath: result.filePaths[0] }
 })
 ipcMain.handle('host:workspace-status', () => ({ workspacePath: settings.workspacePath || '' }))
+ipcMain.handle('host:use-task-workspace', (_event, id) => {
+  const snapshot = workbench.snapshot()
+  const thread = snapshot.threads.find((item) => item.id === String(id || snapshot.activeThreadId || ''))
+  if (!thread?.workspacePath) throw new Error('这个任务还没有记录自己的工作区。')
+  if (!existsSync(thread.workspacePath)) throw new Error('这个任务原来的工作区已经不存在或暂时不可访问。')
+  saveSettings({ workspacePath: thread.workspacePath })
+  return { workspacePath: thread.workspacePath, taskId: thread.id }
+})
 ipcMain.handle('host:open-workspace', async () => {
   const workspacePath = settings.workspacePath || ''
   if (!workspacePath || !existsSync(workspacePath)) throw new Error('当前工作区不存在，请先创建或选择一个项目文件夹。')

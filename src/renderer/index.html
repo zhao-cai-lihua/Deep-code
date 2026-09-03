@@ -88,7 +88,7 @@
               </div>
               <article id="active-task" class="active-task hidden">
                 <div class="task-kicker">DEEP CODE TASK</div>
-                <h2 id="active-task-title"></h2>
+                <div class="active-task-heading"><div><h2 id="active-task-title"></h2><p id="active-task-workspace" class="task-workspace"></p></div><button id="use-task-workspace" class="quiet-button hidden" type="button">切换到此任务的项目</button></div>
                 <section id="conversation-view" class="task-view is-active" aria-label="对话">
                   <p id="active-task-prompt" class="task-prompt"></p>
                   <div id="task-engine-status" class="task-engine-status" aria-live="polite"></div>
@@ -213,7 +213,7 @@
         <p id="credential-provider-description" class="credential-note">只列出 Harness 当前配置明确声明了简单 API Key 的 Provider。</p>
         <label>新的 API Key<input id="model-api-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="8192" placeholder="粘贴新的 API Key" /></label>
         <p class="credential-warning">点击保存只证明 Harness 接受并保存了凭据，不代表网络和模型调用已经验证。保存后可单独创建真实验证任务。</p>
-        <div class="button-row"><button id="save-model-credential" class="primary-button" type="submit">安全保存到 Harness</button></div>
+        <div class="button-row"><button id="save-model-credential" class="primary-button" type="submit">安全保存到 Harness</button><button id="remove-model-provider" class="danger-button" type="button">移除此模型服务</button></div>
       </form>
     </dialog>
     <dialog id="provider-dialog">

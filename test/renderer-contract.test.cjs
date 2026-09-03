@@ -82,6 +82,14 @@ test('provider selection remains stable and success echoes the exact provisioned
   assert.match(shell, /result\.provisioned\.name[\s\S]*result\.provisioned\.provider/)
 })
 
+test('managed catalog providers can be removed as a profile instead of only clearing their credential', () => {
+  assert.match(html, /id="remove-model-provider"/)
+  assert.match(preload, /removeModelProvider/)
+  assert.match(main, /host:remove-model-provider[\s\S]*removeCatalogProvider/)
+  assert.match(shell, /desktopHost\.removeModelProvider/)
+  assert.match(shell, /清除它的凭据并移除 Provider Profile/)
+})
+
 test('adding a model provider uses the real Engine readiness seam', () => {
   assert.match(main, /host:add-model-provider[\s\S]*?await ensureEngineReady\(\)/)
   assert.doesNotMatch(main, /ensureRuntimeReady\(/)
@@ -195,6 +203,7 @@ test('work receipts translate high-impact changes and rollback uncertainty for b
   assert.match(shell, /任务与改动归属/)
   assert.match(shell, /recoveryAssessment/)
   assert.match(shell, /任务开始前的本地 Git 基线/)
+  assert.match(shell, /没有可用的 Git HEAD（与模型连接无关）/)
   assert.match(html, /改动归属来自任务开始前的本地 Git 基线/)
 })
 
@@ -287,6 +296,14 @@ test('workspace creation and selection are available in the fixed left sidebar',
   assert.match(shell, /sidebarCreateWorkspace\.addEventListener/)
   assert.match(shell, /sidebarSelectWorkspace\.addEventListener/)
   assert.match(shell, /async function selectWorkspace\(\)[\s\S]*selectTask\(''\)[\s\S]*旧任务仍留在各自启动时的项目中/)
+})
+
+test('an old task exposes its bound project and can explicitly make it the new-task workspace', () => {
+  assert.match(html, /id="use-task-workspace"/)
+  assert.match(preload, /useTaskWorkspace/)
+  assert.match(main, /host:use-task-workspace/)
+  assert.match(shell, /thread\.workspacePath[\s\S]*useTaskWorkspaceButton/)
+  assert.match(shell, /desktopHost\.useTaskWorkspace/)
 })
 
 test('MVP visual identity stays local, themeable, and respectful of reduced motion', () => {

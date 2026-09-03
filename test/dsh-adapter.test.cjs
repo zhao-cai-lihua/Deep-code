@@ -408,3 +408,25 @@ test('reports profile creation honestly when the provider credential stage fails
     (error) => /已经创建.*密钥阶段失败/.test(error.message) && !error.message.includes(secret)
   )
 })
+
+test('removes an explicitly selected catalog provider by clearing its credential then unsetting its exact profile', async () => {
+  const requests = []
+  const responses = {
+    'llm.providers': { providers: [{ provider: 'anthropic', displayName: 'Anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], active: true }] },
+    'settings.describe': { writable: true, namespaces: [{ ns: 'llm-pi-ai', revision: 9, value: { providers: { anthropic: { apiKeyEnv: 'ANTHROPIC_API_KEY' } } } }] },
+    'credentials.unset': {},
+    'settings.mutate': { ns: 'llm-pi-ai', revision: 10 }
+  }
+  const adapter = new DshAdapter({ fetchImpl: async (url, init) => {
+    const method = url.split('/api/')[1]
+    requests.push({ method, payload: JSON.parse(init.body).payload })
+    return { ok: true, json: async () => ({ result: { ok: true, value: responses[method] } }) }
+  } })
+
+  const removed = await adapter.removeCatalogProvider({ baseUrl: 'http://127.0.0.1:4321', provider: 'anthropic' })
+  assert.deepEqual(removed, { removed: true, provider: 'anthropic', name: 'Anthropic / Claude', credentialRef: 'ANTHROPIC_API_KEY' })
+  assert.deepEqual(requests.slice(-2), [
+    { method: 'credentials.unset', payload: { ref: 'ANTHROPIC_API_KEY' } },
+    { method: 'settings.mutate', payload: { ns: 'llm-pi-ai', ops: [{ op: 'unset', path: ['providers', 'anthropic'] }], expectedRevision: 9 } }
+  ])
+})
