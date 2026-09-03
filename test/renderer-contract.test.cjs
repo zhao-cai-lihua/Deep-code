@@ -87,7 +87,10 @@ test('managed catalog providers can be removed as a profile instead of only clea
   assert.match(preload, /removeModelProvider/)
   assert.match(main, /host:remove-model-provider[\s\S]*removeCatalogProvider/)
   assert.match(shell, /desktopHost\.removeModelProvider/)
-  assert.match(shell, /清除它的凭据并移除 Provider Profile/)
+  assert.match(shell, /清除.*凭据并移除 Provider Profile/)
+  const removalHandler = shell.match(/removeModelProviderButton\.addEventListener\('click',[\s\S]*?\n\}\)\nclearModelCredentialButton/ )?.[0] || ''
+  assert.doesNotMatch(removalHandler, /window\.confirm/)
+  assert.match(removalHandler, /再次点击确认移除/)
 })
 
 test('adding a model provider uses the real Engine readiness seam', () => {

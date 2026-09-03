@@ -148,6 +148,8 @@ const controlSkillList = document.querySelector('#control-skill-list')
 
 let workbench = { threads: [], activeThreadId: '' }
 let currentWorkspacePath = ''
+let pendingProviderRemoval = ''
+let providerRemovalTimer = null
 let lastRuntimeState = ''
 let lastRenderedThreadId = ''
 let forceFollowNextRender = true
@@ -499,6 +501,13 @@ function updateCredentialProviderDescription() {
     ? `${provider.name} · ${provider.credential.ref} · ${provider.credential.configured ? '已配置，可替换' : '尚未配置'}`
     : '当前没有 Harness 允许 Deep code 写入的简单 API Key。'
   removeModelProviderButton.disabled = !provider?.removable
+}
+
+function resetProviderRemovalConfirmation() {
+  pendingProviderRemoval = ''
+  if (providerRemovalTimer) clearTimeout(providerRemovalTimer)
+  providerRemovalTimer = null
+  removeModelProviderButton.textContent = '移除此模型服务'
 }
 
 async function refreshModelConnection() {
@@ -1540,11 +1549,15 @@ checkModelConnectionButton.addEventListener('click', async () => {
 })
 configureModelCredentialButton.addEventListener('click', () => {
   modelApiKey.value = ''
+  resetProviderRemovalConfirmation()
   updateCredentialProviderDescription()
   credentialDialog.showModal()
   modelApiKey.focus()
 })
-credentialProviderChoice.addEventListener('change', updateCredentialProviderDescription)
+credentialProviderChoice.addEventListener('change', () => {
+  resetProviderRemovalConfirmation()
+  updateCredentialProviderDescription()
+})
 providerChoice.addEventListener('change', updateProviderChoiceDescription)
 addModelProviderButton.addEventListener('click', () => {
   providerApiKey.value = ''
@@ -1584,9 +1597,13 @@ providerDialogForm.addEventListener('submit', async (event) => {
 })
 cancelCredentialDialog.addEventListener('click', () => {
   modelApiKey.value = ''
+  resetProviderRemovalConfirmation()
   credentialDialog.close()
 })
-credentialDialog.addEventListener('cancel', () => { modelApiKey.value = '' })
+credentialDialog.addEventListener('cancel', () => {
+  modelApiKey.value = ''
+  resetProviderRemovalConfirmation()
+})
 credentialDialogForm.addEventListener('submit', async (event) => {
   event.preventDefault()
   const value = modelApiKey.value
@@ -1616,8 +1633,19 @@ credentialDialogForm.addEventListener('submit', async (event) => {
 removeModelProviderButton.addEventListener('click', async () => {
   const provider = selectedCredentialProvider()
   if (!provider?.removable) return
-  const accepted = window.confirm(`移除 ${provider.name}（${provider.id}）吗？\n\nDeep code 会先清除它的凭据并移除 Provider Profile。这个操作不会删除其他模型服务。`)
-  if (!accepted) return
+  if (pendingProviderRemoval !== provider.id) {
+    resetProviderRemovalConfirmation()
+    pendingProviderRemoval = provider.id
+    removeModelProviderButton.textContent = `再次点击确认移除 ${provider.name}`
+    credentialProviderDescription.textContent = `将先清除 ${provider.name} 的凭据并移除 Provider Profile；不会删除其他模型服务。10 秒内再次点击才会执行。`
+    removeModelProviderButton.focus()
+    providerRemovalTimer = setTimeout(() => {
+      resetProviderRemovalConfirmation()
+      updateCredentialProviderDescription()
+    }, 10000)
+    return
+  }
+  resetProviderRemovalConfirmation()
   removeModelProviderButton.disabled = true
   modelCredentialResult.textContent = `正在移除 ${provider.name}…`
   modelCredentialResult.dataset.state = 'working'
@@ -1631,7 +1659,8 @@ removeModelProviderButton.addEventListener('click', async () => {
     modelCredentialResult.textContent = `没有完全移除：${error.message}`
     modelCredentialResult.dataset.state = 'error'
   } finally {
-    removeModelProviderButton.disabled = false
+    resetProviderRemovalConfirmation()
+    updateCredentialProviderDescription()
   }
 })
 clearModelCredentialButton.addEventListener('click', async () => {
