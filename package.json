@@ -10,7 +10,7 @@
     "start": "electron .",
     "test": "node --test",
     "package:win": "electron-builder --win nsis portable",
-    "package:test:win": "electron-builder --win portable --config.artifactName=\"Deep-code-Test-${version}.${ext}\""
+    "package:test:win": "electron-builder --win portable --config.artifactName=\"Deep-code-Test-${version}.${ext}\" --config.compression=store"
   },
   "devDependencies": {
     "electron": "43.4.0",

@@ -2,8 +2,8 @@
 
 Updated: 2026-09-04
 Branch: `codex/v0.6.1-ui-clarity`  
-Current packaged test build: `0.6.1-beta.11`
-Current source version: `0.6.1-beta.12` (portable packaging was stopped after the final Windows signing stage remained silent; no beta.12 EXE was produced)
+Current packaged test build: `0.6.1-beta.12`
+Current source version: `0.6.1-beta.12`
 
 ## Product truth
 
@@ -36,6 +36,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Retrieval preview uses deterministic local matching, enforces global/current-project scope, explains matched terms, and reports that it neither called a model nor changed a prompt.
 - Selected retrieval matches are revalidated against current Store state and project scope before a bounded, exact context preview is composed; the preview remains disconnected from Harness.
 - The Model Service Manager projects Provider activation, catalog presence, credential state, attributable verification, and current-task routing as separate facts.
+- Test-only portable packaging uses `compression=store`: a controlled comparison showed default NSIS compression remained silent past the stop threshold, while the uncompressed test artifact completed in about 26 seconds. Formal release packaging remains compressed.
 
 ## Current decisions
 
