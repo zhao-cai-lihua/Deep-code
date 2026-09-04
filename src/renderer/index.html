@@ -183,6 +183,8 @@
                 <div class="button-row"><button id="preview-memory" class="quiet-button" type="button">只在本机预览</button></div>
                 <p id="memory-preview-status" class="ecosystem-source" aria-live="polite">不会调用模型，也不会修改任务。</p>
                 <div id="memory-preview-results" class="memory-preview-results"></div>
+                <div class="button-row"><button id="compose-memory-preview" class="primary-button" type="button" disabled>查看最终上下文</button></div>
+                <section id="memory-context-preview" class="memory-context-preview hidden" aria-live="polite"><div class="editor-heading"><div><h3>最终上下文预览</h3><p id="memory-context-summary"></p></div><span class="local-badge">尚未发送</span></div><pre id="memory-context-text"></pre></section>
               </div>
               <div id="memory-confirmed-list" class="memory-list"></div>
             </section>

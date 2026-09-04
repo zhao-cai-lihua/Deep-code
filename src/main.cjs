@@ -21,7 +21,7 @@ const { PluginInstaller } = require('./plugin-installer.cjs')
 const { chooseModelRoute } = require('./model-router.cjs')
 const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
 const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
-const { previewMemoryRetrieval } = require('./memory-retrieval.cjs')
+const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retrieval.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -661,6 +661,13 @@ ipcMain.handle('memory:preview', (_event, query) => previewMemoryRetrieval({
   records: memoryStore.list('confirmed'),
   query,
   projectPath: settings.workspacePath || ''
+}))
+ipcMain.handle('memory:compose-preview', (_event, input) => composeMemoryContext({
+  records: memoryStore.list('confirmed'),
+  query: input?.query,
+  projectPath: settings.workspacePath || '',
+  selectedIds: input?.selectedIds,
+  maxCharacters: 3000
 }))
 ipcMain.handle('workbench:remove-image', (_event, scopeId, id) => imageDrafts.remove(imageDraftScope(scopeId), id))
 ipcMain.handle('workbench:create-task', async (_event, draft) => {

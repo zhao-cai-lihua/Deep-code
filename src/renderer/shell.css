@@ -314,6 +314,12 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 .memory-preview-card strong { color: #e2e6ed; font-size: 12px; }
 .memory-preview-card p { margin: 5px 0; color: #abb0bb; line-height: 1.5; white-space: pre-wrap; }
 .memory-preview-card small { color: #858b98; }
+.memory-preview-choice { display: flex !important; flex-direction: row; gap: 8px !important; align-items: center; margin: 0 !important; }
+.memory-preview-choice input { width: auto !important; margin: 0; }
+.memory-context-preview { margin-top: 14px; border: 1px solid #3b536e; border-radius: 10px; padding: 13px; background: rgba(56,94,132,.08); }
+.memory-context-preview.hidden { display: none; }
+.memory-context-preview h3 { margin: 0; color: #e2e6ed; font-size: 13px; }
+.memory-context-preview pre { max-height: 280px; white-space: pre-wrap; overflow-wrap: anywhere; }
 :root[data-theme="light"] .memory-card { border-color: var(--line); background: rgba(255,255,255,.55); }
 :root[data-theme="light"] .memory-card h3 { color: var(--text); }
 :root[data-theme="light"] .memory-preview-card strong { color: var(--text); }

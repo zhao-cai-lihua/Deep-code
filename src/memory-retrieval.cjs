@@ -64,4 +64,35 @@ function previewMemoryRetrieval({ records, query, projectPath = '', limit = 5 })
   }
 }
 
-module.exports = { previewMemoryRetrieval }
+function composeMemoryContext({ records, query, projectPath = '', selectedIds, maxCharacters = 3000 }) {
+  const requested = new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String).slice(0, 8))
+  const preview = previewMemoryRetrieval({ records, query, projectPath, limit: 8 })
+  const eligible = preview.matches.filter((match) => requested.has(match.id))
+  const safeMaximum = Math.max(500, Math.min(6000, Number(maxCharacters) || 3000))
+  const included = []
+  const omitted = []
+  let text = ''
+  for (const match of eligible) {
+    const scope = match.scope === 'global' ? '所有项目' : '当前项目'
+    const block = `### ${match.title}\n适用范围：${scope}\n记住：${match.content}\n例外：${match.limits}`
+    const next = text ? `${text}\n\n${block}` : `## Deep Code 已确认记忆（用户本次选择）\n\n${block}`
+    if (next.length > safeMaximum) {
+      omitted.push({ id: match.id, title: match.title, reason: `超过 ${safeMaximum} 字符上限` })
+      continue
+    }
+    text = next
+    included.push({ id: match.id, title: match.title, scope: match.scope })
+  }
+  return {
+    text,
+    included,
+    omitted,
+    characterCount: text.length,
+    requestedCount: requested.size,
+    modelCalled: false,
+    promptChanged: false,
+    readyToApply: included.length > 0 && omitted.length === 0
+  }
+}
+
+module.exports = { composeMemoryContext, previewMemoryRetrieval }

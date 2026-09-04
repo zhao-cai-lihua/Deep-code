@@ -162,6 +162,10 @@ const memoryPreviewQuery = document.querySelector('#memory-preview-query')
 const previewMemoryButton = document.querySelector('#preview-memory')
 const memoryPreviewStatus = document.querySelector('#memory-preview-status')
 const memoryPreviewResults = document.querySelector('#memory-preview-results')
+const composeMemoryPreviewButton = document.querySelector('#compose-memory-preview')
+const memoryContextPreview = document.querySelector('#memory-context-preview')
+const memoryContextSummary = document.querySelector('#memory-context-summary')
+const memoryContextText = document.querySelector('#memory-context-text')
 
 let workbench = { threads: [], activeThreadId: '' }
 let currentWorkspacePath = ''
@@ -176,6 +180,8 @@ let workspaceDialogTrigger = workspaceButton
 let modelCatalog = { current: null, groups: [] }
 let manualModelSelection = null
 let modelConnectionState = { activeProviders: [] }
+let selectedMemoryIds = new Set()
+let lastMemoryPreviewQuery = ''
 
 function catalogModels() {
   return (modelCatalog.groups || []).flatMap((group) => (group.models || []).map((model) => ({ ...model, provider: group.id, providerName: group.name })))
@@ -533,6 +539,11 @@ function renderMemory(snapshot) {
   memoryStatus.textContent = snapshot.enginePromptConnected
     ? '已确认记忆可能用于任务。'
     : `候选和已确认记忆均未接入 Engine Prompt。另有 ${snapshot.rejectedCount || 0} 条拒绝记录保存在本地归档。`
+  selectedMemoryIds = new Set()
+  lastMemoryPreviewQuery = ''
+  memoryPreviewResults.replaceChildren()
+  composeMemoryPreviewButton.disabled = true
+  memoryContextPreview.classList.add('hidden')
 }
 
 async function refreshMemory() {
@@ -541,25 +552,42 @@ async function refreshMemory() {
 
 function renderMemoryPreview(preview) {
   memoryPreviewResults.replaceChildren()
+  selectedMemoryIds = new Set(preview.matches.map((match) => match.id))
+  lastMemoryPreviewQuery = preview.query
+  memoryContextPreview.classList.add('hidden')
   if (!preview.matches.length) {
     memoryPreviewResults.textContent = `检查了 ${preview.eligibleCount} 条适用记忆，没有找到明确的文字匹配。没有内容会被加入任务。`
   } else {
     for (const match of preview.matches) {
       const card = document.createElement('article')
       card.className = 'memory-preview-card'
+      const choice = document.createElement('label')
+      choice.className = 'memory-preview-choice'
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.checked = true
+      checkbox.value = match.id
       const title = document.createElement('strong')
       title.textContent = match.title
+      choice.append(checkbox, title)
       const reason = document.createElement('p')
       reason.textContent = match.reasons.join('；')
       const content = document.createElement('p')
       content.textContent = match.content
       const limits = document.createElement('small')
       limits.textContent = `例外：${match.limits}`
-      card.append(title, reason, content, limits)
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) selectedMemoryIds.add(match.id)
+        else selectedMemoryIds.delete(match.id)
+        composeMemoryPreviewButton.disabled = selectedMemoryIds.size === 0
+        memoryContextPreview.classList.add('hidden')
+      })
+      card.append(choice, reason, content, limits)
       memoryPreviewResults.append(card)
     }
   }
   memoryPreviewStatus.textContent = `本机规则检查了 ${preview.consideredCount} 条已确认记忆，其中 ${preview.eligibleCount} 条作用域适用，找到 ${preview.matches.length} 条候选；约 ${preview.estimatedCharacters} 个字符。没有调用模型，也没有修改任务。`
+  composeMemoryPreviewButton.disabled = selectedMemoryIds.size === 0
 }
 
 function renderModelConnection(snapshot) {
@@ -1631,6 +1659,28 @@ previewMemoryButton.addEventListener('click', async () => {
   try { renderMemoryPreview(await window.desktopHost.previewMemoryRetrieval(memoryPreviewQuery.value)) }
   catch (error) { memoryPreviewStatus.textContent = `无法预览：${error.message}` }
   finally { previewMemoryButton.disabled = false }
+})
+memoryPreviewQuery.addEventListener('input', () => {
+  if (!lastMemoryPreviewQuery || memoryPreviewQuery.value.trim() === lastMemoryPreviewQuery) return
+  selectedMemoryIds = new Set()
+  composeMemoryPreviewButton.disabled = true
+  memoryContextPreview.classList.add('hidden')
+  memoryPreviewResults.replaceChildren()
+  memoryPreviewStatus.textContent = '任务描述已更改，请重新进行本机预览。'
+})
+composeMemoryPreviewButton.addEventListener('click', async () => {
+  composeMemoryPreviewButton.disabled = true
+  memoryContextPreview.classList.add('hidden')
+  memoryPreviewStatus.textContent = '正在重新核对作用域与记忆状态…'
+  try {
+    const result = await window.desktopHost.composeMemoryPreview(lastMemoryPreviewQuery, [...selectedMemoryIds])
+    memoryContextText.textContent = result.text || '没有可组成上下文的有效记忆。'
+    const omitted = result.omitted.length ? `；${result.omitted.length} 条因超过 3000 字符上限而未纳入` : ''
+    memoryContextSummary.textContent = `${result.included.length} 条，${result.characterCount} 个字符${omitted}。没有发送给 Engine。`
+    memoryContextPreview.classList.remove('hidden')
+    memoryPreviewStatus.textContent = '已重新核对当前项目和确认状态。以下只是精确预览，没有调用模型、创建任务或修改 Prompt。'
+  } catch (error) { memoryPreviewStatus.textContent = `无法生成最终预览：${error.message}` }
+  finally { composeMemoryPreviewButton.disabled = selectedMemoryIds.size === 0 }
 })
 mainPanel.addEventListener('scroll', updateJumpLatest, { passive: true })
 jumpLatestButton.addEventListener('click', () => {

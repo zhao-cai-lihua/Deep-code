@@ -1,8 +1,8 @@
 # Deep Code current handoff
 
-Updated: 2026-09-03  
+Updated: 2026-09-04
 Branch: `codex/v0.6.1-ui-clarity`  
-Current local test build: `0.6.1-beta.10`
+Current local test build: `0.6.1-beta.11`
 
 ## Product truth
 
@@ -17,12 +17,13 @@ Deep Code is the beginner-facing desktop Workbench above the official local Deep
 - Selecting a new workspace opens a blank new-task surface and new tasks use that workspace.
 - An old task exposes its bound project and can switch the new-task workspace back to that project.
 - The beta.9 Memory Inbox lifecycle passed manual acceptance: create, persist, confirm, reject, delete, and open-folder behavior are usable.
+- The beta.10 retrieval preview passed manual acceptance: scope filtering held, preview caused no model call, and no task was created or changed.
 
 Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely to repeat these checks.
 
 ## Automated baseline
 
-- `npm test`: 167 passed, 0 failed for beta.10.
+- `npm test`: 170 passed, 0 failed for beta.11.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -31,6 +32,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Candidate memories require provenance, remain outside Engine prompts, and move cleanly into confirmed or rejected storage only after review.
 - The local Memory Inbox exposes explicit create, confirm, reject, delete, and open-folder actions without exposing Store paths through its Renderer interface.
 - Retrieval preview uses deterministic local matching, enforces global/current-project scope, explains matched terms, and reports that it neither called a model nor changed a prompt.
+- Selected retrieval matches are revalidated against current Store state and project scope before a bounded, exact context preview is composed; the preview remains disconnected from Harness.
 
 ## Current decisions
 
@@ -42,8 +44,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Manually verify beta.10 retrieval preview: global memories may match across projects, current-project memories must not cross projects, and no task should be created or changed.
-2. Add explicit per-match selection and a final prompt-impact preview before considering an opt-in task handoff.
+1. Manually verify beta.11 selection and exact-context preview, including deselection, edited-query invalidation, and the 3000-character ceiling.
+2. Decide whether the next slice should add a per-task opt-in handoff or pause memory work for the Model Service Manager; do not enable automatic injection.
 3. Build a dedicated Model Service Manager that distinguishes catalog, saved, verified, and failed states.
 4. Add a model-routing failure recovery card separate from Git/work-receipt evidence.
 5. Keep automatic memory extraction out of scope until manual candidate review is proven useful.

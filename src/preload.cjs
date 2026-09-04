@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('desktopHost', {
   removeMemory: (id) => ipcRenderer.invoke('memory:remove', id),
   openMemoryFolder: () => ipcRenderer.invoke('memory:open-folder'),
   previewMemoryRetrieval: (query) => ipcRenderer.invoke('memory:preview', query),
+  composeMemoryPreview: (query, selectedIds) => ipcRenderer.invoke('memory:compose-preview', { query, selectedIds }),
   workbenchSnapshot: () => ipcRenderer.invoke('workbench:snapshot'),
   modelRoutingCatalog: (id) => ipcRenderer.invoke('workbench:model-catalog', id),
   imageDrafts: (scopeId) => ipcRenderer.invoke('workbench:image-drafts', scopeId),

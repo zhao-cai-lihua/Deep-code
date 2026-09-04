@@ -301,6 +301,18 @@ test('memory retrieval previews scope and match evidence without changing a task
   assert.doesNotMatch(shell, /sendMessage\([^)]*memoryPreview|createTask\([^)]*memoryPreview/)
 })
 
+test('selected memory context is revalidated and shown exactly before any future handoff', () => {
+  assert.match(html, /id="compose-memory-preview"/)
+  assert.match(html, /id="memory-context-text"/)
+  assert.match(html, /尚未发送/)
+  assert.match(preload, /memory:compose-preview/)
+  assert.match(main, /composeMemoryContext/)
+  assert.match(shell, /selectedMemoryIds/)
+  assert.match(shell, /result\.characterCount/)
+  assert.match(shell, /没有发送给 Engine/)
+  assert.doesNotMatch(main, /memory:compose-preview[\s\S]{0,500}dshAdapter\.prompt/)
+})
+
 test('new task opens a blank top-level workspace instead of following the previous task to the bottom', () => {
   assert.match(shell, /selectTask\(''\)/)
   assert.match(shell, /forceFollowNextRender = false\s+mainPanel\.scrollTop = 0\s+renderWorkbench\(\)/)
