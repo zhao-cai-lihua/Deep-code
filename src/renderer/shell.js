@@ -17,6 +17,7 @@ const composerHint = document.querySelector('#composer-hint')
 const modelRouteButton = document.querySelector('#model-route-button')
 const modelRouteDialog = document.querySelector('#model-route-dialog')
 const modelRouteForm = document.querySelector('#model-route-form')
+const applyModelRouteButton = document.querySelector('#apply-model-route')
 const modelChoice = document.querySelector('#model-choice')
 const modelChoiceDescription = document.querySelector('#model-choice-description')
 const effortChoice = document.querySelector('#effort-choice')
@@ -189,6 +190,7 @@ let manualModelSelection = null
 let modelConnectionState = { activeProviders: [] }
 let selectedMemoryIds = new Set()
 let lastMemoryPreviewQuery = ''
+let modelRoutePurpose = 'task'
 
 function catalogModels() {
   return (modelCatalog.groups || []).flatMap((group) => (group.models || []).map((model) => ({ ...model, provider: group.id, providerName: group.name })))
@@ -232,6 +234,8 @@ function renderModelChoices() {
 }
 
 async function openModelRouteDialog() {
+  modelRoutePurpose = 'task'
+  applyModelRouteButton.textContent = '应用到后续消息'
   modelRouteButton.disabled = true
   try {
     modelCatalog = await window.desktopHost.modelRoutingCatalog(activeThread()?.id || '')
@@ -251,14 +255,23 @@ modelChoice.addEventListener('change', () => {
 effortChoice.addEventListener('change', () => renderEffortChoices(effortChoice.value))
 modelRouteButton.addEventListener('click', openModelRouteDialog)
 cancelModelRoute.addEventListener('click', () => modelRouteDialog.close())
-modelRouteForm.addEventListener('submit', () => {
+modelRouteForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
   const model = selectedCatalogModel()
-  manualModelSelection = model ? {
+  const selection = model ? {
     provider: model.provider,
     model: model.id,
     ...(effortChoice.value ? { reasoningEffort: effortChoice.value } : {})
   } : null
+  if (modelRoutePurpose === 'verification') {
+    if (!selection) { modelChoiceDescription.textContent = '验证必须明确选择一个模型。'; return }
+    modelRouteDialog.close()
+    await createVisibleConnectionTest(verifyModelServiceButton, modelServicesStatus, { manualSelection: selection })
+    return
+  }
+  manualModelSelection = selection
   updateModelRouteButton()
+  modelRouteDialog.close()
 })
 updateModelRouteButton()
 
@@ -721,7 +734,16 @@ function renderModelServices(snapshot) {
     const list = document.createElement('p')
     list.textContent = provider.models.map((model) => model.name).join('、') || 'Harness 没有返回模型。'
     models.append(summary, list)
-    card.append(heading, stages, models)
+    const actions = document.createElement('div')
+    actions.className = 'button-row'
+    const verify = document.createElement('button')
+    verify.type = 'button'
+    verify.className = 'primary-button'
+    verify.textContent = '验证这个服务…'
+    verify.disabled = !provider.models.length || provider.credential.state === 'missing'
+    verify.addEventListener('click', () => openProviderVerification(provider.id, verify))
+    actions.append(verify)
+    card.append(heading, stages, models, actions)
     modelServicesList.append(card)
   }
   if (!snapshot.providers.length) modelServicesList.textContent = '尚未发现已启用的 Provider。请先启动 Engine 或到设置中添加模型服务。'
@@ -733,6 +755,28 @@ async function refreshModelServices() {
   const snapshot = await window.desktopHost.modelServicesSnapshot()
   renderModelServices(snapshot)
   return snapshot
+}
+
+async function openProviderVerification(providerId, trigger) {
+  trigger.disabled = true
+  modelServicesStatus.textContent = `正在读取 ${providerId} 的可验证模型…`
+  try {
+    const catalog = await window.desktopHost.modelRoutingCatalog('')
+    const group = (catalog.groups || []).find((item) => item.id === providerId)
+    if (!group?.models?.length) throw new Error('Harness 没有为这个 Provider 公布可选择模型。')
+    modelCatalog = { ...catalog, groups: [group] }
+    modelRoutePurpose = 'verification'
+    manualModelSelection = null
+    renderModelChoices()
+    const first = group.models[0]
+    modelChoice.value = `${group.id}\u0000${first.id}`
+    modelChoiceDescription.textContent = first.description || `${group.name} · ${first.id}`
+    renderEffortChoices(first.reasoning?.defaultEffort || '')
+    applyModelRouteButton.textContent = '用这个模型创建验证任务'
+    modelRouteDialog.showModal()
+    modelServicesStatus.textContent = `请选择要真实验证的 ${group.name} 模型与推理强度。`
+  } catch (error) { modelServicesStatus.textContent = `无法准备验证：${error.message}` }
+  finally { trigger.disabled = false }
 }
 
 async function safelyRenderStatus(action) {
@@ -1960,12 +2004,12 @@ clearModelCredentialButton.addEventListener('click', async () => {
     if (!settled) clearModelCredentialButton.disabled = false
   }
 })
-async function createVisibleConnectionTest(trigger, statusTarget) {
+async function createVisibleConnectionTest(trigger, statusTarget, routing = null) {
   if (!window.confirm('这会创建一个可见的“验证模型连接”任务并真实调用模型，可能产生极少量 token。继续吗？')) return
   trigger.disabled = true
   statusTarget.textContent = '正在创建真实验证任务…'
   try {
-    workbench = await window.desktopHost.createConnectionTest()
+    workbench = await window.desktopHost.createConnectionTest(routing)
     renderWorkbench()
     showPage('workbench')
   } catch (error) {
@@ -1975,8 +2019,11 @@ async function createVisibleConnectionTest(trigger, statusTarget) {
     trigger.disabled = false
   }
 }
-verifyModelConnectionButton.addEventListener('click', () => createVisibleConnectionTest(verifyModelConnectionButton, modelCredentialResult))
-verifyModelServiceButton.addEventListener('click', () => createVisibleConnectionTest(verifyModelServiceButton, modelServicesStatus))
+verifyModelConnectionButton.addEventListener('click', () => {
+  modelCredentialResult.textContent = '请到“模型服务”页面，从具体 Provider 卡片选择要验证的模型。'
+  showPage('model-services')
+})
+verifyModelServiceButton.addEventListener('click', () => { modelServicesStatus.textContent = '请从下方具体 Provider 卡片点击“验证这个服务”。' })
 refreshModelServicesButton.addEventListener('click', async () => {
   refreshModelServicesButton.disabled = true
   modelServicesStatus.textContent = '正在读取 Harness Provider、模型目录和凭据状态…'

@@ -24,7 +24,7 @@ function projectModelServices(connection, currentRoute = null) {
       current: active
         ? { state: currentRoute.confirmed ? 'confirmed' : 'requested', label: currentRoute.confirmed ? '当前任务已确认采用' : '当前任务曾请求采用', detail: currentRoute.label || provider.name }
         : { state: 'inactive', label: '当前任务未指向此服务', detail: '这不影响它供其他任务选择。' },
-      models: (provider.models || []).map((model) => ({ id: model.id, name: model.name }))
+      models: (provider.models || []).map((model) => ({ id: model.id, name: model.name, reasoning: model.reasoning || null }))
     }
   })
   return {

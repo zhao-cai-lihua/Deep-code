@@ -59,6 +59,17 @@ test('model service manager separates configuration facts from real verification
   assert.doesNotMatch(shell, /credential\.configured[^\n]{0,100}真实调用成功/)
 })
 
+test('connection verification binds an explicit Harness route and never trusts an empty session default', () => {
+  assert.match(shell, /验证这个服务/)
+  assert.match(shell, /openProviderVerification/)
+  assert.match(shell, /createConnectionTest\(routing\)/)
+  assert.match(preload, /createConnectionTest: \(routing\)/)
+  assert.match(main, /create-connection-test'[\s\S]*manualSelection\?\.provider[\s\S]*manualSelection\?\.model/)
+  assert.match(main, /launchTask\(thread, \{ routing \}\)/)
+  assert.match(main, /kind: 'launch-failed'/)
+  assert.match(main, /Session 默认路线不作为本轮采用证据/)
+})
+
 test('credential configuration is write-only and real verification stays a visible task', () => {
   assert.match(html, /<dialog id="credential-dialog"/)
   assert.match(html, /id="model-api-key"[^>]*type="password"/)

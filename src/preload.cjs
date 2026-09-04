@@ -42,7 +42,7 @@ contextBridge.exposeInMainWorld('desktopHost', {
   removeImage: (scopeId, id) => ipcRenderer.invoke('workbench:remove-image', scopeId, id),
   createTask: (draft) => ipcRenderer.invoke('workbench:create-task', draft),
   createProjectBrief: () => ipcRenderer.invoke('workbench:create-project-brief'),
-  createConnectionTest: () => ipcRenderer.invoke('workbench:create-connection-test'),
+  createConnectionTest: (routing) => ipcRenderer.invoke('workbench:create-connection-test', routing),
   retryTask: (id) => ipcRenderer.invoke('workbench:retry-task', id),
   sendMessage: (id, text, attachmentIds, routing) => ipcRenderer.invoke('workbench:send-message', id, text, attachmentIds, routing),
   cancelTask: (id) => ipcRenderer.invoke('workbench:cancel', id),

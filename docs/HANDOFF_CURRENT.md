@@ -2,8 +2,8 @@
 
 Updated: 2026-09-04
 Branch: `codex/v0.6.1-ui-clarity`  
-Current packaged test build: `0.6.1-beta.12`
-Current source version: `0.6.1-beta.12`
+Current packaged test build: `0.6.1-beta.13`
+Current source version: `0.6.1-beta.13`
 
 ## Product truth
 
@@ -20,12 +20,13 @@ Deep Code is the beginner-facing desktop Workbench above the official local Deep
 - The beta.9 Memory Inbox lifecycle passed manual acceptance: create, persist, confirm, reject, delete, and open-folder behavior are usable.
 - The beta.10 retrieval preview passed manual acceptance: scope filtering held, preview caused no model call, and no task was created or changed.
 - The beta.11 selection and exact-context preview passed manual acceptance, including deselection and stale-query invalidation; memory remains disconnected from Harness prompts.
+- The beta.12 Model Service Manager passed its general manual checks, but its generic connection-test action exposed a route-attribution defect: a failed preflight could later display an empty Session's default Claude route. Beta.13 replaces that generic action with explicit per-Provider verification.
 
 Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely to repeat these checks.
 
 ## Automated baseline
 
-- `npm test`: 173 passed, 0 failed for beta.12.
+- `npm test`: 174 passed, 0 failed for beta.13.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -36,6 +37,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Retrieval preview uses deterministic local matching, enforces global/current-project scope, explains matched terms, and reports that it neither called a model nor changed a prompt.
 - Selected retrieval matches are revalidated against current Store state and project scope before a bounded, exact context preview is composed; the preview remains disconnected from Harness.
 - The Model Service Manager projects Provider activation, catalog presence, credential state, attributable verification, and current-task routing as separate facts.
+- A connection-test task requires an explicit Provider and model, launches with that exact manual route, preserves launch failure as failure, and never treats an unsubmitted Session's default route as evidence that a model was used.
 - Test-only portable packaging uses `compression=store`: a controlled comparison showed default NSIS compression remained silent past the stop threshold, while the uncompressed test artifact completed in about 26 seconds. Formal release packaging remains compressed.
 
 ## Current decisions
@@ -48,9 +50,9 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Manually verify beta.12 Model Service Manager labels against the existing GLM configuration; saved credentials must remain distinct from real verification.
-2. Persist a bounded verification receipt only when a dedicated connection-test task has terminal Harness evidence and an attributable effective route.
-3. Add a model-routing failure recovery card separate from Git/work-receipt evidence.
+1. Manually verify beta.13 from a configured GLM Provider card: choose `验证这个服务…`, confirm that only that Provider's real catalog models are offered, select one model and effort, then confirm that the task reports the same effective route.
+2. Confirm that cancelling the verification picker creates no task, and that a failed model-selection preflight remains visibly failed without displaying a default Claude route.
+3. Persist a bounded verification receipt only when a dedicated connection-test task has terminal Harness evidence and an attributable effective route.
 4. Keep automatic memory extraction and automatic memory injection out of scope.
 
 ## Known uncertainty

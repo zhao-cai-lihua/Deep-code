@@ -139,6 +139,12 @@ async function launchTask(thread, { images = [], routing = null } = {}) {
     return true
   } catch (error) {
     workbench.setEngineState(thread.id, { state: 'error', error: error.message })
+    workbench.setRecovery(thread.id, {
+      kind: 'launch-failed',
+      cause: `任务在发送给模型前没有完成启动：${error.message}`,
+      safety: 'Deep code 没有把失败的启动步骤当成模型回复成功。',
+      nextAction: '检查模型选择与连接状态后，再从可用模型重新发起。'
+    })
     return false
   }
 }
@@ -213,7 +219,10 @@ async function workbenchSnapshot() {
     live.reconcileRunning(thread.agent.running)
     thread.agent.live = live.snapshot()
     const terminal = thread.agent.runDetails?.terminal
-    if (thread.recovery?.kind === 'waiting-timeout') {
+    if (thread.recovery?.kind === 'launch-failed' && thread.engineState === 'error') {
+      thread.agent.effectiveModel = { available: false, label: '任务未完成模型启动，Session 默认路线不作为本轮采用证据。' }
+      thread.engineState = 'error'
+    } else if (thread.recovery?.kind === 'waiting-timeout') {
       thread.engineState = 'error'
     } else {
       thread.engineState = thread.agent.running
@@ -692,9 +701,12 @@ ipcMain.handle('workbench:create-project-brief', async () => {
   await launchTask(thread)
   return workbenchSnapshot()
 })
-ipcMain.handle('workbench:create-connection-test', async () => {
+ipcMain.handle('workbench:create-connection-test', async (_event, routing) => {
+  if (!routing?.manualSelection?.provider || !routing?.manualSelection?.model) {
+    throw new Error('请先明确选择要验证的 Provider 和模型。')
+  }
   const thread = workbench.create({ title: '验证模型连接', prompt: MODEL_CONNECTION_TEST_PROMPT })
-  await launchTask(thread)
+  await launchTask(thread, { routing })
   return workbenchSnapshot()
 })
 ipcMain.handle('workbench:retry-task', async (_event, id) => {
