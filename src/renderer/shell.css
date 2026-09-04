@@ -324,6 +324,17 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 :root[data-theme="light"] .memory-card h3 { color: var(--text); }
 :root[data-theme="light"] .memory-preview-card strong { color: var(--text); }
 @media (max-width: 980px) { .memory-grid { grid-template-columns: 1fr; }.memory-confirmed { grid-column: auto; } }
+.model-services-summary { display: flex; justify-content: space-between; gap: 20px; align-items: center; max-width: 1180px; margin: 28px auto 0; }
+.model-services-summary h2 { margin: 0; }.model-services-summary p { margin: 6px 0 0; color: var(--muted); }
+.model-services-list { display: grid; gap: 16px; max-width: 1180px; margin: 18px auto 0; color: var(--muted); }
+.model-service-card { border: 1px solid var(--line); border-radius: 13px; padding: 18px; background: var(--panel); }
+.model-service-card h3 { margin: 0; color: var(--text); }.model-service-card details { margin-top: 14px; color: var(--muted); font-size: 11px; }
+.model-service-stages { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 8px; margin-top: 15px; }
+.model-service-stages section { border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: rgba(255,255,255,.02); }
+.model-service-stages small { color: var(--muted); }.model-service-stages strong { display: block; margin-top: 5px; color: var(--text); font-size: 11px; }.model-service-stages p { margin: 5px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.model-service-stages section[data-state="saved"], .model-service-stages section[data-state="available"], .model-service-stages section[data-state="confirmed"] { border-color: rgba(75,202,151,.35); }
+.model-service-stages section[data-state="missing"], .model-service-stages section[data-state="failed"] { border-color: rgba(240,116,131,.42); }
+@media (max-width: 1100px) { .model-service-stages { grid-template-columns: repeat(2, minmax(0,1fr)); }.model-services-summary { align-items: flex-start; flex-direction: column; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

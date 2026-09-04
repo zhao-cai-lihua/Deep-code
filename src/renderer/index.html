@@ -15,6 +15,7 @@
         <nav class="primary-nav" aria-label="主导航">
           <button class="nav-item is-active" type="button" data-page="workbench"><span>▣</span>任务</button>
           <button class="nav-item" type="button" data-page="control-center"><span>▦</span>项目与 Skills</button>
+          <button class="nav-item" type="button" data-page="model-services"><span>◉</span>模型服务</button>
           <button class="nav-item" type="button" data-page="memory"><span>◫</span>记忆</button>
           <button class="nav-item" type="button" data-page="ecosystem"><span>◇</span>生态发现</button>
           <button class="nav-item" type="button" data-page="settings"><span>⚙</span>运行时与设置</button>
@@ -189,6 +190,13 @@
               <div id="memory-confirmed-list" class="memory-list"></div>
             </section>
           </div>
+        </section>
+
+        <section id="page-model-services" class="page" aria-labelledby="model-services-heading">
+          <header class="topbar"><div><p class="eyebrow">HARNESS MODEL SERVICES</p><h1 id="model-services-heading" tabindex="-1">模型服务</h1><p class="topbar-copy">分别查看 Provider、模型目录、凭据、真实验证和当前任务。列表存在或保存了 Key，都不等于模型调用成功。</p></div><button id="refresh-model-services" class="quiet-button" type="button">刷新真实状态</button></header>
+          <section class="model-services-summary settings-card"><div><h2 id="model-services-title">等待检查</h2><p id="model-services-message">启动 Engine 后可以读取 Harness 的真实配置。</p></div><div class="button-row"><button id="manage-model-services" class="quiet-button" type="button">管理 API Key</button><button id="verify-model-service" class="primary-button" type="button">创建真实验证任务</button></div></section>
+          <p id="model-services-status" class="ecosystem-source" aria-live="polite">读取状态不会调用模型；真实验证任务会调用一次模型。</p>
+          <div id="model-services-list" class="model-services-list"></div>
         </section>
 
         <section id="page-settings" class="page" aria-labelledby="settings-heading">

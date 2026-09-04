@@ -48,6 +48,17 @@ test('model connection is presented as a normalized human-facing snapshot', () =
   assert.doesNotMatch(shell, /llm\.providers|llm\.models|credentials\.describe|settings\.describe/)
 })
 
+test('model service manager separates configuration facts from real verification', () => {
+  assert.match(html, /id="page-model-services"/)
+  assert.match(html, /Provider、模型目录、凭据、真实验证和当前任务/)
+  assert.match(preload, /model-services:snapshot/)
+  assert.match(main, /projectModelServices/)
+  assert.match(shell, /provider\.verification/)
+  assert.match(shell, /读取这些状态不会调用模型/)
+  assert.match(shell, /createVisibleConnectionTest/)
+  assert.doesNotMatch(shell, /credential\.configured[^\n]{0,100}真实调用成功/)
+})
+
 test('credential configuration is write-only and real verification stays a visible task', () => {
   assert.match(html, /<dialog id="credential-dialog"/)
   assert.match(html, /id="model-api-key"[^>]*type="password"/)

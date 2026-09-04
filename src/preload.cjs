@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('desktopHost', {
   openExternal: (url) => ipcRenderer.invoke('host:open-external', url),
   copyText: (value) => ipcRenderer.invoke('host:copy-text', value),
   modelConnection: () => ipcRenderer.invoke('host:model-connection'),
+  modelServicesSnapshot: () => ipcRenderer.invoke('model-services:snapshot'),
   addModelProvider: (provider, value) => ipcRenderer.invoke('host:add-model-provider', { provider, value }),
   saveModelCredential: (ref, value) => ipcRenderer.invoke('host:save-model-credential', ref, value),
   clearModelCredential: (ref) => ipcRenderer.invoke('host:clear-model-credential', ref),

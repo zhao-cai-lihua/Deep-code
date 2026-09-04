@@ -22,6 +22,7 @@ const { chooseModelRoute } = require('./model-router.cjs')
 const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
 const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
 const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retrieval.cjs')
+const { projectModelServices } = require('./model-service-projection.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -384,6 +385,10 @@ ipcMain.handle('host:copy-text', (_event, value) => {
   return { copied: true }
 })
 ipcMain.handle('host:model-connection', () => modelConnectionSnapshot())
+ipcMain.handle('model-services:snapshot', async () => {
+  const snapshot = workbench.snapshot()
+  return projectModelServices(await modelConnectionSnapshot(), requestedModelRoutes.get(snapshot.activeThreadId) || null)
+})
 ipcMain.handle('host:add-model-provider', async (_event, input) => {
   const runtime = await ensureEngineReady()
   const provisioned = await dshAdapter.provisionCatalogProvider({

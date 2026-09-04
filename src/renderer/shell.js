@@ -105,6 +105,13 @@ const clearModelCredentialButton = document.querySelector('#clear-model-credenti
 const verifyModelConnectionButton = document.querySelector('#verify-model-connection')
 const modelCredentialNote = document.querySelector('#model-credential-note')
 const modelCredentialResult = document.querySelector('#model-credential-result')
+const refreshModelServicesButton = document.querySelector('#refresh-model-services')
+const modelServicesTitle = document.querySelector('#model-services-title')
+const modelServicesMessage = document.querySelector('#model-services-message')
+const modelServicesStatus = document.querySelector('#model-services-status')
+const modelServicesList = document.querySelector('#model-services-list')
+const manageModelServicesButton = document.querySelector('#manage-model-services')
+const verifyModelServiceButton = document.querySelector('#verify-model-service')
 const credentialDialog = document.querySelector('#credential-dialog')
 const credentialDialogForm = document.querySelector('#credential-dialog-form')
 const credentialProviderChoice = document.querySelector('#credential-provider-choice')
@@ -265,6 +272,7 @@ function showPage(name) {
   if (name === 'workbench') requestAnimationFrame(updateJumpLatest)
   if (name === 'control-center') refreshControlCenter().catch((error) => { controlSkillStatus.textContent = error.message })
   if (name === 'memory') refreshMemory().catch((error) => { memoryStatus.textContent = `无法读取记忆：${error.message}` })
+  if (name === 'model-services') refreshModelServices().catch((error) => { modelServicesStatus.textContent = `无法读取：${error.message}` })
 }
 
 function preferredTheme() {
@@ -676,6 +684,54 @@ function resetProviderRemovalConfirmation() {
 async function refreshModelConnection() {
   const snapshot = await window.desktopHost.modelConnection()
   renderModelConnection(snapshot)
+  return snapshot
+}
+
+function renderModelServices(snapshot) {
+  modelServicesTitle.textContent = snapshot.title
+  modelServicesMessage.textContent = snapshot.message
+  modelServicesList.replaceChildren()
+  for (const provider of snapshot.providers) {
+    const card = document.createElement('article')
+    card.className = 'model-service-card'
+    const heading = document.createElement('div')
+    heading.className = 'ecosystem-card-heading'
+    const title = document.createElement('h3')
+    title.textContent = provider.name
+    const badge = document.createElement('span')
+    badge.textContent = provider.id
+    heading.append(title, badge)
+    const stages = document.createElement('div')
+    stages.className = 'model-service-stages'
+    for (const [name, stage] of [['Provider', provider.profile], ['模型目录', provider.catalog], ['凭据', provider.credential], ['真实验证', provider.verification], ['当前任务', provider.current]]) {
+      const item = document.createElement('section')
+      item.dataset.state = stage.state
+      const label = document.createElement('small')
+      label.textContent = name
+      const value = document.createElement('strong')
+      value.textContent = stage.label
+      const detail = document.createElement('p')
+      detail.textContent = stage.detail
+      item.append(label, value, detail)
+      stages.append(item)
+    }
+    const models = document.createElement('details')
+    const summary = document.createElement('summary')
+    summary.textContent = `查看 ${provider.models.length} 个目录模型`
+    const list = document.createElement('p')
+    list.textContent = provider.models.map((model) => model.name).join('、') || 'Harness 没有返回模型。'
+    models.append(summary, list)
+    card.append(heading, stages, models)
+    modelServicesList.append(card)
+  }
+  if (!snapshot.providers.length) modelServicesList.textContent = '尚未发现已启用的 Provider。请先启动 Engine 或到设置中添加模型服务。'
+  modelServicesStatus.textContent = `Harness 报告 ${snapshot.providers.length} 个已启用服务，另有 ${snapshot.dormantProviderCount} 个未启用 Provider。读取这些状态不会调用模型。`
+  verifyModelServiceButton.disabled = snapshot.state === 'engine-offline' || !snapshot.providers.length
+}
+
+async function refreshModelServices() {
+  const snapshot = await window.desktopHost.modelServicesSnapshot()
+  renderModelServices(snapshot)
   return snapshot
 }
 
@@ -1904,21 +1960,30 @@ clearModelCredentialButton.addEventListener('click', async () => {
     if (!settled) clearModelCredentialButton.disabled = false
   }
 })
-verifyModelConnectionButton.addEventListener('click', async () => {
+async function createVisibleConnectionTest(trigger, statusTarget) {
   if (!window.confirm('这会创建一个可见的“验证模型连接”任务并真实调用模型，可能产生极少量 token。继续吗？')) return
-  verifyModelConnectionButton.disabled = true
-  modelCredentialResult.textContent = '正在创建真实验证任务…'
+  trigger.disabled = true
+  statusTarget.textContent = '正在创建真实验证任务…'
   try {
     workbench = await window.desktopHost.createConnectionTest()
     renderWorkbench()
     showPage('workbench')
   } catch (error) {
-    modelCredentialResult.textContent = `无法创建验证任务：${error.message}`
-    modelCredentialResult.dataset.state = 'error'
+    statusTarget.textContent = `无法创建验证任务：${error.message}`
+    statusTarget.dataset.state = 'error'
   } finally {
-    verifyModelConnectionButton.disabled = false
+    trigger.disabled = false
   }
+}
+verifyModelConnectionButton.addEventListener('click', () => createVisibleConnectionTest(verifyModelConnectionButton, modelCredentialResult))
+verifyModelServiceButton.addEventListener('click', () => createVisibleConnectionTest(verifyModelServiceButton, modelServicesStatus))
+refreshModelServicesButton.addEventListener('click', async () => {
+  refreshModelServicesButton.disabled = true
+  modelServicesStatus.textContent = '正在读取 Harness Provider、模型目录和凭据状态…'
+  try { await refreshModelServices() } catch (error) { modelServicesStatus.textContent = `刷新失败：${error.message}` }
+  finally { refreshModelServicesButton.disabled = false }
 })
+manageModelServicesButton.addEventListener('click', () => showPage('settings'))
 inspectButton.addEventListener('click', async () => {
   await runVisibleAction({
     button: inspectButton,
