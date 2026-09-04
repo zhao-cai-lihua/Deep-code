@@ -166,7 +166,7 @@ test('conversation separates the final answer from collapsible run evidence', ()
   assert.match(html, /id="run-details"/)
   assert.match(html, /id="permission-facts"/)
   assert.match(html, /id="changed-files"/)
-  assert.match(html, /完整运行上下文与技术证据/)
+  assert.match(html, /运行上下文与技术摘要/)
   assert.match(shell, /appendResponseText/)
   assert.match(shell, /不作为你的发言显示/)
   assert.match(html, /markdown-it\.umd\.min\.js/)
@@ -190,6 +190,13 @@ test('conversation separates the final answer from collapsible run evidence', ()
   assert.match(preload, /copyText/)
   assert.match(main, /host:copy-text/)
   assert.doesNotMatch(shell, /navigator\.clipboard|document\.execCommand/)
+})
+
+test('failed model requests show human recovery and keep raw runtime context behind a second disclosure', () => {
+  assert.match(shell, /terminal\?\.failure/)
+  assert.match(html, /id="task-evidence-raw"/)
+  assert.match(html, /查看 Harness 原始上下文/)
+  assert.match(shell, /item\.label.*item\.detail/)
 })
 
 test('each task owns its disclosure state and task switches close shared dialogs', () => {

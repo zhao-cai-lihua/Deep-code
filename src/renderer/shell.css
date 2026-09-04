@@ -91,6 +91,8 @@ dialog label { display: grid; gap: 8px; margin-top: 18px; color: #c8cad2; font-s
 .fact-empty { color: #777b87; }
 .technical-details { border-top: 1px solid #2b2e36; padding-top: 11px; }
 .technical-details pre { overflow: auto; max-height: 300px; margin: 10px 0 0; border: 1px solid #2f3139; border-radius: 8px; padding: 12px; background: #0f1014; color: #aeb2be; white-space: pre-wrap; overflow-wrap: anywhere; font: 10px/1.55 ui-monospace, monospace; }
+.raw-context-details { margin-top: 10px; border-top: 1px dashed #343640; padding-top: 9px; }
+.raw-context-details > summary { color: #7f8490; font-size: 10px; }
 
 /* Complete Markdown reading behavior; final color and icon language comes later. */
 .message-content > :first-child { margin-top: 0; }.message-content > :last-child { margin-bottom: 0; }

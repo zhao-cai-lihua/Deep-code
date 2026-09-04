@@ -59,6 +59,7 @@ const permissionFacts = document.querySelector('#permission-facts')
 const changedFiles = document.querySelector('#changed-files')
 const toolCardsContainer = document.querySelector('#tool-cards')
 const taskEvidenceContent = document.querySelector('#task-evidence-content')
+const taskEvidenceRaw = document.querySelector('#task-evidence-raw')
 const outcomeMap = document.querySelector('#outcome-map')
 const outcomeMapFlow = document.querySelector('#outcome-map-flow')
 const outcomeMapLegend = document.querySelector('#outcome-map-legend')
@@ -1139,15 +1140,20 @@ function renderRunDetails(thread) {
   const evidence = thread.agent?.evidence || []
   const context = details.runtimeContext || []
   const sections = []
+  const rawSections = []
   if (thread.baseline) {
     const baseline = thread.baseline
     const head = baseline.head ? String(baseline.head).slice(0, 12) : '此工作区没有可用的 Git HEAD（与模型连接无关）'
     const dirtyCount = Array.isArray(baseline.dirtyPaths) ? baseline.dirtyPaths.length : 0
     sections.push(`任务开始前的本地 Git 基线\n\n项目：${thread.workspacePath || baseline.workspacePath || '未记录'}\n记录时间：${baseline.capturedAt || '未记录'}\n状态：${baseline.message || baseline.state}\nHEAD：${head}\n任务前已有未提交路径：${dirtyCount} 个\n\n这份基线只记录路径级状态，不包含文件正文，也不是可撤回 checkpoint。`)
   }
-  if (context.length) sections.push(`运行上下文（不作为你的发言显示）\n\n${context.map((item) => `[${item.source?.plugin || item.source?.kind || 'Harness'}] ${item.raw}`).join('\n\n')}`)
-  if (evidence.length) sections.push(`Harness 技术证据\n\n${evidence.map((item) => `${item.type}\n${JSON.stringify(item.detail, null, 2)}`).join('\n\n')}`)
+  if (context.length) {
+    sections.push(`运行上下文摘要（不作为你的发言显示）\n\n${context.map((item) => `• ${item.label}。${item.detail}`).join('\n')}`)
+    rawSections.push(`Harness 原始运行上下文\n\n${context.map((item) => `[${item.source?.plugin || item.source?.kind || 'Harness'}] ${item.raw}`).join('\n\n')}`)
+  }
+  if (evidence.length) rawSections.push(`Harness 原始技术证据\n\n${evidence.map((item) => `${item.type}\n${JSON.stringify(item.detail, null, 2)}`).join('\n\n')}`)
   taskEvidenceContent.textContent = sections.join('\n\n---\n\n') || '还没有技术记录。'
+  taskEvidenceRaw.textContent = rawSections.join('\n\n---\n\n') || '还没有原始记录。'
 }
 
 function appendOutcomeSection(title, items, className = '') {
@@ -1558,11 +1564,15 @@ function renderWorkbench() {
     activeTaskPrompt.textContent = thread.prompt
       ? `待发送的任务目标：${thread.prompt}`
       : '待发送的任务只有图片。'
+    const terminalFailure = thread.agent?.runDetails?.terminal?.failure
+    const terminalFailureCopy = terminalFailure
+      ? `${terminalFailure.title}。${terminalFailure.detail} 下一步：${terminalFailure.nextAction}`
+      : ''
     const labels = {
       draft: '任务已保存，等待连接 Engine。',
       running: 'Deep code 正在处理。结果会自动更新。',
       ready: '这一轮已经完成。你可以继续追问，或展开技术证据。',
-      error: `没有完成：${thread.engineError || 'Engine 返回了未知错误。'}`
+      error: `没有完成：${terminalFailureCopy || thread.engineError || 'Engine 返回了未知错误。'}`
     }
     const { pendingCount, queuedCount } = renderLiveState(thread)
     const statusCopy = pendingCount
