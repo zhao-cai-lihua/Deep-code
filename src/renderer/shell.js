@@ -18,6 +18,7 @@ const modelRouteButton = document.querySelector('#model-route-button')
 const modelRouteDialog = document.querySelector('#model-route-dialog')
 const modelRouteForm = document.querySelector('#model-route-form')
 const applyModelRouteButton = document.querySelector('#apply-model-route')
+const modelRoutePurposeCopy = document.querySelector('#model-route-purpose')
 const modelChoice = document.querySelector('#model-choice')
 const modelChoiceDescription = document.querySelector('#model-choice-description')
 const effortChoice = document.querySelector('#effort-choice')
@@ -236,6 +237,7 @@ function renderModelChoices() {
 async function openModelRouteDialog() {
   modelRoutePurpose = 'task'
   applyModelRouteButton.textContent = '应用到后续消息'
+  modelRoutePurposeCopy.textContent = '列表和当前选择都来自 Harness。选择“沿用 Harness 当前设置”时，Deep code 不会根据任务文字替你切换模型或提高推理强度。'
   modelRouteButton.disabled = true
   try {
     modelCatalog = await window.desktopHost.modelRoutingCatalog(activeThread()?.id || '')
@@ -773,6 +775,7 @@ async function openProviderVerification(providerId, trigger) {
     modelChoiceDescription.textContent = first.description || `${group.name} · ${first.id}`
     renderEffortChoices(first.reasoning?.defaultEffort || '')
     applyModelRouteButton.textContent = '用这个模型创建验证任务'
+    modelRoutePurposeCopy.textContent = '这会创建一个可见任务，真实调用你选择的这个模型，并可能产生极少量 token。模型列表和推理强度均来自 Harness。'
     modelRouteDialog.showModal()
     modelServicesStatus.textContent = `请选择要真实验证的 ${group.name} 模型与推理强度。`
   } catch (error) { modelServicesStatus.textContent = `无法准备验证：${error.message}` }
@@ -2005,7 +2008,6 @@ clearModelCredentialButton.addEventListener('click', async () => {
   }
 })
 async function createVisibleConnectionTest(trigger, statusTarget, routing = null) {
-  if (!window.confirm('这会创建一个可见的“验证模型连接”任务并真实调用模型，可能产生极少量 token。继续吗？')) return
   trigger.disabled = true
   statusTarget.textContent = '正在创建真实验证任务…'
   try {

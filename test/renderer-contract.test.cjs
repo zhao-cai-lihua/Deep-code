@@ -68,6 +68,8 @@ test('connection verification binds an explicit Harness route and never trusts a
   assert.match(main, /launchTask\(thread, \{ routing \}\)/)
   assert.match(main, /kind: 'launch-failed'/)
   assert.match(main, /Session 默认路线不作为本轮采用证据/)
+  const verificationFunction = shell.match(/async function createVisibleConnectionTest[\s\S]*?\n}/)?.[0] || ''
+  assert.doesNotMatch(verificationFunction, /window\.confirm/)
 })
 
 test('credential configuration is write-only and real verification stays a visible task', () => {

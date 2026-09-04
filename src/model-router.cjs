@@ -51,11 +51,14 @@ function manualRoute(models, manualSelection) {
  * task-role inference and maintains no second model-capability truth.
  */
 function chooseModelRoute({ directory, manualSelection = null }) {
-  if (directory?.routable === false) throw new Error('当前 Session 没有可用的模型选择。')
   const models = modelsOf(directory)
+  // An unroutable current selection is exactly when the user must still be
+  // allowed to choose another advertised route. Harness validates that repair
+  // through session.selectModel; only preserving the stale default is blocked.
+  if (manualSelection) return manualRoute(models, manualSelection)
+  if (directory?.routable === false) throw new Error('当前 Session 没有可用的模型选择。')
   const current = exactCurrent(directory, models)
   if (!current) throw new Error('Harness 没有报告当前模型；Deep code 不会猜测替代模型。')
-  if (manualSelection) return manualRoute(models, manualSelection)
   return {
     source: 'harness-default',
     selection: null,

@@ -37,6 +37,15 @@ test('accepts only a model and effort explicitly advertised by Harness', () => {
   }), /没有公布推理强度/)
 })
 
+test('an explicit selection can repair an unroutable stale session default', () => {
+  const route = chooseModelRoute({
+    directory: { ...directory, routable: false },
+    manualSelection: { provider: 'openai', model: 'gpt-5.6-sol', reasoningEffort: 'low' }
+  })
+  assert.equal(route.source, 'user')
+  assert.deepEqual(route.selection, { provider: 'openai', model: 'gpt-5.6-sol', reasoningEffort: 'low' })
+})
+
 test('never invents a model when the current route is absent from the catalog', () => {
   const route = chooseModelRoute({
     directory: { current: { provider: 'custom', model: 'still-routable', reasoningEffort: 'high' }, routable: true, groups: [] }
