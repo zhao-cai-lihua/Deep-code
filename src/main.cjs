@@ -24,6 +24,7 @@ const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
 const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retrieval.cjs')
 const { projectModelServices } = require('./model-service-projection.cjs')
 const { projectModelVerificationReceipt } = require('./model-verification-receipt.cjs')
+const { projectTaskGuidance } = require('./task-guidance-projection.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -200,6 +201,7 @@ async function workbenchSnapshot() {
     if (thread) {
       thread.run = projectTaskRun(thread)
       thread.outcome = projectTaskOutcome(thread)
+      thread.guidance = projectTaskGuidance(thread)
     }
     return offline
   }
@@ -255,6 +257,7 @@ async function workbenchSnapshot() {
   }
   thread.run = projectTaskRun(thread)
   thread.outcome = projectTaskOutcome(thread)
+  thread.guidance = projectTaskGuidance(thread)
   return snapshot
 }
 

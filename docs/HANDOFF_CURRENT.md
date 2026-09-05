@@ -2,8 +2,8 @@
 
 Updated: 2026-09-05
 Branch: `codex/v0.6.1-ui-clarity`  
-Current packaged test build: `0.6.1-beta.17`
-Current source version: `0.6.1-beta.17`
+Current packaged release candidate: `0.6.1-rc.1`
+Current source version: `0.6.1-rc.1`
 
 ## Product truth
 
@@ -26,12 +26,13 @@ Deep Code is the beginner-facing desktop Workbench above the official local Deep
 - All beta.15 acceptance checks passed after the same DeepSeek API Key was cleared and added again. This is consistent with a stale credential/adapter state being invalidated, but the exact cache owner is not proven and Deep Code still does not inspect or infer key contents.
 - The model-dialog focus regression remained intermittent in beta.15. Beta.16 removes the Windows/Chromium native select popups from that dialog; a local packaged-app check switched focus to Explorer and back, then successfully selected a model and `Max` through app-owned controls.
 - 砚星 manually accepted beta.16's focus-switch behavior. The affected native model and effort selects are retired.
+- 砚星 manually accepted beta.17's attributable model-verification receipt: the selected route, terminal result, and persisted Provider history remain aligned.
 
 Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely to repeat these checks.
 
 ## Automated baseline
 
-- `npm test`: 185 passed, 0 failed for beta.17.
+- `npm test`: 191 passed, 0 failed for rc.1.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -50,6 +51,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Retrying a dedicated connection test preserves its original explicit route instead of silently falling back to the current Session default.
 - The matching Provider card shows the latest persisted receipt as historical evidence with its recorded time and an explicit warning that it proves only that past request, not permanent credential validity.
 - Terminal Provider failures are projected into safe beginner-facing categories (authentication, quota, rate limit, unavailable model, network, or unknown) without exposing credential fragments. Runtime-context summaries remain readable by default; verbatim system and Skill payloads require a second explicit disclosure.
+- Terminal tasks now receive one derived next-action projection. Its Renderer accepts only allowlisted action IDs; it cannot submit a prompt or invent execution state. Authentication routes to Model Services, network/wait failures may offer explicit retry, risky completed work opens the receipt first, and successful model verification can continue to a new task.
+- The rc.1 portable artifact was launched in the real Windows desktop. A completed model-verification task displayed the next-action panel and `查看完整回执` navigated to the Harness-backed receipt without starting Engine or making a model request.
 - Test-only portable packaging uses `compression=store`: a controlled comparison showed default NSIS compression remained silent past the stop threshold, while the uncompressed test artifact completed in about 26 seconds. Formal release packaging remains compressed.
 
 ## Current decisions
@@ -62,10 +65,10 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Create one new beta.17 Provider verification task. A successful terminal request should show `模型连接验证通过` and a model-verification node in 回执; a Provider rejection should show a failed receipt and its safe next action.
-2. Continue the beginner-facing work-receipt and recovery path: show what changed, what was actually checked, what remains uncertain, and the smallest safe next action without duplicating Harness execution truth.
-3. Add no retroactive receipt for pre-beta.17 verification tasks: they did not persist the structured requested route, so title or prompt inference would create false evidence.
-4. Keep automatic memory extraction and automatic memory injection out of scope.
+1. Manually sample rc.1 next-action routes: authentication failure, network failure, completed work with warnings, and clean completion. Confirm that only an explicit retry sends work back to Harness.
+2. Add no retroactive receipt for pre-beta.17 verification tasks: they did not persist the structured requested route, so title or prompt inference would create false evidence.
+3. Keep automatic memory extraction, automatic memory injection, automatic model routing, and companion-card prompt injection out of scope until the core task loop is stable.
+4. After rc.1 acceptance, publish the same verified source as v0.6.1 Setup and portable artifacts; do not add new product scope during release hardening.
 
 ## Known uncertainty
 

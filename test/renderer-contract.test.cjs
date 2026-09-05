@@ -164,6 +164,16 @@ test('recovery guidance appears at the latest edge of the conversation instead o
   assert.ok(recoveryIndex < composerIndex)
 })
 
+test('terminal tasks expose one projected next-action panel with real controls', () => {
+  assert.match(html, /id="task-guidance"/)
+  assert.match(html, /id="task-guidance-actions"/)
+  assert.match(main, /projectTaskGuidance\(thread\)/)
+  assert.match(shell, /function runGuidanceAction\(id\)/)
+  assert.match(shell, /id === 'open-model-services'/)
+  assert.match(shell, /id === 'open-trace'/)
+  assert.doesNotMatch(shell, /taskGuidance[\s\S]{0,500}sendMessage/)
+})
+
 test('a running task exposes a stop control beside the composer', () => {
   assert.match(html, /id="composer-stop"/)
   assert.match(shell, /composerStopButton\.addEventListener\('click', stopActiveTask\)/)

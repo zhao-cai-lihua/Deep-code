@@ -45,6 +45,10 @@ const taskOutcomeTitle = document.querySelector('#task-outcome-title')
 const taskOutcomeBadge = document.querySelector('#task-outcome-badge')
 const taskOutcomeSummary = document.querySelector('#task-outcome-summary')
 const taskOutcomeSections = document.querySelector('#task-outcome-sections')
+const taskGuidance = document.querySelector('#task-guidance')
+const taskGuidanceTitle = document.querySelector('#task-guidance-title')
+const taskGuidanceSummary = document.querySelector('#task-guidance-summary')
+const taskGuidanceActions = document.querySelector('#task-guidance-actions')
 const showOutcomeEvidence = document.querySelector('#show-outcome-evidence')
 const decisionGates = document.querySelector('#decision-gates')
 const activityTimeline = document.querySelector('#activity-timeline')
@@ -1233,6 +1237,45 @@ function renderTaskOutcome(thread) {
   appendOutcomeSection('接下来只需做什么', outcome.nextAction ? [outcome.nextAction] : [])
 }
 
+async function startNewTask() {
+  workbench = await window.desktopHost.selectTask('')
+  await syncImageDrafts('new-task')
+  showPage('workbench')
+  forceFollowNextRender = false
+  mainPanel.scrollTop = 0
+  renderWorkbench()
+  taskComposer.focus()
+}
+
+function runGuidanceAction(id) {
+  if (id === 'retry-task') { retryTaskButton.click(); return }
+  if (id === 'open-model-services') { showPage('model-services'); return }
+  if (id === 'choose-model') { openModelRouteDialog(); return }
+  if (id === 'open-settings') { showPage('settings'); return }
+  if (id === 'open-trace') { setTaskView('trace'); runDetails.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
+  if (id === 'open-receipt') { setTaskView('receipt'); receiptView.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
+  if (id === 'new-task') startNewTask().catch((error) => { careResult.textContent = error.message; showPage('settings') })
+}
+
+function renderTaskGuidance(thread) {
+  const guidance = thread.guidance
+  taskGuidance.classList.toggle('hidden', !guidance?.visible)
+  taskGuidanceActions.replaceChildren()
+  if (!guidance?.visible) return
+  taskGuidance.dataset.tone = guidance.tone || 'review'
+  taskGuidanceTitle.textContent = guidance.title
+  taskGuidanceSummary.textContent = guidance.summary
+  for (const [index, next] of (guidance.actions || []).entries()) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = index === 0 ? 'primary-button' : 'quiet-button'
+    button.textContent = next.label
+    button.title = next.detail
+    button.addEventListener('click', () => runGuidanceAction(next.id))
+    taskGuidanceActions.append(button)
+  }
+}
+
 function renderOutcomeMap(map) {
   const visible = Boolean(map?.visible && map.nodes?.length)
   outcomeMap.classList.toggle('hidden', !visible)
@@ -1652,6 +1695,7 @@ function renderWorkbench() {
     }
     renderRunDetails(thread)
     renderTaskOutcome(thread)
+    renderTaskGuidance(thread)
     restoreTaskViewState(selectedThreadId)
   } else {
     decisionGates.replaceChildren()
@@ -1659,6 +1703,7 @@ function renderWorkbench() {
     activityTimeline.classList.add('hidden')
     taskOutcome.classList.add('hidden')
     taskRecovery.classList.add('hidden')
+    taskGuidance.classList.add('hidden')
     composerStopButton.classList.add('hidden')
     technicalDetails.open = false
     setTaskView('conversation')
@@ -1740,15 +1785,10 @@ async function selectWorkspace() {
 
 for (const button of pageButtons) button.addEventListener('click', () => showPage(button.dataset.page))
 themeToggle.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true))
-newTaskButton.addEventListener('click', async () => {
-  workbench = await window.desktopHost.selectTask('')
-  await syncImageDrafts('new-task')
-  showPage('workbench')
-  forceFollowNextRender = false
-  mainPanel.scrollTop = 0
-  renderWorkbench()
-  taskComposer.focus()
-})
+newTaskButton.addEventListener('click', () => startNewTask().catch((error) => {
+  careResult.textContent = `没有打开新任务：${error.message}`
+  showPage('settings')
+}))
 createTaskButton.addEventListener('click', createTask)
 addImagesButton.addEventListener('click', async () => {
   addImagesButton.disabled = true

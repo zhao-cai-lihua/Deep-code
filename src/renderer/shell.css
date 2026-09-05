@@ -63,6 +63,7 @@ dialog label { display: grid; gap: 8px; margin-top: 18px; color: #c8cad2; font-s
 .status-dot.unavailable, .status-dot.engine-offline { background: #747783; }
 .model-catalog-summary { margin-top: 14px; border: 1px solid #30323b; border-radius: 8px; padding: 12px; background: #121318; color: #b8bbc5; white-space: pre-wrap; font-size: 11px; line-height: 1.6; }
 .credential-note, .credential-warning { color: #9ea3b2; font-size: 11px; line-height: 1.6; }.credential-warning { margin: 14px 0 0; border-left: 3px solid #edbd62; padding: 9px 11px; background: #14151a; }
+.task-guidance { margin: 18px 0 4px; border: 1px solid var(--line-strong); border-radius: 12px; padding: 16px; background: linear-gradient(145deg, rgba(25, 55, 83, .42), rgba(10, 22, 39, .72)); }.task-guidance[data-tone="success"] { border-color: rgba(87, 214, 155, .34); }.task-guidance[data-tone="attention"] { border-color: rgba(237, 189, 98, .42); }.task-guidance h3 { margin: 7px 0 0; color: var(--text); font-size: 16px; }.task-guidance > p:not(.eyebrow) { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }.task-guidance-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }.task-guidance-actions button { padding: 8px 11px; border-radius: 7px; font-size: 12px; }
 
 /* Conversation information architecture. Visual identity intentionally remains neutral for later design work. */
 .conversation-feed { gap: 18px; }
@@ -300,6 +301,7 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 :root[data-theme="light"] .danger-button { border-color: #e7bdc2; background: #fff6f7; color: #9b3846; }
 :root[data-theme="light"] .settings-card pre, :root[data-theme="light"] .logs-panel pre, :root[data-theme="light"] .setup-steps + pre { border-color: #254461; background: #10253d; color: #dcecff; }
 :root[data-theme="light"] dialog { border-color: var(--line-strong); background: rgba(248, 252, 255, .96); color: var(--text); }
+:root[data-theme="light"] .task-guidance { background: linear-gradient(145deg, rgba(236, 247, 255, .94), rgba(250, 253, 255, .96)); }
 :root[data-theme="light"] .route-choice-label { color: #455f79; }:root[data-theme="light"] .route-choice-list { border-color: var(--line-strong); background: #fafdff; }:root[data-theme="light"] .route-choice-group { color: #698099; }:root[data-theme="light"] .route-choice-option { background: #eef6fd; color: #29445e; }:root[data-theme="light"] .route-choice-option:hover { border-color: #78acd1; background: #e4f2fc; }:root[data-theme="light"] .route-choice-option.is-selected { border-color: var(--accent); background: var(--accent-soft); color: #10243e; }
 
 .memory-grid { grid-template-columns: minmax(300px, .8fr) minmax(420px, 1.2fr); align-items: start; }
