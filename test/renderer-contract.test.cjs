@@ -59,6 +59,14 @@ test('model service manager separates configuration facts from real verification
   assert.doesNotMatch(shell, /credential\.configured[^\n]{0,100}真实调用成功/)
 })
 
+test('a dedicated model test can show a persisted Harness-attributable receipt', () => {
+  assert.match(main, /projectModelVerificationReceipt/)
+  assert.match(main, /setVerificationReceipt/)
+  assert.match(shell, /模型验证回执/)
+  assert.match(shell, /路线证据：Harness 请求头/)
+  assert.match(main, /threads\.map\(\(thread\) => thread\.verificationReceipt\)/)
+})
+
 test('connection verification binds an explicit Harness route and never trusts an empty session default', () => {
   assert.match(shell, /验证这个服务/)
   assert.match(shell, /openProviderVerification/)

@@ -24,6 +24,7 @@ function projectOutcomeMap(outcome = {}) {
   if (!outcome.visible) return { visible: false, nodes: [], edges: [] }
   const changes = Array.isArray(outcome.changes) ? outcome.changes : []
   const verifications = Array.isArray(outcome.verifications) ? outcome.verifications : []
+  const modelVerification = outcome.modelVerification || null
   const warnings = Array.isArray(outcome.warnings) ? outcome.warnings : []
   const attribution = outcome.recoveryAssessment || null
   const nodes = [
@@ -37,12 +38,20 @@ function projectOutcomeMap(outcome = {}) {
       summary: changes.length ? compact(changes.map((item) => item.path)).join('；') : '不根据回答文字猜测文件变化。', evidenceTarget: 'changes'
     },
     {
-      id: 'verification', kind: 'evidence', state: verificationState(verifications), eyebrow: '验证',
-      title: verifications.length ? `${verifications.filter((item) => item.state === 'passed').length}/${verifications.length} 项明确通过` : '没有确认到验证',
-      summary: verifications.length
+      id: 'verification', kind: 'evidence',
+      state: modelVerification
+        ? (modelVerification.state === 'passed' ? 'success' : modelVerification.state === 'failed' ? 'error' : 'warning')
+        : verificationState(verifications),
+      eyebrow: modelVerification ? '模型验证' : '验证',
+      title: modelVerification
+        ? (modelVerification.state === 'passed' ? '真实调用已通过' : modelVerification.state === 'failed' ? '真实调用未通过' : '真实调用已中止')
+        : verifications.length ? `${verifications.filter((item) => item.state === 'passed').length}/${verifications.length} 项明确通过` : '没有确认到验证',
+      summary: modelVerification
+        ? `${modelVerification.modelName || modelVerification.model}${modelVerification.reasoningEffort ? ` · ${modelVerification.reasoningEffort}` : ''}；Harness 请求头与专用验证任务一致。`
+        : verifications.length
         ? compact(verifications.map((item) => `${item.label}：${item.state === 'passed' ? '通过' : item.state === 'failed' ? '未通过' : '未确认'}`)).join('；')
         : '完成状态不自动等于测试通过。',
-      evidenceTarget: 'tools'
+      evidenceTarget: modelVerification ? 'technical' : 'tools'
     }
   ]
 

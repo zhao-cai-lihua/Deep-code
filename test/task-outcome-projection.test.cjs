@@ -50,6 +50,23 @@ test('projects task-bound workspace attribution into the visual receipt', () => 
   assert.match(attribution.summary, /不承诺一键撤回/)
 })
 
+test('gives an attributable dedicated model test its own receipt language', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'ready',
+    verificationReceipt: {
+      version: 1, state: 'passed', provider: 'deepseek', model: 'deepseek-v4-flash', modelName: 'DeepSeek-V4-Flash',
+      reasoningEffort: 'low', routeEvidence: 'request/header', terminalReason: 'completed', recordedAt: '2026-09-05T00:00:00.000Z'
+    },
+    agent: { runDetails: { terminal: { state: 'completed' }, changedFiles: [], toolCards: [] } }
+  })
+  assert.equal(outcome.title, '模型连接验证通过')
+  assert.match(outcome.summary, /可归属的真实模型请求/)
+  assert.equal(outcome.modelVerification.routeEvidence, 'request/header')
+  const verificationNode = outcome.map.nodes.find((node) => node.id === 'verification')
+  assert.equal(verificationNode.title, '真实调用已通过')
+  assert.match(verificationNode.summary, /Harness 请求头与专用验证任务一致/)
+})
+
 test('makes missing verification visible when files changed', () => {
   const outcome = projectTaskOutcome({
     engineState: 'ready',

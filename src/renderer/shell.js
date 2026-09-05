@@ -1219,6 +1219,10 @@ function renderTaskOutcome(thread) {
   taskOutcomeBadge.textContent = outcome.state === 'success' ? '已完成' : '需要处理'
   taskOutcomeSummary.textContent = outcome.summary
   taskOutcomeSections.replaceChildren()
+  const modelVerification = outcome.modelVerification
+  appendOutcomeSection('模型验证回执', modelVerification ? [
+    `${modelVerification.state === 'passed' ? '通过' : modelVerification.state === 'failed' ? '未通过' : '已中止'} · ${modelVerification.modelName || modelVerification.model}${modelVerification.reasoningEffort ? ` · ${modelVerification.reasoningEffort}` : ''}；路线证据：Harness 请求头；终态：${modelVerification.terminalReason || modelVerification.state}`
+  ] : [])
   appendOutcomeSection('确认的文件改动', outcome.changes.map((item) => `${item.operation} · ${item.path}`))
   const verificationLabel = (state) => state === 'passed' ? '通过' : state === 'failed' ? '未通过' : '未确认'
   appendOutcomeSection('明确的验证', outcome.verifications.map((item) => `${verificationLabel(item.state)} · ${item.label}（${item.detail}）`), 'outcome-verifications')

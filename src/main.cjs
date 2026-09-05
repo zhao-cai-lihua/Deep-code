@@ -23,6 +23,7 @@ const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
 const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
 const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retrieval.cjs')
 const { projectModelServices } = require('./model-service-projection.cjs')
+const { projectModelVerificationReceipt } = require('./model-verification-receipt.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -122,6 +123,7 @@ async function ensureEngineReady() {
 async function launchTask(thread, { images = [], routing = null } = {}) {
   try {
     workbench.clearRecovery(thread.id)
+    if (thread.purpose?.kind === 'model-connection-test') workbench.clearVerificationReceipt(thread.id)
     const workspacePath = thread.workspacePath || settings.workspacePath
     if (!workspacePath) throw new Error('请先创建一个安全工作区，或在设置中选择项目文件夹。')
     const baseline = await workspaceBaseline.capture(workspacePath)
@@ -204,7 +206,11 @@ async function workbenchSnapshot() {
   try {
     const live = ensureLiveSession(runtime.url, thread.sessionId)
     thread.agent = await dshAdapter.snapshot({ baseUrl: runtime.url, sessionId: thread.sessionId })
-    const requestedRoute = requestedModelRoutes.get(thread.id)
+    const persistedRequest = thread.purpose?.kind === 'model-connection-test' ? thread.purpose.requestedRoute : null
+    const requestedRoute = requestedModelRoutes.get(thread.id) || (persistedRequest ? {
+      source: 'user', requested: persistedRequest,
+      label: `${persistedRequest.provider} / ${persistedRequest.model}${persistedRequest.reasoningEffort ? ` · ${persistedRequest.reasoningEffort}` : ''}`
+    } : null)
     const effective = thread.agent.effectiveModel?.available ? thread.agent.effectiveModel : null
     if (requestedRoute) {
       thread.routeEvidence = {
@@ -219,6 +225,13 @@ async function workbenchSnapshot() {
     live.reconcileRunning(thread.agent.running)
     thread.agent.live = live.snapshot()
     const terminal = thread.agent.runDetails?.terminal
+    if (!thread.verificationReceipt) {
+      const verificationReceipt = projectModelVerificationReceipt(thread)
+      if (verificationReceipt) {
+        workbench.setVerificationReceipt(thread.id, verificationReceipt)
+        thread.verificationReceipt = verificationReceipt
+      }
+    }
     if (thread.recovery?.kind === 'launch-failed' && thread.engineState === 'error') {
       thread.agent.effectiveModel = { available: false, label: '任务未完成模型启动，Session 默认路线不作为本轮采用证据。' }
       thread.engineState = 'error'
@@ -396,7 +409,8 @@ ipcMain.handle('host:copy-text', (_event, value) => {
 ipcMain.handle('host:model-connection', () => modelConnectionSnapshot())
 ipcMain.handle('model-services:snapshot', async () => {
   const snapshot = workbench.snapshot()
-  return projectModelServices(await modelConnectionSnapshot(), requestedModelRoutes.get(snapshot.activeThreadId) || null)
+  const receipts = snapshot.threads.map((thread) => thread.verificationReceipt).filter(Boolean)
+  return projectModelServices(await modelConnectionSnapshot(), requestedModelRoutes.get(snapshot.activeThreadId) || null, receipts)
 })
 ipcMain.handle('host:add-model-provider', async (_event, input) => {
   const runtime = await ensureEngineReady()
@@ -705,7 +719,15 @@ ipcMain.handle('workbench:create-connection-test', async (_event, routing) => {
   if (!routing?.manualSelection?.provider || !routing?.manualSelection?.model) {
     throw new Error('请先明确选择要验证的 Provider 和模型。')
   }
-  const thread = workbench.create({ title: '验证模型连接', prompt: MODEL_CONNECTION_TEST_PROMPT })
+  const requestedRoute = {
+    provider: String(routing.manualSelection.provider),
+    model: String(routing.manualSelection.model),
+    reasoningEffort: String(routing.manualSelection.reasoningEffort || '')
+  }
+  const thread = workbench.create({
+    title: '验证模型连接', prompt: MODEL_CONNECTION_TEST_PROMPT,
+    purpose: { kind: 'model-connection-test', requestedRoute }
+  })
   await launchTask(thread, { routing })
   return workbenchSnapshot()
 })
@@ -725,7 +747,10 @@ ipcMain.handle('workbench:retry-task', async (_event, id) => {
     }
   }
   const attachmentIds = imageDrafts.list(thread.id).map((item) => item.id)
-  const sent = await launchTask(thread, { images: imageDrafts.resolve(thread.id, attachmentIds) })
+  const retryRouting = thread.purpose?.kind === 'model-connection-test'
+    ? { manualSelection: thread.purpose.requestedRoute }
+    : null
+  const sent = await launchTask(thread, { images: imageDrafts.resolve(thread.id, attachmentIds), routing: retryRouting })
   if (sent) imageDrafts.clear(thread.id, attachmentIds)
   return workbenchSnapshot()
 })

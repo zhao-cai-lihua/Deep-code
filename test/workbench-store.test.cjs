@@ -54,6 +54,23 @@ test('binds one Deep code task to one hidden Engine session', () => {
   assert.equal(bound.engineState, 'running')
 })
 
+test('persists a bounded model verification purpose and receipt', () => {
+  const store = makeStore()
+  const task = store.create({
+    prompt: '验证模型',
+    purpose: { kind: 'model-connection-test', requestedRoute: { provider: 'deepseek', model: 'deepseek-v4-flash', reasoningEffort: 'low' } }
+  })
+  store.setVerificationReceipt(task.id, {
+    version: 1, state: 'passed', provider: 'deepseek', model: 'deepseek-v4-flash', modelName: 'DeepSeek V4 Flash', reasoningEffort: 'low',
+    routeEvidence: 'request/header', terminalReason: 'completed', recordedAt: '2026-09-05T00:00:00.000Z'
+  })
+  const saved = store.snapshot().threads[0]
+  assert.equal(saved.purpose.kind, 'model-connection-test')
+  assert.equal(saved.verificationReceipt.state, 'passed')
+  store.clearVerificationReceipt(task.id)
+  assert.equal(store.snapshot().threads[0].verificationReceipt, null)
+})
+
 test('persists a human-readable model-switch notice independently from errors', () => {
   const store = makeStore()
   const task = store.create({ prompt: '分析截图' })

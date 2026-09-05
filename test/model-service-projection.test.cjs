@@ -18,3 +18,15 @@ test('keeps provider failures visible without marking credentials missing', () =
   assert.equal(result.providers[0].verification.state, 'failed')
   assert.match(result.providers[0].verification.detail, /network failed/)
 })
+
+test('shows the latest persisted real-call receipt as historical evidence', () => {
+  const connection = { state: 'ready', activeProviders: [{ id: 'deepseek', name: 'DeepSeek', modelCount: 1, models: [], credential: { configured: true } }], failures: [] }
+  const receipts = [
+    { provider: 'deepseek', model: 'old', modelName: 'Old', state: 'failed', recordedAt: '2026-09-04T00:00:00.000Z' },
+    { provider: 'deepseek', model: 'deepseek-v4-flash', modelName: 'DeepSeek-V4-Flash', reasoningEffort: 'low', state: 'passed', recordedAt: '2026-09-05T00:00:00.000Z' }
+  ]
+  const service = projectModelServices(connection, null, receipts).providers[0]
+  assert.equal(service.verification.state, 'passed')
+  assert.equal(service.verification.label, '最近一次真实验证通过')
+  assert.match(service.verification.detail, /只证明当时/)
+})

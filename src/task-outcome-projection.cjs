@@ -48,6 +48,7 @@ function projectTaskOutcome(thread = {}) {
   const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
   const assessment = assessWorkReceipt({ changes, verifications, recovery, baseline: thread.baseline || null })
   const workspace = workspaceProjection(thread)
+  const modelVerification = thread.verificationReceipt || null
 
   if (changes.length && !verifications.length) {
     warnings.push('Harness 记录了文件改动，但没有看到明确的测试、检查或构建命令。完成状态不等于已经验证。')
@@ -61,8 +62,10 @@ function projectTaskOutcome(thread = {}) {
     const outcome = {
       visible: true,
       state: 'error',
-      title: interrupted ? '这一轮已停止' : '这轮没有完成',
-      summary: text(thread.engineError, interrupted
+      title: modelVerification
+        ? (interrupted ? '模型连接验证已停止' : '模型连接验证未通过')
+        : (interrupted ? '这一轮已停止' : '这轮没有完成'),
+      summary: modelVerification?.failure?.detail || text(thread.engineError, interrupted
         ? `Harness 报告这一轮已停止（${text(details.terminal?.reason, '原因未知')}）。`
         : `Harness 报告这一轮失败（${text(details.terminal?.reason, '原因未知')}）。`),
       changes,
@@ -72,16 +75,19 @@ function projectTaskOutcome(thread = {}) {
       impact: recovery?.safety || (changes.length
         ? '本轮已经停止，但上面列出的已确认文件改动仍保留在工作区。'
         : '本轮已经停止；Harness 没有确认到文件改动。'),
-      nextAction: recovery?.nextAction || '先查看轨迹中的失败证据，再决定重试还是修改任务说明。',
+      nextAction: modelVerification?.failure?.nextAction || recovery?.nextAction || '先查看轨迹中的失败证据，再决定重试还是修改任务说明。',
       recovery,
       recoveryAssessment: assessment.recoveryAssessment,
-      workspace
+      workspace,
+      modelVerification
     }
     return { ...outcome, map: projectOutcomeMap(outcome) }
   }
 
   const operationCount = tools.length
-  const summary = changes.length
+  const summary = modelVerification?.state === 'passed'
+    ? `Harness 确认 ${modelVerification.modelName || modelVerification.model} 完成了一次可归属的真实模型请求。`
+    : changes.length
     ? `Harness 确认改动 ${changes.length} 个文件，并记录 ${operationCount} 项工具操作。`
     : operationCount
       ? `Harness 已完成任务，记录 ${operationCount} 项工具操作，没有确认到文件改动。`
@@ -90,7 +96,7 @@ function projectTaskOutcome(thread = {}) {
   const outcome = {
     visible: true,
     state: 'success',
-    title: '任务已完成',
+    title: modelVerification?.state === 'passed' ? '模型连接验证通过' : '任务已完成',
     summary,
     changes,
     verifications,
@@ -100,7 +106,8 @@ function projectTaskOutcome(thread = {}) {
     nextAction: warnings.length ? '先处理“仍需留意”中的未确认事项。' : '这一轮没有需要你立即处理的事项。',
     recovery: null,
     recoveryAssessment: assessment.recoveryAssessment,
-    workspace
+    workspace,
+    modelVerification
   }
   return { ...outcome, map: projectOutcomeMap(outcome) }
 }

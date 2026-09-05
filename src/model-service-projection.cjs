@@ -5,10 +5,13 @@ function credentialStage(credential) {
   return { state: 'unknown', label: '凭据状态未确认', detail: 'Harness 没有返回明确状态。' }
 }
 
-function projectModelServices(connection, currentRoute = null) {
+function projectModelServices(connection, currentRoute = null, verificationReceipts = []) {
   const failures = Array.isArray(connection?.failures) ? connection.failures : []
   const providers = (connection?.activeProviders || []).map((provider) => {
     const providerFailures = failures.filter((failure) => failure.provider === provider.id)
+    const latestReceipt = verificationReceipts
+      .filter((receipt) => receipt?.provider === provider.id)
+      .sort((a, b) => String(b.recordedAt || '').localeCompare(String(a.recordedAt || '')))[0] || null
     const active = currentRoute?.requested?.provider === provider.id
     return {
       id: provider.id,
@@ -18,7 +21,13 @@ function projectModelServices(connection, currentRoute = null) {
       catalog: provider.modelCount > 0
         ? { state: 'available', label: `${provider.modelCount} 个目录模型`, detail: '目录存在不代表账号有权调用每一个模型。' }
         : { state: 'empty', label: '目录没有模型', detail: 'Provider 已启用，但 Harness 没有返回模型。' },
-      verification: providerFailures.length
+      verification: latestReceipt
+        ? {
+            state: latestReceipt.state === 'passed' ? 'passed' : latestReceipt.state === 'failed' ? 'failed' : 'interrupted',
+            label: latestReceipt.state === 'passed' ? '最近一次真实验证通过' : latestReceipt.state === 'failed' ? '最近一次真实验证未通过' : '最近一次真实验证已中止',
+            detail: `${latestReceipt.modelName || latestReceipt.model}${latestReceipt.reasoningEffort ? ` · ${latestReceipt.reasoningEffort}` : ''}；记录于 ${latestReceipt.recordedAt || '未知时间'}。只证明当时这次 Harness 请求的结果。`
+          }
+        : providerFailures.length
         ? { state: 'failed', label: '读取状态时发生错误', detail: providerFailures.map((item) => item.message).join('；') }
         : { state: 'unverified', label: '尚无可归属的真实验证', detail: '凭据状态和真实调用是两回事。' },
       current: active
