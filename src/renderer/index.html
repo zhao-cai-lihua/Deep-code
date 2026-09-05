@@ -274,9 +274,9 @@
       <form id="model-route-form" method="dialog">
         <div class="dialog-heading"><div><p class="eyebrow">MODEL & EFFORT</p><h2>选择模型与推理强度</h2></div><button id="cancel-model-route" class="quiet-button" type="button">取消</button></div>
         <p id="model-route-purpose">列表和当前选择都来自 Harness。选择“沿用 Harness 当前设置”时，Deep code 不会根据任务文字替你切换模型或提高推理强度。</p>
-        <label>模型<select id="model-choice"><option value="">沿用 Harness 当前设置</option></select></label>
+        <div class="route-choice-field"><span class="route-choice-label">模型</span><div id="model-choice" class="route-choice-list" role="radiogroup" aria-label="模型"></div></div>
         <p id="model-choice-description" class="credential-note">不指定模型；沿用当前 Session 的模型与推理强度。</p>
-        <label>推理强度<select id="effort-choice"><option value="">模型默认</option></select></label>
+        <div class="route-choice-field"><span class="route-choice-label">推理强度</span><div id="effort-choice" class="route-choice-list is-compact" role="radiogroup" aria-label="推理强度"></div></div>
         <p id="effort-choice-description" class="credential-note">只显示所选模型由 Adapter 实际公布的强度。</p>
         <div class="button-row"><button id="apply-model-route" class="primary-button" type="submit">应用到后续消息</button></div>
       </form>

@@ -205,31 +205,60 @@ function updateModelRouteButton() {
   modelRouteButton.textContent = `模型：${model?.name || manualModelSelection.model}${effort}`
 }
 
+function selectedChoiceValue(container) {
+  return container.querySelector('[role="radio"][aria-checked="true"]')?.dataset.value || ''
+}
+
+function selectChoice(container, value) {
+  for (const choice of container.querySelectorAll('[role="radio"]')) {
+    const selected = choice.dataset.value === value
+    choice.setAttribute('aria-checked', selected ? 'true' : 'false')
+    choice.classList.toggle('is-selected', selected)
+  }
+}
+
+function createChoice(label, value) {
+  const choice = document.createElement('button')
+  choice.type = 'button'
+  choice.className = 'route-choice-option'
+  choice.setAttribute('role', 'radio')
+  choice.setAttribute('aria-checked', 'false')
+  choice.dataset.value = value
+  choice.textContent = label
+  return choice
+}
+
 function selectedCatalogModel() {
-  return catalogModels().find((item) => `${item.provider}\u0000${item.id}` === modelChoice.value)
+  const value = selectedChoiceValue(modelChoice)
+  return catalogModels().find((item) => `${item.provider}\u0000${item.id}` === value)
 }
 
 function renderEffortChoices(preferred = '') {
   const model = selectedCatalogModel()
-  effortChoice.replaceChildren(new Option('模型默认', ''))
-  for (const effort of model?.reasoning?.efforts || []) effortChoice.append(new Option(effort.name || effort.id, effort.id))
-  effortChoice.disabled = !model || !(model.reasoning?.efforts || []).length
-  effortChoice.value = [...effortChoice.options].some((option) => option.value === preferred) ? preferred : ''
-  const selected = (model?.reasoning?.efforts || []).find((item) => item.id === effortChoice.value)
+  const efforts = model?.reasoning?.efforts || []
+  effortChoice.replaceChildren(createChoice('模型默认', ''))
+  for (const effort of efforts) effortChoice.append(createChoice(effort.name || effort.id, effort.id))
+  const availableValues = new Set(['', ...efforts.map((effort) => effort.id)])
+  selectChoice(effortChoice, availableValues.has(preferred) ? preferred : '')
+  effortChoice.setAttribute('aria-disabled', !model || !efforts.length ? 'true' : 'false')
+  for (const choice of effortChoice.querySelectorAll('[role="radio"]')) choice.disabled = !model || !efforts.length
+  const selected = efforts.find((item) => item.id === selectedChoiceValue(effortChoice))
   effortChoiceDescription.textContent = selected?.description
     || (model?.reasoning?.defaultEffort ? `模型默认：${model.reasoning.defaultEffort}` : '该模型没有公布可调推理强度，将使用 Provider 默认值。')
 }
 
 function renderModelChoices() {
-  modelChoice.replaceChildren(new Option('沿用 Harness 当前设置', ''))
+  modelChoice.replaceChildren(createChoice('沿用 Harness 当前设置', ''))
   for (const group of modelCatalog.groups || []) {
-    const options = document.createElement('optgroup')
-    options.label = group.name || group.id
-    for (const model of group.models || []) options.append(new Option(model.name || model.id, `${group.id}\u0000${model.id}`))
-    modelChoice.append(options)
+    const heading = document.createElement('p')
+    heading.className = 'route-choice-group'
+    heading.textContent = group.name || group.id
+    modelChoice.append(heading)
+    for (const model of group.models || []) modelChoice.append(createChoice(model.name || model.id, `${group.id}\u0000${model.id}`))
   }
   const preferred = manualModelSelection ? `${manualModelSelection.provider}\u0000${manualModelSelection.model}` : ''
-  modelChoice.value = [...modelChoice.querySelectorAll('option')].some((option) => option.value === preferred) ? preferred : ''
+  const availableValues = new Set([...modelChoice.querySelectorAll('[role="radio"]')].map((choice) => choice.dataset.value))
+  selectChoice(modelChoice, availableValues.has(preferred) ? preferred : '')
   const model = selectedCatalogModel()
   modelChoiceDescription.textContent = model?.description || (model ? `${model.providerName} · ${model.id}` : '不指定模型；沿用当前 Session 的模型与推理强度。')
   renderEffortChoices(manualModelSelection?.reasoningEffort || '')
@@ -250,12 +279,20 @@ async function openModelRouteDialog() {
   } finally { modelRouteButton.disabled = false }
 }
 
-modelChoice.addEventListener('change', () => {
+modelChoice.addEventListener('click', (event) => {
+  const choice = event.target.closest('[role="radio"]')
+  if (!choice) return
+  selectChoice(modelChoice, choice.dataset.value)
   const model = selectedCatalogModel()
   modelChoiceDescription.textContent = model?.description || (model ? `${model.providerName} · ${model.id}` : '不指定模型；Deep code 不会自动切换。')
   renderEffortChoices('')
 })
-effortChoice.addEventListener('change', () => renderEffortChoices(effortChoice.value))
+effortChoice.addEventListener('click', (event) => {
+  const choice = event.target.closest('[role="radio"]')
+  if (!choice || choice.disabled) return
+  selectChoice(effortChoice, choice.dataset.value)
+  renderEffortChoices(choice.dataset.value)
+})
 modelRouteButton.addEventListener('click', openModelRouteDialog)
 cancelModelRoute.addEventListener('click', () => modelRouteDialog.close())
 modelRouteForm.addEventListener('submit', async (event) => {
@@ -264,7 +301,7 @@ modelRouteForm.addEventListener('submit', async (event) => {
   const selection = model ? {
     provider: model.provider,
     model: model.id,
-    ...(effortChoice.value ? { reasoningEffort: effortChoice.value } : {})
+    ...(selectedChoiceValue(effortChoice) ? { reasoningEffort: selectedChoiceValue(effortChoice) } : {})
   } : null
   if (modelRoutePurpose === 'verification') {
     if (!selection) { modelChoiceDescription.textContent = '验证必须明确选择一个模型。'; return }
@@ -772,7 +809,7 @@ async function openProviderVerification(providerId, trigger) {
     manualModelSelection = null
     renderModelChoices()
     const first = group.models[0]
-    modelChoice.value = `${group.id}\u0000${first.id}`
+    selectChoice(modelChoice, `${group.id}\u0000${first.id}`)
     modelChoiceDescription.textContent = first.description || `${group.name} · ${first.id}`
     renderEffortChoices(first.reasoning?.defaultEffort || '')
     applyModelRouteButton.textContent = '用这个模型创建验证任务'
