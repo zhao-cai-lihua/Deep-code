@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { projectConversation } = require('../src/conversation-projection.cjs')
+const { projectConversation, terminalFailure } = require('../src/conversation-projection.cjs')
 
 test('keeps human prompts in chat and moves Harness context into run details', () => {
   const page = { events: [
@@ -149,4 +149,32 @@ test('run details and terminal outcome belong only to the latest Turn', () => {
 
   assert.deepEqual(result.runDetails.activities.map((item) => item.callId), ['new'])
   assert.deepEqual(result.runDetails.terminal, { state: 'failed', reason: 'failed', turn: 2 })
+})
+
+test('turn failures preserve a safe human recovery without exposing credential fragments', () => {
+  const result = projectConversation({ events: [
+    { event: { type: 'turn/start', seq: 1, data: { turn: 1 } } },
+    { event: { type: 'turn/end', seq: 2, data: { turn: 1, reason: {
+      kind: 'error',
+      error: { message: 'Authentication Fails, Your api key: ****mRsP is invalid', code: 'AUTH', status: 401 }
+    } } } }
+  ] })
+
+  assert.deepEqual(result.runDetails.terminal.failure, {
+    kind: 'authentication',
+    title: '模型服务拒绝了 API Key',
+    detail: '当前模型服务认为保存的 API Key 无效、过期或不属于这个服务。',
+    nextAction: '打开“模型服务”，为当前 Provider 替换有效的 API Key，再重新验证。',
+    code: 'AUTH',
+    status: 401
+  })
+  assert.doesNotMatch(JSON.stringify(result), /mRsP|api key: \*\*\*\*/i)
+})
+
+test('common provider failures have distinct beginner-facing recovery paths', () => {
+  assert.equal(terminalFailure({ kind: 'error', error: { code: 'RATE_LIMIT', status: 429 } }).kind, 'rate-limit')
+  assert.equal(terminalFailure({ kind: 'error', error: { code: 'INSUFFICIENT_QUOTA' } }).kind, 'quota')
+  assert.equal(terminalFailure({ kind: 'error', error: { code: 'MODEL_UNAVAILABLE' } }).kind, 'model-unavailable')
+  assert.equal(terminalFailure({ kind: 'error', error: { code: 'NETWORK_ERROR' } }).kind, 'network')
+  assert.equal(terminalFailure({ kind: 'error', error: { code: 'UNCLASSIFIED' } }).kind, 'unknown')
 })

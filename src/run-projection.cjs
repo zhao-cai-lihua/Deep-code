@@ -25,13 +25,17 @@ function projectTaskRun(thread = {}) {
     interrupted: '本轮已停止',
     failed: '本轮需要处理'
   }
-  const model = agent.model?.available
+  const effective = agent.effectiveModel?.available ? agent.effectiveModel : null
+  const sourceModel = effective || agent.model
+  const model = sourceModel?.available
     ? {
         available: true,
-        provider: String(agent.model.provider || ''),
-        id: String(agent.model.id || ''),
-        name: String(agent.model.name || agent.model.id || '未命名模型'),
-        scope: 'session-current'
+        provider: String(sourceModel.provider || ''),
+        id: String(sourceModel.id || ''),
+        name: String(sourceModel.name || sourceModel.id || '未命名模型'),
+        reasoningEffort: String(sourceModel.reasoningEffort || ''),
+        scope: effective ? 'request-effective' : 'session-current',
+        confirmed: Boolean(effective)
       }
     : { available: false, label: 'Harness 未提供当前 Session 的模型。' }
   return {

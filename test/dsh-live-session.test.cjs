@@ -141,6 +141,93 @@ test('preserves protocol question ids and option labels exactly', async () => {
   live.close()
 })
 
+test('stops waiting after five minutes without inventing an answer', () => {
+  const scheduled = []
+  const timedOut = []
+  const live = new DshLiveSession({
+    baseUrl: 'http://127.0.0.1:3080',
+    sessionId: 'session-wait-timeout',
+    fetchImpl: async () => ({ ok: true, json: async () => ({ accepted: true }) }),
+    WebSocketImpl: FakeWebSocket,
+    interactionTimeoutMs: 5 * 60 * 1000,
+    setTimeoutImpl: (callback, delay) => { scheduled.push({ callback, delay }); return scheduled.length },
+    clearTimeoutImpl: () => {},
+    onInteractionTimeout: (snapshot) => timedOut.push(snapshot)
+  })
+
+  live.receive(JSON.stringify({ type: 'server-request', rpcId: 'rpc-wait', payload: {
+    type: 'question/requested', sessionId: 'session-wait-timeout', questions: [{ id: 'choice', question: '请选择', options: [{ label: 'A' }] }]
+  } }))
+
+  assert.equal(scheduled[0].delay, 5 * 60 * 1000)
+  scheduled[0].callback()
+  assert.equal(timedOut.length, 1)
+  assert.equal(timedOut[0].reason, 'waiting-for-user')
+  assert.equal(timedOut[0].interactionCount, 1)
+  assert.equal(live.snapshot().interactions.length, 0)
+})
+
+test('submitting a Decision Gate pauses the idle timeout before the Engine receipt arrives', async () => {
+  const timers = []
+  const timedOut = []
+  let resolveReceipt
+  const live = new DshLiveSession({
+    baseUrl: 'http://127.0.0.1:3080',
+    sessionId: 'session-submit-race',
+    fetchImpl: async () => ({
+      ok: true,
+      json: () => new Promise((resolve) => { resolveReceipt = resolve })
+    }),
+    WebSocketImpl: FakeWebSocket,
+    setTimeoutImpl: (callback, delay) => {
+      const timer = { callback, delay, cancelled: false }
+      timers.push(timer)
+      return timer
+    },
+    clearTimeoutImpl: (timer) => { timer.cancelled = true },
+    onInteractionTimeout: (snapshot) => timedOut.push(snapshot)
+  })
+  live.receive(envelope('rpc-race', {
+    type: 'question/requested', sessionId: 'session-submit-race',
+    questions: [{ id: 'choice', question: '请选择', options: [{ label: 'A' }] }]
+  }))
+  const pendingResponse = live.respond({
+    interactionId: 'question:rpc-race',
+    answers: [{ id: 'choice', selected: ['A'] }]
+  })
+  assert.equal(timers[0].cancelled, true)
+  await tick()
+  if (!timers[0].cancelled) timers[0].callback()
+  resolveReceipt(timedOut.length ? { accepted: false, reason: 'not-pending' } : { accepted: true })
+  await pendingResponse
+  assert.equal(timedOut.length, 0)
+  live.close()
+})
+
+test('user activity restarts the five-minute idle window for the same Decision Gate', () => {
+  const timers = []
+  const live = new DshLiveSession({
+    baseUrl: 'http://127.0.0.1:3080', sessionId: 'session-active-user',
+    fetchImpl: async () => ({ ok: true, json: async () => ({ accepted: true }) }),
+    WebSocketImpl: FakeWebSocket,
+    setTimeoutImpl: (callback, delay) => {
+      const timer = { callback, delay, cancelled: false }
+      timers.push(timer)
+      return timer
+    },
+    clearTimeoutImpl: (timer) => { timer.cancelled = true }
+  })
+  live.receive(envelope('rpc-active', {
+    type: 'question/requested', sessionId: 'session-active-user',
+    questions: [{ id: 'note', question: '请说明' }]
+  }))
+  assert.equal(live.touchInteraction('question:rpc-active'), true)
+  assert.equal(timers[0].cancelled, true)
+  assert.equal(timers.length, 2)
+  assert.equal(timers[1].delay, 5 * 60 * 1000)
+  live.close()
+})
+
 test('clears stale waits and drafts when the WebSocket stream disconnects', async () => {
   const { live, stream } = makeLive()
   stream.frame('rpc-a', { type: 'approval/requested', sessionId: 'session-1', approvalId: 'a-1', toolName: 'bash' })

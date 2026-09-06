@@ -35,4 +35,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${GITHUB_REF_NAME}" dist/*.exe --title "Deep code ${GITHUB_REF_NAME}" --generate-notes
+        run: |
+          if [ -f "docs/releases/${GITHUB_REF_NAME}.md" ]; then
+            gh release create "${GITHUB_REF_NAME}" dist/*.exe --title "Deep code ${GITHUB_REF_NAME}" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/*.exe --title "Deep code ${GITHUB_REF_NAME}" --generate-notes
+          fi

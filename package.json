@@ -1,6 +1,6 @@
 {
   "name": "deep-code",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "author": "zhao-cai-lihua",
   "repository": "https://github.com/zhao-cai-lihua/Deep-code",
@@ -9,7 +9,8 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "package:win": "electron-builder --win nsis portable"
+    "package:win": "electron-builder --win nsis portable",
+    "package:test:win": "electron-builder --win portable --config.artifactName=\"Deep-code-Test-${version}.${ext}\" --config.compression=store"
   },
   "devDependencies": {
     "electron": "43.4.0",

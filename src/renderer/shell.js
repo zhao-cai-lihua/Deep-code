@@ -2,26 +2,53 @@ const pages = document.querySelectorAll('.page')
 const pageButtons = document.querySelectorAll('[data-page]')
 const mainPanel = document.querySelector('.main-panel')
 const workbenchPage = document.querySelector('#page-workbench')
+const workbenchHeading = document.querySelector('#workbench-heading')
 const themeToggle = document.querySelector('#theme-toggle')
 const taskList = document.querySelector('#task-list')
 const taskCount = document.querySelector('#task-count')
 const newTaskButton = document.querySelector('#new-task')
 const taskComposer = document.querySelector('#task-composer')
 const createTaskButton = document.querySelector('#create-task')
+const composerStopButton = document.querySelector('#composer-stop')
 const addImagesButton = document.querySelector('#add-images')
 const imageDraftRail = document.querySelector('#image-draft-rail')
 const imageDraftStatus = document.querySelector('#image-draft-status')
 const composerHint = document.querySelector('#composer-hint')
+const modelRouteButton = document.querySelector('#model-route-button')
+const modelRouteDialog = document.querySelector('#model-route-dialog')
+const modelRouteForm = document.querySelector('#model-route-form')
+const applyModelRouteButton = document.querySelector('#apply-model-route')
+const modelRoutePurposeCopy = document.querySelector('#model-route-purpose')
+const modelChoice = document.querySelector('#model-choice')
+const modelChoiceDescription = document.querySelector('#model-choice-description')
+const effortChoice = document.querySelector('#effort-choice')
+const effortChoiceDescription = document.querySelector('#effort-choice-description')
+const cancelModelRoute = document.querySelector('#cancel-model-route')
 const emptyTask = document.querySelector('#empty-task')
 const activeTask = document.querySelector('#active-task')
 const activeTaskTitle = document.querySelector('#active-task-title')
+const activeTaskWorkspace = document.querySelector('#active-task-workspace')
+const useTaskWorkspaceButton = document.querySelector('#use-task-workspace')
 const activeTaskPrompt = document.querySelector('#active-task-prompt')
+const taskViewTabs = document.querySelector('#task-view-tabs')
+const conversationView = document.querySelector('#conversation-view')
+const receiptView = document.querySelector('#receipt-view')
+const traceView = document.querySelector('#trace-view')
+const taskViewButtons = document.querySelectorAll('[data-task-view]')
 const taskEngineStatus = document.querySelector('#task-engine-status')
+const taskRecovery = document.querySelector('#task-recovery')
+const taskRecoveryCause = document.querySelector('#task-recovery-cause')
+const taskRecoverySafety = document.querySelector('#task-recovery-safety')
+const taskRecoveryNext = document.querySelector('#task-recovery-next')
 const taskOutcome = document.querySelector('#task-outcome')
 const taskOutcomeTitle = document.querySelector('#task-outcome-title')
 const taskOutcomeBadge = document.querySelector('#task-outcome-badge')
 const taskOutcomeSummary = document.querySelector('#task-outcome-summary')
 const taskOutcomeSections = document.querySelector('#task-outcome-sections')
+const taskGuidance = document.querySelector('#task-guidance')
+const taskGuidanceTitle = document.querySelector('#task-guidance-title')
+const taskGuidanceSummary = document.querySelector('#task-guidance-summary')
+const taskGuidanceActions = document.querySelector('#task-guidance-actions')
 const showOutcomeEvidence = document.querySelector('#show-outcome-evidence')
 const decisionGates = document.querySelector('#decision-gates')
 const activityTimeline = document.querySelector('#activity-timeline')
@@ -36,6 +63,11 @@ const permissionFacts = document.querySelector('#permission-facts')
 const changedFiles = document.querySelector('#changed-files')
 const toolCardsContainer = document.querySelector('#tool-cards')
 const taskEvidenceContent = document.querySelector('#task-evidence-content')
+const taskEvidenceRaw = document.querySelector('#task-evidence-raw')
+const outcomeMap = document.querySelector('#outcome-map')
+const outcomeMapFlow = document.querySelector('#outcome-map-flow')
+const outcomeMapLegend = document.querySelector('#outcome-map-legend')
+const outcomeMapEmpty = document.querySelector('#outcome-map-empty')
 const cancelTaskButton = document.querySelector('#cancel-task')
 const retryTaskButton = document.querySelector('#retry-task')
 const deleteTaskButton = document.querySelector('#delete-task')
@@ -45,10 +77,8 @@ const handoffText = document.querySelector('#handoff-text')
 const closeHandoffButton = document.querySelector('#close-handoff')
 const runtimeDot = document.querySelector('#runtime-dot')
 const runtimeShort = document.querySelector('#runtime-short')
-const runtimeSummary = document.querySelector('#runtime-summary')
-const modelSummary = document.querySelector('#model-summary')
 const currentRunContext = document.querySelector('#current-run-context')
-const currentRunDivider = document.querySelector('#current-run-divider')
+const sidebarRunPanel = document.querySelector('#sidebar-run-panel')
 const currentRunState = document.querySelector('#current-run-state')
 const currentRunModel = document.querySelector('#current-run-model')
 const currentRunEvidence = document.querySelector('#current-run-evidence')
@@ -65,6 +95,10 @@ const dot = document.querySelector('#status-dot')
 const logs = document.querySelector('#logs')
 const inspectButton = document.querySelector('#inspect')
 const workspaceButton = document.querySelector('#create-workspace')
+const sidebarCreateWorkspace = document.querySelector('#sidebar-create-workspace')
+const sidebarSelectWorkspace = document.querySelector('#sidebar-select-workspace')
+const sidebarOpenWorkspace = document.querySelector('#sidebar-open-workspace')
+const sidebarWorkspaceName = document.querySelector('#sidebar-workspace-name')
 const diagnosticsButton = document.querySelector('#export-diagnostics')
 const careResult = document.querySelector('#care-result')
 const modelStatusDot = document.querySelector('#model-status-dot')
@@ -72,16 +106,34 @@ const modelStatusLabel = document.querySelector('#model-status-label')
 const modelStatusMessage = document.querySelector('#model-status-message')
 const modelCatalogSummary = document.querySelector('#model-catalog-summary')
 const checkModelConnectionButton = document.querySelector('#check-model-connection')
+const addModelProviderButton = document.querySelector('#add-model-provider')
 const configureModelCredentialButton = document.querySelector('#configure-model-credential')
 const clearModelCredentialButton = document.querySelector('#clear-model-credential')
 const verifyModelConnectionButton = document.querySelector('#verify-model-connection')
 const modelCredentialNote = document.querySelector('#model-credential-note')
 const modelCredentialResult = document.querySelector('#model-credential-result')
+const refreshModelServicesButton = document.querySelector('#refresh-model-services')
+const modelServicesTitle = document.querySelector('#model-services-title')
+const modelServicesMessage = document.querySelector('#model-services-message')
+const modelServicesStatus = document.querySelector('#model-services-status')
+const modelServicesList = document.querySelector('#model-services-list')
+const manageModelServicesButton = document.querySelector('#manage-model-services')
+const verifyModelServiceButton = document.querySelector('#verify-model-service')
 const credentialDialog = document.querySelector('#credential-dialog')
 const credentialDialogForm = document.querySelector('#credential-dialog-form')
+const credentialProviderChoice = document.querySelector('#credential-provider-choice')
+const credentialProviderDescription = document.querySelector('#credential-provider-description')
 const modelApiKey = document.querySelector('#model-api-key')
 const saveModelCredentialButton = document.querySelector('#save-model-credential')
+const removeModelProviderButton = document.querySelector('#remove-model-provider')
 const cancelCredentialDialog = document.querySelector('#cancel-credential-dialog')
+const providerDialog = document.querySelector('#provider-dialog')
+const providerDialogForm = document.querySelector('#provider-dialog-form')
+const providerChoice = document.querySelector('#provider-choice')
+const providerChoiceDescription = document.querySelector('#provider-choice-description')
+const providerApiKey = document.querySelector('#provider-api-key')
+const saveModelProviderButton = document.querySelector('#save-model-provider')
+const cancelProviderDialog = document.querySelector('#cancel-provider-dialog')
 const skipSetupButton = document.querySelector('#skip-setup')
 const finishSetupButton = document.querySelector('#finish-setup')
 const setupDetectRuntime = document.querySelector('#setup-detect-runtime')
@@ -96,7 +148,6 @@ const workspaceDialogForm = document.querySelector('#workspace-dialog-form')
 const workspaceDialogName = document.querySelector('#workspace-dialog-name')
 const cancelWorkspaceDialog = document.querySelector('#cancel-workspace-dialog')
 const selectWorkspaceButton = document.querySelector('#select-workspace')
-const selectWorkspaceSide = document.querySelector('#select-workspace-side')
 const workspaceSummary = document.querySelector('#workspace-summary')
 const settingsWorkspacePath = document.querySelector('#settings-workspace-path')
 const openWorkspaceButton = document.querySelector('#open-workspace')
@@ -109,33 +160,167 @@ const refreshControlCenterButton = document.querySelector('#refresh-control-cent
 const controlProject = document.querySelector('#control-project')
 const controlSkillStatus = document.querySelector('#control-skill-status')
 const controlSkillList = document.querySelector('#control-skill-list')
-
-const activeUserPersona = document.querySelector('#active-user-persona')
-const activeAgentCharacter = document.querySelector('#active-agent-character')
-const activeInteractionStyle = document.querySelector('#active-interaction-style')
-const cardStack = document.querySelector('#active-card-stack')
-const cardStackNote = document.querySelector('#card-stack-note')
-const cardList = document.querySelector('#card-list')
-const cardId = document.createElement('input')
-const cardKind = document.querySelector('#card-kind')
-const cardName = document.querySelector('#card-name')
-const cardSummary = document.querySelector('#card-summary')
-const cardTags = document.querySelector('#card-tags')
-const cardModelText = document.querySelector('#card-model-text')
-const cardHumanNotes = document.querySelector('#card-human-notes')
-const saveCardButton = document.querySelector('#save-card')
-const importCardButton = document.querySelector('#import-card')
-const exportCardButton = document.querySelector('#export-card')
-const deleteCardButton = document.querySelector('#delete-card')
-const cardResult = document.querySelector('#card-result')
+const memoryForm = document.querySelector('#memory-form')
+const memoryKind = document.querySelector('#memory-kind')
+const memoryScope = document.querySelector('#memory-scope')
+const memoryTitle = document.querySelector('#memory-title')
+const memoryContent = document.querySelector('#memory-content')
+const memoryReason = document.querySelector('#memory-reason')
+const memoryLimits = document.querySelector('#memory-limits')
+const memoryStatus = document.querySelector('#memory-status')
+const memoryCandidateCount = document.querySelector('#memory-candidate-count')
+const memoryConfirmedCount = document.querySelector('#memory-confirmed-count')
+const memoryCandidateList = document.querySelector('#memory-candidate-list')
+const memoryConfirmedList = document.querySelector('#memory-confirmed-list')
+const openMemoryFolderButton = document.querySelector('#open-memory-folder')
+const memoryPreviewQuery = document.querySelector('#memory-preview-query')
+const previewMemoryButton = document.querySelector('#preview-memory')
+const memoryPreviewStatus = document.querySelector('#memory-preview-status')
+const memoryPreviewResults = document.querySelector('#memory-preview-results')
+const composeMemoryPreviewButton = document.querySelector('#compose-memory-preview')
+const memoryContextPreview = document.querySelector('#memory-context-preview')
+const memoryContextSummary = document.querySelector('#memory-context-summary')
+const memoryContextText = document.querySelector('#memory-context-text')
 
 let workbench = { threads: [], activeThreadId: '' }
-let cardSnapshot = { cards: [], active: {} }
+let currentWorkspacePath = ''
+let pendingProviderRemoval = ''
+let providerRemovalTimer = null
+let providerSaveTimer = null
 let lastRuntimeState = ''
 let lastRenderedThreadId = ''
 let forceFollowNextRender = true
 const taskViewState = window.DeepCodeTaskViewState.createTaskViewState()
+const providerProvisioningFlow = window.DeepCodeProviderProvisioningFlow.createProviderProvisioningFlow()
 let imageDrafts = []
+let workspaceDialogTrigger = workspaceButton
+let modelCatalog = { current: null, groups: [] }
+let manualModelSelection = null
+let modelConnectionState = { activeProviders: [] }
+let selectedMemoryIds = new Set()
+let lastMemoryPreviewQuery = ''
+let modelRoutePurpose = 'task'
+
+function catalogModels() {
+  return (modelCatalog.groups || []).flatMap((group) => (group.models || []).map((model) => ({ ...model, provider: group.id, providerName: group.name })))
+}
+
+function updateModelRouteButton() {
+  if (!manualModelSelection) { modelRouteButton.textContent = '模型：Harness 当前设置'; return }
+  const model = catalogModels().find((item) => item.provider === manualModelSelection.provider && item.id === manualModelSelection.model)
+  const effort = manualModelSelection.reasoningEffort ? ` · ${manualModelSelection.reasoningEffort}` : ''
+  modelRouteButton.textContent = `模型：${model?.name || manualModelSelection.model}${effort}`
+}
+
+function selectedChoiceValue(container) {
+  return container.querySelector('[role="radio"][aria-checked="true"]')?.dataset.value || ''
+}
+
+function selectChoice(container, value) {
+  for (const choice of container.querySelectorAll('[role="radio"]')) {
+    const selected = choice.dataset.value === value
+    choice.setAttribute('aria-checked', selected ? 'true' : 'false')
+    choice.classList.toggle('is-selected', selected)
+  }
+}
+
+function createChoice(label, value) {
+  const choice = document.createElement('button')
+  choice.type = 'button'
+  choice.className = 'route-choice-option'
+  choice.setAttribute('role', 'radio')
+  choice.setAttribute('aria-checked', 'false')
+  choice.dataset.value = value
+  choice.textContent = label
+  return choice
+}
+
+function selectedCatalogModel() {
+  const value = selectedChoiceValue(modelChoice)
+  return catalogModels().find((item) => `${item.provider}\u0000${item.id}` === value)
+}
+
+function renderEffortChoices(preferred = '') {
+  const model = selectedCatalogModel()
+  const efforts = model?.reasoning?.efforts || []
+  effortChoice.replaceChildren(createChoice('模型默认', ''))
+  for (const effort of efforts) effortChoice.append(createChoice(effort.name || effort.id, effort.id))
+  const availableValues = new Set(['', ...efforts.map((effort) => effort.id)])
+  selectChoice(effortChoice, availableValues.has(preferred) ? preferred : '')
+  effortChoice.setAttribute('aria-disabled', !model || !efforts.length ? 'true' : 'false')
+  for (const choice of effortChoice.querySelectorAll('[role="radio"]')) choice.disabled = !model || !efforts.length
+  const selected = efforts.find((item) => item.id === selectedChoiceValue(effortChoice))
+  effortChoiceDescription.textContent = selected?.description
+    || (model?.reasoning?.defaultEffort ? `模型默认：${model.reasoning.defaultEffort}` : '该模型没有公布可调推理强度，将使用 Provider 默认值。')
+}
+
+function renderModelChoices() {
+  modelChoice.replaceChildren(createChoice('沿用 Harness 当前设置', ''))
+  for (const group of modelCatalog.groups || []) {
+    const heading = document.createElement('p')
+    heading.className = 'route-choice-group'
+    heading.textContent = group.name || group.id
+    modelChoice.append(heading)
+    for (const model of group.models || []) modelChoice.append(createChoice(model.name || model.id, `${group.id}\u0000${model.id}`))
+  }
+  const preferred = manualModelSelection ? `${manualModelSelection.provider}\u0000${manualModelSelection.model}` : ''
+  const availableValues = new Set([...modelChoice.querySelectorAll('[role="radio"]')].map((choice) => choice.dataset.value))
+  selectChoice(modelChoice, availableValues.has(preferred) ? preferred : '')
+  const model = selectedCatalogModel()
+  modelChoiceDescription.textContent = model?.description || (model ? `${model.providerName} · ${model.id}` : '不指定模型；沿用当前 Session 的模型与推理强度。')
+  renderEffortChoices(manualModelSelection?.reasoningEffort || '')
+}
+
+async function openModelRouteDialog() {
+  modelRoutePurpose = 'task'
+  applyModelRouteButton.textContent = '应用到后续消息'
+  modelRoutePurposeCopy.textContent = '列表和当前选择都来自 Harness。选择“沿用 Harness 当前设置”时，Deep code 不会根据任务文字替你切换模型或提高推理强度。'
+  modelRouteButton.disabled = true
+  try {
+    modelCatalog = await window.desktopHost.modelRoutingCatalog(activeThread()?.id || '')
+    renderModelChoices()
+    modelRouteDialog.showModal()
+  } catch (error) {
+    taskEngineStatus.textContent = `无法读取模型列表：${error.message}`
+    taskEngineStatus.dataset.state = 'error'
+  } finally { modelRouteButton.disabled = false }
+}
+
+modelChoice.addEventListener('click', (event) => {
+  const choice = event.target.closest('[role="radio"]')
+  if (!choice) return
+  selectChoice(modelChoice, choice.dataset.value)
+  const model = selectedCatalogModel()
+  modelChoiceDescription.textContent = model?.description || (model ? `${model.providerName} · ${model.id}` : '不指定模型；Deep code 不会自动切换。')
+  renderEffortChoices('')
+})
+effortChoice.addEventListener('click', (event) => {
+  const choice = event.target.closest('[role="radio"]')
+  if (!choice || choice.disabled) return
+  selectChoice(effortChoice, choice.dataset.value)
+  renderEffortChoices(choice.dataset.value)
+})
+modelRouteButton.addEventListener('click', openModelRouteDialog)
+cancelModelRoute.addEventListener('click', () => modelRouteDialog.close())
+modelRouteForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const model = selectedCatalogModel()
+  const selection = model ? {
+    provider: model.provider,
+    model: model.id,
+    ...(selectedChoiceValue(effortChoice) ? { reasoningEffort: selectedChoiceValue(effortChoice) } : {})
+  } : null
+  if (modelRoutePurpose === 'verification') {
+    if (!selection) { modelChoiceDescription.textContent = '验证必须明确选择一个模型。'; return }
+    modelRouteDialog.close()
+    await createVisibleConnectionTest(verifyModelServiceButton, modelServicesStatus, { manualSelection: selection })
+    return
+  }
+  manualModelSelection = selection
+  updateModelRouteButton()
+  modelRouteDialog.close()
+})
+updateModelRouteButton()
 
 function showPage(name) {
   const nextPage = document.querySelector(`#page-${name}`)
@@ -146,6 +331,8 @@ function showPage(name) {
   nextPage.querySelector('h1')?.focus({ preventScroll: true })
   if (name === 'workbench') requestAnimationFrame(updateJumpLatest)
   if (name === 'control-center') refreshControlCenter().catch((error) => { controlSkillStatus.textContent = error.message })
+  if (name === 'memory') refreshMemory().catch((error) => { memoryStatus.textContent = `无法读取记忆：${error.message}` })
+  if (name === 'model-services') refreshModelServices().catch((error) => { modelServicesStatus.textContent = `无法读取：${error.message}` })
 }
 
 function preferredTheme() {
@@ -181,9 +368,6 @@ function renderRuntime(status) {
   dot.className = `status-dot ${status.state}`
   runtimeDot.className = `status-dot ${status.state}`
   runtimeShort.textContent = status.state === 'ready' ? 'Engine 已连接' : `Engine ${stateLabel}`
-  runtimeSummary.textContent = status.state === 'ready'
-    ? 'Engine 已准备好，Deep code 可以直接使用它。'
-    : (status.runtimePath ? '已找到本机 Engine，启动后由 Deep code 在后台使用。' : '尚未找到 Deep code Engine。')
   startButton.disabled = status.state === 'starting' || status.state === 'ready' || !pathInput.value
   stopButton.disabled = !['starting', 'ready', 'stopping'].includes(status.state)
   logs.textContent = status.logs?.length ? status.logs.map(({ stream, line }) => `[${stream}] ${line}`).join('\n') : '还没有运行日志。'
@@ -252,7 +436,42 @@ function renderEcosystem(snapshot) {
     open.addEventListener('click', async () => {
       try { await window.desktopHost.openExternal(entry.repository) } catch (error) { ecosystemSource.textContent = `无法打开：${error.message}` }
     })
-    card.append(heading, description, signals, warning, open)
+    const install = document.createElement('button')
+    install.type = 'button'
+    install.className = 'primary-button'
+    install.textContent = '检查并安装…'
+    install.disabled = entry.archived
+    install.addEventListener('click', async () => {
+      install.disabled = true
+      ecosystemSource.textContent = `正在只读检查 ${entry.fullName} 的固定版本与 Bundle 声明…`
+      try {
+        const preview = await window.desktopHost.prepareEcosystemInstall(entry.id)
+        const accepted = window.confirm([
+          `准备安装 ${preview.packageName}`,
+          `仓库：${preview.fullName}`,
+          `固定 commit：${preview.commit}`,
+          `Bundle：${preview.patch}`,
+          '',
+          preview.warning,
+          preview.activation,
+          '',
+          '确认继续安装吗？'
+        ].join('\n'))
+        if (!accepted) {
+          ecosystemSource.textContent = '已取消安装；本机 profile 没有被修改。'
+          return
+        }
+        ecosystemSource.textContent = `正在通过官方 DSH CLI 安装 ${preview.packageName}…`
+        const result = await window.desktopHost.installEcosystemPlugin(preview.token)
+        ecosystemSource.textContent = result.message
+      } catch (error) {
+        ecosystemSource.textContent = `没有安装：${error.message}`
+      } finally { install.disabled = entry.archived }
+    })
+    const actions = document.createElement('div')
+    actions.className = 'button-row'
+    actions.append(open, install)
+    card.append(heading, description, signals, warning, actions)
     ecosystemList.append(card)
   }
   if (!snapshot.entries.length) ecosystemList.textContent = '当前来源没有返回可展示的候选项目。'
@@ -300,20 +519,157 @@ async function refreshControlCenter() {
   renderControlCenter(await window.desktopHost.controlCenterSnapshot())
 }
 
+function memoryScopeLabel(scope) {
+  if (scope === 'global') return '所有项目'
+  if (!String(scope || '').startsWith('project:')) return '未知范围'
+  const path = String(scope).slice('project:'.length)
+  return `项目：${path.split(/[\\/]/).filter(Boolean).at(-1) || '当前项目'}`
+}
+
+function memoryKindLabel(kind) {
+  return ({ preference: '协作偏好', decision: '项目决定', handoff: '交接事实', learning: '验证经验' })[kind] || '记忆'
+}
+
+function createMemoryCard(record, status) {
+  const card = document.createElement('article')
+  card.className = 'memory-card'
+  const heading = document.createElement('div')
+  heading.className = 'ecosystem-card-heading'
+  const title = document.createElement('h3')
+  title.textContent = record.title
+  const badge = document.createElement('span')
+  badge.textContent = `${memoryKindLabel(record.kind)} · ${memoryScopeLabel(record.scope)}`
+  heading.append(title, badge)
+  const content = document.createElement('p')
+  content.textContent = record.content
+  const details = document.createElement('details')
+  const summary = document.createElement('summary')
+  summary.textContent = '查看来源、保留理由与例外'
+  const reason = document.createElement('p')
+  reason.textContent = `为什么保留：${record.reason}`
+  const limits = document.createElement('p')
+  limits.textContent = `不适用范围：${record.limits}`
+  const source = document.createElement('p')
+  source.textContent = `来源：${(record.sourceRefs || []).join('、') || '未注明'}`
+  details.append(summary, reason, limits, source)
+  const actions = document.createElement('div')
+  actions.className = 'button-row'
+  if (status === 'candidate') {
+    const confirm = document.createElement('button')
+    confirm.type = 'button'
+    confirm.className = 'primary-button'
+    confirm.textContent = '确认保留'
+    confirm.addEventListener('click', async () => {
+      confirm.disabled = true
+      try { renderMemory(await window.desktopHost.reviewMemoryCandidate(record.id, 'confirmed')); memoryStatus.textContent = '已确认。它仍未接入任务提示词。' }
+      catch (error) { memoryStatus.textContent = `没有确认：${error.message}`; confirm.disabled = false }
+    })
+    const reject = document.createElement('button')
+    reject.type = 'button'
+    reject.className = 'quiet-button'
+    reject.textContent = '拒绝'
+    reject.addEventListener('click', async () => {
+      reject.disabled = true
+      try { renderMemory(await window.desktopHost.reviewMemoryCandidate(record.id, 'rejected')); memoryStatus.textContent = '已拒绝并移入本地归档。' }
+      catch (error) { memoryStatus.textContent = `没有拒绝：${error.message}`; reject.disabled = false }
+    })
+    actions.append(confirm, reject)
+  }
+  const remove = document.createElement('button')
+  remove.type = 'button'
+  remove.className = 'danger-button'
+  remove.textContent = '删除'
+  remove.addEventListener('click', async () => {
+    if (remove.dataset.confirm !== 'true') {
+      remove.dataset.confirm = 'true'
+      remove.textContent = '再次点击确认删除'
+      setTimeout(() => { remove.dataset.confirm = ''; remove.textContent = '删除' }, 10000)
+      return
+    }
+    remove.disabled = true
+    try { renderMemory(await window.desktopHost.removeMemory(record.id)); memoryStatus.textContent = '已从本机永久删除这条记忆。' }
+    catch (error) { memoryStatus.textContent = `没有删除：${error.message}`; remove.disabled = false }
+  })
+  actions.append(remove)
+  card.append(heading, content, details, actions)
+  return card
+}
+
+function renderMemory(snapshot) {
+  memoryCandidateList.replaceChildren()
+  memoryConfirmedList.replaceChildren()
+  memoryCandidateCount.textContent = `${snapshot.candidates.length} 项`
+  memoryConfirmedCount.textContent = `${snapshot.confirmed.length} 项`
+  for (const record of snapshot.candidates) memoryCandidateList.append(createMemoryCard(record, 'candidate'))
+  for (const record of snapshot.confirmed) memoryConfirmedList.append(createMemoryCard(record, 'confirmed'))
+  if (!snapshot.candidates.length) memoryCandidateList.textContent = '收件箱是空的。只有你主动保存的内容才会出现在这里。'
+  if (!snapshot.confirmed.length) memoryConfirmedList.textContent = '还没有已确认记忆。'
+  memoryStatus.textContent = snapshot.enginePromptConnected
+    ? '已确认记忆可能用于任务。'
+    : `候选和已确认记忆均未接入 Engine Prompt。另有 ${snapshot.rejectedCount || 0} 条拒绝记录保存在本地归档。`
+  selectedMemoryIds = new Set()
+  lastMemoryPreviewQuery = ''
+  memoryPreviewResults.replaceChildren()
+  composeMemoryPreviewButton.disabled = true
+  memoryContextPreview.classList.add('hidden')
+}
+
+async function refreshMemory() {
+  renderMemory(await window.desktopHost.memorySnapshot())
+}
+
+function renderMemoryPreview(preview) {
+  memoryPreviewResults.replaceChildren()
+  selectedMemoryIds = new Set(preview.matches.map((match) => match.id))
+  lastMemoryPreviewQuery = preview.query
+  memoryContextPreview.classList.add('hidden')
+  if (!preview.matches.length) {
+    memoryPreviewResults.textContent = `检查了 ${preview.eligibleCount} 条适用记忆，没有找到明确的文字匹配。没有内容会被加入任务。`
+  } else {
+    for (const match of preview.matches) {
+      const card = document.createElement('article')
+      card.className = 'memory-preview-card'
+      const choice = document.createElement('label')
+      choice.className = 'memory-preview-choice'
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.checked = true
+      checkbox.value = match.id
+      const title = document.createElement('strong')
+      title.textContent = match.title
+      choice.append(checkbox, title)
+      const reason = document.createElement('p')
+      reason.textContent = match.reasons.join('；')
+      const content = document.createElement('p')
+      content.textContent = match.content
+      const limits = document.createElement('small')
+      limits.textContent = `例外：${match.limits}`
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) selectedMemoryIds.add(match.id)
+        else selectedMemoryIds.delete(match.id)
+        composeMemoryPreviewButton.disabled = selectedMemoryIds.size === 0
+        memoryContextPreview.classList.add('hidden')
+      })
+      card.append(choice, reason, content, limits)
+      memoryPreviewResults.append(card)
+    }
+  }
+  memoryPreviewStatus.textContent = `本机规则检查了 ${preview.consideredCount} 条已确认记忆，其中 ${preview.eligibleCount} 条作用域适用，找到 ${preview.matches.length} 条候选；约 ${preview.estimatedCharacters} 个字符。没有调用模型，也没有修改任务。`
+  composeMemoryPreviewButton.disabled = selectedMemoryIds.size === 0
+}
+
 function renderModelConnection(snapshot) {
+  modelConnectionState = snapshot
   modelStatusDot.className = `status-dot ${snapshot.state}`
   modelStatusLabel.textContent = snapshot.title
   modelStatusMessage.textContent = snapshot.message
-  modelSummary.textContent = snapshot.state === 'ready'
-    ? `${snapshot.activeProviders.map((provider) => provider.name).join('、')} · ${snapshot.modelCount} 个模型已准备好。`
-    : snapshot.message
   const lines = []
   for (const provider of snapshot.activeProviders) {
     const credential = provider.credential
     const credentialText = !credential
       ? '凭据：此提供方未提供可检查的凭据状态'
       : credential.configured === true
-        ? '凭据：已配置（密钥内容不可见）'
+        ? '凭据：已保存，尚未验证（密钥内容不可见）'
         : credential.configured === false
           ? '凭据：尚未配置'
           : '凭据：状态未确认'
@@ -328,23 +684,154 @@ function renderModelConnection(snapshot) {
   }
   modelCatalogSummary.textContent = lines.join('\n')
   checkModelConnectionButton.disabled = snapshot.state === 'engine-offline'
-  const management = snapshot.credentialManagement || { supported: false, writable: false, configured: false }
-  configureModelCredentialButton.disabled = !management.supported || !management.writable
-  clearModelCredentialButton.disabled = !management.supported || !management.writable || !management.configured
-  verifyModelConnectionButton.disabled = snapshot.state === 'engine-offline' || !management.configured
+  const management = snapshot.credentialManagement || { supported: false, writable: false, configured: false, providerCount: 0 }
+  const credentialProviders = (snapshot.activeProviders || []).filter((provider) => provider.credential)
+  const writableProviders = credentialProviders.filter((provider) => provider.credential.writable === true)
+  const configuredWritableProviders = writableProviders.filter((provider) => provider.credential.configured === true)
+  const previousRef = credentialProviderChoice.value
+  credentialProviderChoice.replaceChildren(...writableProviders.map((provider) => new Option(provider.name, provider.credential.ref)))
+  if ([...credentialProviderChoice.options].some((option) => option.value === previousRef)) credentialProviderChoice.value = previousRef
+  configureModelCredentialButton.disabled = !writableProviders.length
+  const provisioning = snapshot.provisioning || { supported: false, writable: false, providers: [] }
+  addModelProviderButton.disabled = !provisioning.supported
+  clearModelCredentialButton.disabled = !configuredWritableProviders.length
+  verifyModelConnectionButton.disabled = snapshot.state === 'engine-offline' || !credentialProviders.some((provider) => provider.credential.configured === true)
   modelCredentialNote.textContent = !management.supported
-    ? '当前 Harness 未提供 Deep code 可安全使用的凭据管理能力；请升级 Engine 或使用官方配置方式。'
+    ? '当前 Harness 配置没有公布简单 API Key。OAuth、本地无密钥或复杂认证请使用对应 Provider 的官方设置。'
     : !management.writable
-      ? `当前凭据由只读来源${management.source ? `（${management.source}）` : ''}提供，Deep code 不会用本地值覆盖它。`
-      : management.configured
-        ? 'API Key 已配置。可以替换、清除，或创建一个会真实调用模型的可见验证任务。'
-        : '当前没有配置 API Key。设置时密钥只会单向交给 Harness。'
+      ? '当前 API Key 都来自只读来源，Deep code 不会用本地值覆盖它们。'
+      : `${management.providerCount || credentialProviders.length} 个 Provider 公布了简单 API Key 配置。密钥只会单向交给 Harness。`
+}
+
+function updateProviderChoiceDescription() {
+  const providers = modelConnectionState.provisioning?.providers || []
+  const selected = providers.find((provider) => provider.id === providerChoice.value) || providers[0]
+  const view = providerProvisioningFlow.view(selected)
+  providerChoiceDescription.textContent = view.description
+  saveModelProviderButton.textContent = view.buttonLabel
+}
+
+function resetProviderSaveConfirmation() {
+  providerProvisioningFlow.reset()
+  if (providerSaveTimer) clearTimeout(providerSaveTimer)
+  providerSaveTimer = null
+  updateProviderChoiceDescription()
+}
+
+function renderProviderChoices() {
+  const providers = modelConnectionState.provisioning?.providers || []
+  const previousProvider = providerChoice.value
+  providerChoice.replaceChildren(...providers.map((provider) => new Option(provider.name, provider.id)))
+  if (providers.some((provider) => provider.id === previousProvider)) providerChoice.value = previousProvider
+  updateProviderChoiceDescription()
+}
+
+function selectedCredentialProvider({ configuredOnly = false } = {}) {
+  const providers = (modelConnectionState.activeProviders || []).filter((provider) => provider.credential?.writable === true)
+  const selected = providers.find((provider) => provider.credential.ref === credentialProviderChoice.value)
+  if (selected && (!configuredOnly || selected.credential.configured === true)) return selected
+  return providers.find((provider) => !configuredOnly || provider.credential.configured === true)
+}
+
+function updateCredentialProviderDescription() {
+  const provider = selectedCredentialProvider()
+  credentialProviderDescription.textContent = provider
+    ? `${provider.name} · ${provider.credential.ref} · ${provider.credential.configured ? '有已保存值，可替换；厂商归属尚未验证' : '尚未保存凭据'}`
+    : '当前没有 Harness 允许 Deep code 写入的简单 API Key。'
+  removeModelProviderButton.disabled = !provider?.removable
+}
+
+function resetProviderRemovalConfirmation() {
+  pendingProviderRemoval = ''
+  if (providerRemovalTimer) clearTimeout(providerRemovalTimer)
+  providerRemovalTimer = null
+  removeModelProviderButton.textContent = '移除此模型服务'
 }
 
 async function refreshModelConnection() {
   const snapshot = await window.desktopHost.modelConnection()
   renderModelConnection(snapshot)
   return snapshot
+}
+
+function renderModelServices(snapshot) {
+  modelServicesTitle.textContent = snapshot.title
+  modelServicesMessage.textContent = snapshot.message
+  modelServicesList.replaceChildren()
+  for (const provider of snapshot.providers) {
+    const card = document.createElement('article')
+    card.className = 'model-service-card'
+    const heading = document.createElement('div')
+    heading.className = 'ecosystem-card-heading'
+    const title = document.createElement('h3')
+    title.textContent = provider.name
+    const badge = document.createElement('span')
+    badge.textContent = provider.id
+    heading.append(title, badge)
+    const stages = document.createElement('div')
+    stages.className = 'model-service-stages'
+    for (const [name, stage] of [['Provider', provider.profile], ['模型目录', provider.catalog], ['凭据', provider.credential], ['真实验证', provider.verification], ['当前任务', provider.current]]) {
+      const item = document.createElement('section')
+      item.dataset.state = stage.state
+      const label = document.createElement('small')
+      label.textContent = name
+      const value = document.createElement('strong')
+      value.textContent = stage.label
+      const detail = document.createElement('p')
+      detail.textContent = stage.detail
+      item.append(label, value, detail)
+      stages.append(item)
+    }
+    const models = document.createElement('details')
+    const summary = document.createElement('summary')
+    summary.textContent = `查看 ${provider.models.length} 个目录模型`
+    const list = document.createElement('p')
+    list.textContent = provider.models.map((model) => model.name).join('、') || 'Harness 没有返回模型。'
+    models.append(summary, list)
+    const actions = document.createElement('div')
+    actions.className = 'button-row'
+    const verify = document.createElement('button')
+    verify.type = 'button'
+    verify.className = 'primary-button'
+    verify.textContent = '验证这个服务…'
+    verify.disabled = !provider.models.length || provider.credential.state === 'missing'
+    verify.addEventListener('click', () => openProviderVerification(provider.id, verify))
+    actions.append(verify)
+    card.append(heading, stages, models, actions)
+    modelServicesList.append(card)
+  }
+  if (!snapshot.providers.length) modelServicesList.textContent = '尚未发现已启用的 Provider。请先启动 Engine 或到设置中添加模型服务。'
+  modelServicesStatus.textContent = `Harness 报告 ${snapshot.providers.length} 个已启用服务，另有 ${snapshot.dormantProviderCount} 个未启用 Provider。读取这些状态不会调用模型。`
+  verifyModelServiceButton.disabled = snapshot.state === 'engine-offline' || !snapshot.providers.length
+}
+
+async function refreshModelServices() {
+  const snapshot = await window.desktopHost.modelServicesSnapshot()
+  renderModelServices(snapshot)
+  return snapshot
+}
+
+async function openProviderVerification(providerId, trigger) {
+  trigger.disabled = true
+  modelServicesStatus.textContent = `正在读取 ${providerId} 的可验证模型…`
+  try {
+    const catalog = await window.desktopHost.modelRoutingCatalog('')
+    const group = (catalog.groups || []).find((item) => item.id === providerId)
+    if (!group?.models?.length) throw new Error('Harness 没有为这个 Provider 公布可选择模型。')
+    modelCatalog = { ...catalog, groups: [group] }
+    modelRoutePurpose = 'verification'
+    manualModelSelection = null
+    renderModelChoices()
+    const first = group.models[0]
+    selectChoice(modelChoice, `${group.id}\u0000${first.id}`)
+    modelChoiceDescription.textContent = first.description || `${group.name} · ${first.id}`
+    renderEffortChoices(first.reasoning?.defaultEffort || '')
+    applyModelRouteButton.textContent = '用这个模型创建验证任务'
+    modelRoutePurposeCopy.textContent = '这会创建一个可见任务，真实调用你选择的这个模型，并可能产生极少量 token。模型列表和推理强度均来自 Harness。'
+    modelRouteDialog.showModal()
+    modelServicesStatus.textContent = `请选择要真实验证的 ${group.name} 模型与推理强度。`
+  } catch (error) { modelServicesStatus.textContent = `无法准备验证：${error.message}` }
+  finally { trigger.disabled = false }
 }
 
 async function safelyRenderStatus(action) {
@@ -704,10 +1191,20 @@ function renderRunDetails(thread) {
   const evidence = thread.agent?.evidence || []
   const context = details.runtimeContext || []
   const sections = []
-  if (context.length) sections.push(`运行上下文（不作为你的发言显示）\n\n${context.map((item) => `[${item.source?.plugin || item.source?.kind || 'Harness'}] ${item.raw}`).join('\n\n')}`)
-  if (evidence.length) sections.push(`Harness 技术证据\n\n${evidence.map((item) => `${item.type}\n${JSON.stringify(item.detail, null, 2)}`).join('\n\n')}`)
+  const rawSections = []
+  if (thread.baseline) {
+    const baseline = thread.baseline
+    const head = baseline.head ? String(baseline.head).slice(0, 12) : '此工作区没有可用的 Git HEAD（与模型连接无关）'
+    const dirtyCount = Array.isArray(baseline.dirtyPaths) ? baseline.dirtyPaths.length : 0
+    sections.push(`任务开始前的本地 Git 基线\n\n项目：${thread.workspacePath || baseline.workspacePath || '未记录'}\n记录时间：${baseline.capturedAt || '未记录'}\n状态：${baseline.message || baseline.state}\nHEAD：${head}\n任务前已有未提交路径：${dirtyCount} 个\n\n这份基线只记录路径级状态，不包含文件正文，也不是可撤回 checkpoint。`)
+  }
+  if (context.length) {
+    sections.push(`运行上下文摘要（不作为你的发言显示）\n\n${context.map((item) => `• ${item.label}。${item.detail}`).join('\n')}`)
+    rawSections.push(`Harness 原始运行上下文\n\n${context.map((item) => `[${item.source?.plugin || item.source?.kind || 'Harness'}] ${item.raw}`).join('\n\n')}`)
+  }
+  if (evidence.length) rawSections.push(`Harness 原始技术证据\n\n${evidence.map((item) => `${item.type}\n${JSON.stringify(item.detail, null, 2)}`).join('\n\n')}`)
   taskEvidenceContent.textContent = sections.join('\n\n---\n\n') || '还没有技术记录。'
-  runDetails.classList.toggle('hidden', !context.length && !evidence.length && !activityCount && !duration)
+  taskEvidenceRaw.textContent = rawSections.join('\n\n---\n\n') || '还没有原始记录。'
 }
 
 function appendOutcomeSection(title, items, className = '') {
@@ -729,22 +1226,108 @@ function appendOutcomeSection(title, items, className = '') {
 function renderTaskOutcome(thread) {
   const outcome = thread.outcome
   taskOutcome.classList.toggle('hidden', !outcome?.visible)
+  renderOutcomeMap(outcome?.map)
   if (!outcome?.visible) return
   taskOutcome.dataset.state = outcome.state
   taskOutcomeTitle.textContent = outcome.title
   taskOutcomeBadge.textContent = outcome.state === 'success' ? '已完成' : '需要处理'
   taskOutcomeSummary.textContent = outcome.summary
   taskOutcomeSections.replaceChildren()
+  const modelVerification = outcome.modelVerification
+  appendOutcomeSection('模型验证回执', modelVerification ? [
+    `${modelVerification.state === 'passed' ? '通过' : modelVerification.state === 'failed' ? '未通过' : '已中止'} · ${modelVerification.modelName || modelVerification.model}${modelVerification.reasoningEffort ? ` · ${modelVerification.reasoningEffort}` : ''}；路线证据：Harness 请求头；终态：${modelVerification.terminalReason || modelVerification.state}`
+  ] : [])
   appendOutcomeSection('确认的文件改动', outcome.changes.map((item) => `${item.operation} · ${item.path}`))
   const verificationLabel = (state) => state === 'passed' ? '通过' : state === 'failed' ? '未通过' : '未确认'
   appendOutcomeSection('明确的验证', outcome.verifications.map((item) => `${verificationLabel(item.state)} · ${item.label}（${item.detail}）`), 'outcome-verifications')
+  appendOutcomeSection('需要你留意的高影响改动', (outcome.risks || []).map((item) => `${item.label}：${item.detail}`), 'outcome-risks')
   appendOutcomeSection('仍需留意', outcome.warnings, 'outcome-warnings')
+  appendOutcomeSection('任务与改动归属', outcome.recoveryAssessment ? [`${outcome.workspace?.label || '未记录项目'}：${outcome.recoveryAssessment.label}。${outcome.recoveryAssessment.detail}`] : [])
+  appendOutcomeSection('这会影响什么', outcome.impact ? [outcome.impact] : [])
+  appendOutcomeSection('接下来只需做什么', outcome.nextAction ? [outcome.nextAction] : [])
+}
+
+async function startNewTask() {
+  workbench = await window.desktopHost.selectTask('')
+  await syncImageDrafts('new-task')
+  showPage('workbench')
+  forceFollowNextRender = false
+  mainPanel.scrollTop = 0
+  renderWorkbench()
+  taskComposer.focus()
+}
+
+function runGuidanceAction(id) {
+  if (id === 'retry-task') { retryTaskButton.click(); return }
+  if (id === 'open-model-services') { showPage('model-services'); return }
+  if (id === 'choose-model') { openModelRouteDialog(); return }
+  if (id === 'open-settings') { showPage('settings'); return }
+  if (id === 'open-trace') { setTaskView('trace'); runDetails.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
+  if (id === 'open-receipt') { setTaskView('receipt'); receiptView.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
+  if (id === 'new-task') startNewTask().catch((error) => { careResult.textContent = error.message; showPage('settings') })
+}
+
+function renderTaskGuidance(thread) {
+  const guidance = thread.guidance
+  taskGuidance.classList.toggle('hidden', !guidance?.visible)
+  taskGuidanceActions.replaceChildren()
+  if (!guidance?.visible) return
+  taskGuidance.dataset.tone = guidance.tone || 'review'
+  taskGuidanceTitle.textContent = guidance.title
+  taskGuidanceSummary.textContent = guidance.summary
+  for (const [index, next] of (guidance.actions || []).entries()) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = index === 0 ? 'primary-button' : 'quiet-button'
+    button.textContent = next.label
+    button.title = next.detail
+    button.addEventListener('click', () => runGuidanceAction(next.id))
+    taskGuidanceActions.append(button)
+  }
+}
+
+function renderOutcomeMap(map) {
+  const visible = Boolean(map?.visible && map.nodes?.length)
+  outcomeMap.classList.toggle('hidden', !visible)
+  outcomeMapEmpty.classList.toggle('hidden', visible)
+  outcomeMapFlow.replaceChildren()
+  outcomeMapLegend.textContent = visible ? map.legend : ''
+  if (!visible) return
+  const edgeTargets = new Set((map.edges || []).map((edge) => edge.to))
+  for (const node of map.nodes) {
+    const card = document.createElement('button')
+    card.type = 'button'
+    card.className = 'outcome-map-node'
+    card.dataset.state = node.state
+    card.dataset.kind = node.kind
+    if (edgeTargets.has(node.id)) card.classList.add('has-incoming-edge')
+    const eyebrow = document.createElement('span')
+    eyebrow.className = 'outcome-map-node-eyebrow'
+    eyebrow.textContent = node.eyebrow
+    const title = document.createElement('strong')
+    title.textContent = node.title
+    const summary = document.createElement('span')
+    summary.className = 'outcome-map-node-summary'
+    summary.textContent = node.summary
+    const action = document.createElement('span')
+    action.className = 'outcome-map-node-action'
+    action.textContent = '查看证据 →'
+    card.append(eyebrow, title, summary, action)
+    card.addEventListener('click', () => {
+      setTaskView('trace')
+      const selector = { changes: '#trace-changes', tools: '#trace-tools', technical: '.technical-details' }[node.evidenceTarget] || '#run-details'
+      const target = document.querySelector(selector)
+      if (target?.tagName === 'DETAILS') target.open = true
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    outcomeMapFlow.append(card)
+  }
 }
 
 function captureTaskViewState(taskId) {
   if (!taskId) return
   taskViewState.save(taskId, {
-    runDetailsOpen: runDetails.open,
+    activeView: traceView.classList.contains('is-active') ? 'trace' : receiptView.classList.contains('is-active') ? 'receipt' : 'conversation',
     technicalDetailsOpen: technicalDetails.open,
     openToolCards: [...toolCardsContainer.querySelectorAll('.tool-card[open]')]
       .map((card) => card.dataset.cardId)
@@ -754,13 +1337,22 @@ function captureTaskViewState(taskId) {
 
 function restoreTaskViewState(taskId) {
   const snapshot = taskViewState.load(taskId)
-  runDetails.open = snapshot.runDetailsOpen
+  setTaskView(snapshot.activeView)
   technicalDetails.open = snapshot.technicalDetailsOpen
   if (!taskViewState.has(taskId)) return
   const openCards = new Set(snapshot.openToolCards)
   for (const card of toolCardsContainer.querySelectorAll('.tool-card')) {
     card.open = openCards.has(card.dataset.cardId)
   }
+}
+
+function setTaskView(view) {
+  const selected = ['trace', 'receipt'].includes(view) ? view : 'conversation'
+  conversationView.classList.toggle('is-active', selected === 'conversation')
+  receiptView.classList.toggle('is-active', selected === 'receipt')
+  traceView.classList.toggle('is-active', selected === 'trace')
+  for (const button of taskViewButtons) button.classList.toggle('is-active', button.dataset.taskView === selected)
+  taskComposer.closest('.composer-wrap').classList.toggle('hidden', selected !== 'conversation')
 }
 
 function activeThread() {
@@ -853,6 +1445,10 @@ function renderDecisionGate(thread, interaction) {
   consequence.className = 'decision-consequence'
   consequence.textContent = interaction.consequence
   card.append(consequence)
+  const timeoutNotice = document.createElement('p')
+  timeoutNotice.className = 'decision-timeout'
+  timeoutNotice.textContent = '这项任务正在等待你的回答。5 分钟内没有响应时，Deep code 会停止本轮，不会替你选择。'
+  card.append(timeoutNotice)
   const errorNode = document.createElement('p')
   errorNode.className = 'decision-error'
   errorNode.setAttribute('aria-live', 'polite')
@@ -880,6 +1476,11 @@ function renderDecisionGate(thread, interaction) {
   }
 
   const form = document.createElement('form')
+  const touchIdleWindow = () => {
+    window.desktopHost.touchInteraction(thread.id, interaction.id).catch(() => {})
+  }
+  form.addEventListener('input', touchIdleWindow)
+  form.addEventListener('change', touchIdleWindow)
   form.addEventListener('submit', (event) => {
     event.preventDefault()
     const answers = interaction.questions.map((question, questionIndex) => {
@@ -988,14 +1589,25 @@ function renderLiveState(thread) {
 
 function renderRunContext(thread) {
   const run = thread?.run
+  sidebarRunPanel.classList.toggle('hidden', !thread)
   currentRunContext.classList.toggle('hidden', !run)
-  currentRunDivider.classList.toggle('hidden', !run)
   if (!run) return
   currentRunState.textContent = run.label
   currentRunState.dataset.state = run.state
-  currentRunModel.textContent = run.model?.available
-    ? `Session 当前模型：${run.model.name}`
-    : (run.model?.label || 'Harness 未提供实际模型。')
+  const route = thread.routeEvidence
+  if (route?.requested) {
+    const requestedEffort = route.requested.reasoningEffort ? ` · ${route.requested.reasoningEffort}` : ' · Provider 默认强度'
+    const requestedLabel = route.source === 'user' ? '用户选择' : 'Harness 当前设置'
+    const actual = route.effective
+      ? `${route.effective.name || route.effective.id}${route.effective.reasoningEffort ? ` · ${route.effective.reasoningEffort}` : ' · Provider 默认强度'}`
+      : '等待 Harness 的 request/header 证据'
+    const mismatch = route.matches === false ? '（与请求不同）' : ''
+    currentRunModel.textContent = `${requestedLabel}：${route.label || `${route.requested.model}${requestedEffort}`}；实际采用：${actual}${mismatch}`
+  } else {
+    currentRunModel.textContent = run.model?.available
+      ? `${run.model.confirmed ? '本轮实际采用' : 'Session 已选择'}：${run.model.name}${run.model.reasoningEffort ? ` · ${run.model.reasoningEffort}` : ' · Provider 默认强度'}`
+      : (run.model?.label || 'Harness 未提供实际模型。')
+  }
   currentRunEvidence.textContent = `证据：${run.evidence?.toolCount || 0} 项工具 · ${run.evidence?.changedFileCount || 0} 个文件改动`
   currentRunUsage.textContent = run.usage?.available ? run.usage.label : (run.usage?.label || '本轮用量未知。')
 }
@@ -1031,21 +1643,30 @@ function renderWorkbench() {
   }
   const thread = activeThread()
   renderRunContext(thread)
+  taskViewTabs.classList.toggle('hidden', !thread)
+  workbenchHeading.textContent = thread?.title || '今天要推进什么？'
   emptyTask.classList.toggle('hidden', Boolean(thread))
   activeTask.classList.toggle('hidden', !thread)
   if (thread) {
     activeTaskTitle.textContent = thread.title
+    activeTaskWorkspace.textContent = thread.workspacePath ? `此任务的项目：${thread.workspacePath}` : '此任务尚未记录项目。'
+    activeTaskWorkspace.title = thread.workspacePath || ''
+    useTaskWorkspaceButton.classList.toggle('hidden', !thread.workspacePath || thread.workspacePath === currentWorkspacePath)
     const agentMessages = thread.agent?.messages || []
     const hasHumanMessage = agentMessages.some((message) => message.role === 'user')
     activeTaskPrompt.classList.toggle('hidden', hasHumanMessage)
     activeTaskPrompt.textContent = thread.prompt
       ? `待发送的任务目标：${thread.prompt}`
       : '待发送的任务只有图片。'
+    const terminalFailure = thread.agent?.runDetails?.terminal?.failure
+    const terminalFailureCopy = terminalFailure
+      ? `${terminalFailure.title}。${terminalFailure.detail} 下一步：${terminalFailure.nextAction}`
+      : ''
     const labels = {
       draft: '任务已保存，等待连接 Engine。',
       running: 'Deep code 正在处理。结果会自动更新。',
       ready: '这一轮已经完成。你可以继续追问，或展开技术证据。',
-      error: `没有完成：${thread.engineError || 'Engine 返回了未知错误。'}`
+      error: `没有完成：${terminalFailureCopy || thread.engineError || 'Engine 返回了未知错误。'}`
     }
     const { pendingCount, queuedCount } = renderLiveState(thread)
     const statusCopy = pendingCount
@@ -1061,7 +1682,13 @@ function renderWorkbench() {
     const notice = thread.engineNotice ? `\n${thread.engineNotice}` : ''
     taskEngineStatus.textContent = `${statusCopy}${timing ? ` ${timing}。` : ''}${notice}`
     taskEngineStatus.dataset.state = pendingCount ? 'waiting' : (thread.engineState || 'draft')
+    const recovery = thread.recovery
+    taskRecovery.classList.toggle('hidden', !recovery)
+    taskRecoveryCause.textContent = recovery ? `原因：${recovery.cause}` : ''
+    taskRecoverySafety.textContent = recovery ? `已经确认：${recovery.safety}` : ''
+    taskRecoveryNext.textContent = recovery ? `下一步：${recovery.nextAction}` : ''
     cancelTaskButton.disabled = thread.engineState !== 'running'
+    composerStopButton.classList.toggle('hidden', thread.engineState !== 'running')
     const canRetry = ['draft', 'error'].includes(thread.engineState)
     retryTaskButton.classList.remove('hidden')
     retryTaskButton.disabled = !canRetry
@@ -1078,15 +1705,18 @@ function renderWorkbench() {
     }
     renderRunDetails(thread)
     renderTaskOutcome(thread)
+    renderTaskGuidance(thread)
     restoreTaskViewState(selectedThreadId)
   } else {
     decisionGates.replaceChildren()
     activityList.replaceChildren()
     activityTimeline.classList.add('hidden')
-    runDetails.classList.add('hidden')
     taskOutcome.classList.add('hidden')
-    runDetails.open = false
+    taskRecovery.classList.add('hidden')
+    taskGuidance.classList.add('hidden')
+    composerStopButton.classList.add('hidden')
     technicalDetails.open = false
+    setTaskView('conversation')
   }
   lastRenderedThreadId = selectedThreadId
   forceFollowNextRender = false
@@ -1107,11 +1737,13 @@ async function createTask() {
   try {
     createTaskButton.disabled = true
     taskComposer.disabled = true
+    modelRouteButton.disabled = true
     const thread = activeThread()
     const attachmentIds = imageDrafts.map((draft) => draft.id)
+    const routing = { manualSelection: manualModelSelection }
     workbench = thread?.sessionId
-      ? await window.desktopHost.sendMessage(thread.id, prompt, attachmentIds)
-      : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds })
+      ? await window.desktopHost.sendMessage(thread.id, prompt, attachmentIds, routing)
+      : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds, routing })
     taskComposer.value = ''
     await syncImageDrafts(workbench.activeThreadId || 'new-task')
     forceFollowNextRender = true
@@ -1122,142 +1754,51 @@ async function createTask() {
   } finally {
     createTaskButton.disabled = false
     taskComposer.disabled = false
+    modelRouteButton.disabled = false
     taskComposer.focus()
   }
 }
 
 async function refreshWorkspace() {
   const result = await window.desktopHost.workspaceStatus()
-  workspaceSummary.textContent = result.workspacePath || '尚未选择工作区。'
+  currentWorkspacePath = result.workspacePath || ''
+  renderWorkspace(result.workspacePath)
   settingsWorkspacePath.textContent = result.workspacePath || '尚未选择工作区'
   openWorkspaceButton.disabled = !result.workspacePath
+  sidebarOpenWorkspace.disabled = !result.workspacePath
+}
+
+function renderWorkspace(workspacePath) {
+  const normalized = String(workspacePath || '')
+  currentWorkspacePath = normalized
+  const segments = normalized.split(/[\\/]/).filter(Boolean)
+  sidebarWorkspaceName.textContent = segments.at(-1) || '尚未选择'
+  workspaceSummary.textContent = normalized ? `位置：${normalized}` : '新任务需要一个本地工作区。'
+  workspaceSummary.title = normalized
 }
 
 async function selectWorkspace() {
   const result = await window.desktopHost.selectWorkspace()
   if (!result.canceled) {
-    workspaceSummary.textContent = result.workspacePath
+    workbench = await window.desktopHost.selectTask('')
+    renderWorkspace(result.workspacePath)
     settingsWorkspacePath.textContent = result.workspacePath
     openWorkspaceButton.disabled = false
-    careResult.textContent = `当前项目已切换为：\n${result.workspacePath}\n\n新任务会在这里运行。`
+    sidebarOpenWorkspace.disabled = false
+    careResult.textContent = `新任务工作区已切换为：\n${result.workspacePath}\n\n已打开空白新任务页。旧任务仍留在各自启动时的项目中，不会被偷偷迁移。`
+    showPage('workbench')
+    forceFollowNextRender = false
+    mainPanel.scrollTop = 0
+    renderWorkbench()
   }
-}
-
-function cardsOfKind(kind) {
-  return cardSnapshot.cards.filter((card) => card.kind === kind)
-}
-
-function fillOptions(select, kind, activeId) {
-  select.replaceChildren(new Option('暂不选择', ''))
-  for (const card of cardsOfKind(kind)) select.add(new Option(`${card.name} — ${card.summary}`, card.id))
-  select.value = activeId || ''
-}
-
-function clearCardForm() {
-  cardId.value = ''
-  cardKind.value = 'agent-character'
-  cardName.value = ''
-  cardSummary.value = ''
-  cardTags.value = ''
-  cardModelText.value = ''
-  cardHumanNotes.value = ''
-  cardList.value = ''
-}
-
-function fillCardForm(card) {
-  cardId.value = card.id
-  cardKind.value = card.kind
-  cardName.value = card.name
-  cardSummary.value = card.summary
-  cardTags.value = card.tags.join(', ')
-  cardModelText.value = card.modelText
-  cardHumanNotes.value = card.humanNotes
-  cardList.value = card.id
-  const builtIn = card.source === 'built-in'
-  saveCardButton.textContent = builtIn ? '复制为本地卡' : '保存本地修改'
-  deleteCardButton.disabled = builtIn
-  exportCardButton.disabled = false
-}
-
-function cardForActive(kind) {
-  const slot = ({ 'user-persona': 'userPersonaId', 'agent-character': 'agentCharacterId', 'interaction-style': 'interactionStyleId' })[kind]
-  return cardSnapshot.cards.find((card) => card.id === cardSnapshot.active[slot])
-}
-
-function renderActiveStack() {
-  cardStack.replaceChildren()
-  for (const [kind, labelText] of [['user-persona', 'USER PERSONA'], ['agent-character', 'AGENT CHARACTER'], ['interaction-style', 'INTERACTION STYLE']]) {
-    const card = cardForActive(kind)
-    const item = document.createElement('div')
-    item.className = 'stack-card'
-    item.innerHTML = `<span class="stack-kind"></span><span class="stack-name"></span>`
-    item.querySelector('.stack-kind').textContent = labelText
-    item.querySelector('.stack-name').textContent = card ? card.name : '暂未选择'
-    if (!card) item.querySelector('.stack-name').className = 'stack-name stack-empty'
-    cardStack.append(item)
-  }
-  const names = [['用户人格', cardForActive('user-persona')], ['Agent Character', cardForActive('agent-character')], ['互动风格', cardForActive('interaction-style')]]
-    .filter(([, card]) => card).map(([kind, card]) => `${kind}：${card.name}`)
-  cardStackNote.textContent = names.length ? `${names.join('\n\n')}\n\n当前选择只保存在本机，尚未写入 Harness。` : '当前未选择任何卡。'
-}
-
-function renderCardLibrary() {
-  const selectedId = cardId.value
-  cardList.replaceChildren(new Option('新建一张角色或协作卡', ''))
-  for (const card of cardSnapshot.cards) {
-    const kind = ({ 'user-persona': '用户', 'agent-character': 'Agent', 'interaction-style': '风格' })[card.kind]
-    cardList.add(new Option(`[${kind}] ${card.name} — ${card.summary}`, card.id))
-  }
-  cardList.value = selectedId
-  const selected = cardSnapshot.cards.find((card) => card.id === selectedId)
-  exportCardButton.disabled = !selected
-  deleteCardButton.disabled = !selected || selected.source === 'built-in'
-  if (!selected) saveCardButton.textContent = '保存为本地卡'
-}
-
-async function refreshCards(selectedId = cardId.value) {
-  cardSnapshot = await window.desktopHost.cardSnapshot()
-  fillOptions(activeUserPersona, 'user-persona', cardSnapshot.active.userPersonaId)
-  fillOptions(activeAgentCharacter, 'agent-character', cardSnapshot.active.agentCharacterId)
-  fillOptions(activeInteractionStyle, 'interaction-style', cardSnapshot.active.interactionStyleId)
-  renderActiveStack()
-  renderCardLibrary()
-  const selected = cardSnapshot.cards.find((card) => card.id === selectedId)
-  if (selected) fillCardForm(selected)
-  else clearCardForm()
-}
-
-function draftFromForm() {
-  return {
-    id: cardId.value || undefined,
-    kind: cardKind.value,
-    name: cardName.value,
-    summary: cardSummary.value,
-    tags: cardTags.value.split(',').map((tag) => tag.trim()).filter(Boolean),
-    modelText: cardModelText.value,
-    humanNotes: cardHumanNotes.value
-  }
-}
-
-async function saveActive(kind, select) {
-  try {
-    await window.desktopHost.setActiveCard(kind, select.value)
-    await refreshCards(cardId.value)
-    cardResult.textContent = '已更新本地卡组。当前选择还没有写入或改变 Harness。'
-  } catch (error) { cardResult.textContent = error.message }
 }
 
 for (const button of pageButtons) button.addEventListener('click', () => showPage(button.dataset.page))
 themeToggle.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true))
-newTaskButton.addEventListener('click', async () => {
-  workbench = await window.desktopHost.selectTask('')
-  await syncImageDrafts('new-task')
-  showPage('workbench')
-  forceFollowNextRender = false
-  mainPanel.scrollTop = 0
-  renderWorkbench()
-  taskComposer.focus()
-})
+newTaskButton.addEventListener('click', () => startNewTask().catch((error) => {
+  careResult.textContent = `没有打开新任务：${error.message}`
+  showPage('settings')
+}))
 createTaskButton.addEventListener('click', createTask)
 addImagesButton.addEventListener('click', async () => {
   addImagesButton.disabled = true
@@ -1287,19 +1828,81 @@ refreshControlCenterButton.addEventListener('click', async () => {
   try { await refreshControlCenter() } catch (error) { controlSkillStatus.textContent = `刷新失败：${error.message}` }
   finally { refreshControlCenterButton.disabled = false }
 })
+memoryForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const submit = memoryForm.querySelector('[type="submit"]')
+  submit.disabled = true
+  memoryStatus.textContent = '正在写入本地候选收件箱；不会调用模型…'
+  try {
+    const snapshot = await window.desktopHost.createMemoryCandidate({
+      kind: memoryKind.value,
+      scope: memoryScope.value,
+      sensitivity: 'private',
+      title: memoryTitle.value,
+      content: memoryContent.value,
+      reason: memoryReason.value,
+      limits: memoryLimits.value
+    })
+    memoryForm.reset()
+    renderMemory(snapshot)
+    memoryStatus.textContent = '候选已保存，尚未成为长期记忆，也不会影响任务回复。'
+  } catch (error) { memoryStatus.textContent = `没有保存：${error.message}` }
+  finally { submit.disabled = false }
+})
+openMemoryFolderButton.addEventListener('click', async () => {
+  openMemoryFolderButton.disabled = true
+  try {
+    const result = await window.desktopHost.openMemoryFolder()
+    memoryStatus.textContent = `已打开：${result.path}`
+  } catch (error) { memoryStatus.textContent = `无法打开：${error.message}` }
+  finally { openMemoryFolderButton.disabled = false }
+})
+previewMemoryButton.addEventListener('click', async () => {
+  previewMemoryButton.disabled = true
+  memoryPreviewStatus.textContent = '正在本机进行确定性匹配；不会调用模型…'
+  try { renderMemoryPreview(await window.desktopHost.previewMemoryRetrieval(memoryPreviewQuery.value)) }
+  catch (error) { memoryPreviewStatus.textContent = `无法预览：${error.message}` }
+  finally { previewMemoryButton.disabled = false }
+})
+memoryPreviewQuery.addEventListener('input', () => {
+  if (!lastMemoryPreviewQuery || memoryPreviewQuery.value.trim() === lastMemoryPreviewQuery) return
+  selectedMemoryIds = new Set()
+  composeMemoryPreviewButton.disabled = true
+  memoryContextPreview.classList.add('hidden')
+  memoryPreviewResults.replaceChildren()
+  memoryPreviewStatus.textContent = '任务描述已更改，请重新进行本机预览。'
+})
+composeMemoryPreviewButton.addEventListener('click', async () => {
+  composeMemoryPreviewButton.disabled = true
+  memoryContextPreview.classList.add('hidden')
+  memoryPreviewStatus.textContent = '正在重新核对作用域与记忆状态…'
+  try {
+    const result = await window.desktopHost.composeMemoryPreview(lastMemoryPreviewQuery, [...selectedMemoryIds])
+    memoryContextText.textContent = result.text || '没有可组成上下文的有效记忆。'
+    const omitted = result.omitted.length ? `；${result.omitted.length} 条因超过 3000 字符上限而未纳入` : ''
+    memoryContextSummary.textContent = `${result.included.length} 条，${result.characterCount} 个字符${omitted}。没有发送给 Engine。`
+    memoryContextPreview.classList.remove('hidden')
+    memoryPreviewStatus.textContent = '已重新核对当前项目和确认状态。以下只是精确预览，没有调用模型、创建任务或修改 Prompt。'
+  } catch (error) { memoryPreviewStatus.textContent = `无法生成最终预览：${error.message}` }
+  finally { composeMemoryPreviewButton.disabled = selectedMemoryIds.size === 0 }
+})
 mainPanel.addEventListener('scroll', updateJumpLatest, { passive: true })
 jumpLatestButton.addEventListener('click', () => {
   mainPanel.scrollTo({ top: mainPanel.scrollHeight, behavior: 'smooth' })
 })
 showOutcomeEvidence.addEventListener('click', () => {
-  runDetails.open = true
-  runDetails.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  setTaskView('trace')
+  mainPanel.scrollTo({ top: 0, behavior: 'smooth' })
 })
 openRunDetailsButton.addEventListener('click', () => {
   if (!activeThread()) return
-  runDetails.classList.remove('hidden')
-  runDetails.open = true
-  runDetails.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  setTaskView('trace')
+  mainPanel.scrollTo({ top: 0, behavior: 'smooth' })
+})
+for (const button of taskViewButtons) button.addEventListener('click', () => {
+  setTaskView(button.dataset.taskView)
+  captureTaskViewState(workbench.activeThreadId)
+  mainPanel.scrollTop = 0
 })
 activeTask.addEventListener('click', async (event) => {
   const link = event.target.closest('a')
@@ -1326,14 +1929,18 @@ deleteTaskButton.addEventListener('click', async () => {
   if (!thread || !window.confirm(`删除本机任务“${thread.title}”？这不会影响 Harness。`)) return
   try { workbench = await window.desktopHost.deleteTask(thread.id); taskViewState.clear(thread.id); renderWorkbench() } catch (error) { careResult.textContent = error.message }
 })
-cancelTaskButton.addEventListener('click', async () => {
+async function stopActiveTask() {
   const thread = activeThread()
   if (!thread) return
+  cancelTaskButton.disabled = true
+  composerStopButton.disabled = true
   try { workbench = await window.desktopHost.cancelTask(thread.id); renderWorkbench() } catch (error) {
     taskEngineStatus.textContent = `无法停止：${error.message}`
     taskEngineStatus.dataset.state = 'error'
-  }
-})
+  } finally { composerStopButton.disabled = false }
+}
+cancelTaskButton.addEventListener('click', stopActiveTask)
+composerStopButton.addEventListener('click', stopActiveTask)
 retryTaskButton.addEventListener('click', async () => {
   const thread = activeThread()
   if (!thread) return
@@ -1367,24 +1974,87 @@ checkModelConnectionButton.addEventListener('click', async () => {
 })
 configureModelCredentialButton.addEventListener('click', () => {
   modelApiKey.value = ''
+  resetProviderRemovalConfirmation()
+  updateCredentialProviderDescription()
   credentialDialog.showModal()
   modelApiKey.focus()
 })
+credentialProviderChoice.addEventListener('change', () => {
+  resetProviderRemovalConfirmation()
+  updateCredentialProviderDescription()
+})
+providerChoice.addEventListener('change', resetProviderSaveConfirmation)
+providerApiKey.addEventListener('input', () => {
+  resetProviderSaveConfirmation()
+})
+addModelProviderButton.addEventListener('click', () => {
+  providerApiKey.value = ''
+  resetProviderSaveConfirmation()
+  renderProviderChoices()
+  providerDialog.showModal()
+  providerApiKey.focus()
+})
+cancelProviderDialog.addEventListener('click', () => {
+  providerApiKey.value = ''
+  resetProviderSaveConfirmation()
+  providerDialog.close()
+})
+providerDialog.addEventListener('cancel', () => { providerApiKey.value = ''; resetProviderSaveConfirmation() })
+providerDialogForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const provider = providerChoice.value
+  const value = providerApiKey.value
+  if (!provider) { modelCredentialResult.textContent = '当前没有可添加的模型服务。'; return }
+  if (!value) { providerApiKey.focus(); return }
+  const selected = (modelConnectionState.provisioning?.providers || []).find((item) => item.id === provider)
+  const confirmation = providerProvisioningFlow.request(selected || { id: provider, name: provider })
+  if (!confirmation.confirmed) {
+    saveModelProviderButton.textContent = confirmation.view.buttonLabel
+    providerChoiceDescription.textContent = confirmation.view.description
+    providerSaveTimer = setTimeout(resetProviderSaveConfirmation, 10000)
+    return
+  }
+  resetProviderSaveConfirmation()
+  const submit = providerDialogForm.querySelector('[type="submit"]')
+  submit.disabled = true
+  modelCredentialResult.textContent = '正在创建 Provider Profile，并把 API Key 单向交给 Harness…'
+  modelCredentialResult.dataset.state = 'working'
+  try {
+    const result = await window.desktopHost.addModelProvider(provider, value)
+    providerApiKey.value = ''
+    providerDialog.close()
+    renderModelConnection(result.snapshot)
+    modelCredentialResult.textContent = `${result.provisioned.name}（${result.provisioned.provider}）与凭据已经保存，但尚未验证连接。下一步可创建一个可见的真实验证任务。`
+    modelCredentialResult.dataset.state = 'success'
+  } catch (error) {
+    providerApiKey.value = ''
+    modelCredentialResult.textContent = `没有完全添加：${error.message}\n\n输入框已清空。若提示 Profile 已创建，请刷新后使用“替换 API Key”重试，不要重复创建。`
+    modelCredentialResult.dataset.state = 'error'
+  } finally {
+    submit.disabled = false
+  }
+})
 cancelCredentialDialog.addEventListener('click', () => {
   modelApiKey.value = ''
+  resetProviderRemovalConfirmation()
   credentialDialog.close()
 })
-credentialDialog.addEventListener('cancel', () => { modelApiKey.value = '' })
+credentialDialog.addEventListener('cancel', () => {
+  modelApiKey.value = ''
+  resetProviderRemovalConfirmation()
+})
 credentialDialogForm.addEventListener('submit', async (event) => {
   event.preventDefault()
   const value = modelApiKey.value
+  const provider = selectedCredentialProvider()
+  if (!provider) { modelCredentialResult.textContent = '当前没有可写的 Provider API Key。'; return }
   if (!value) { modelApiKey.focus(); return }
   saveModelCredentialButton.disabled = true
   saveModelCredentialButton.setAttribute('aria-busy', 'true')
   modelCredentialResult.textContent = '正在把新的 API Key 单向交给本机 Harness…'
   modelCredentialResult.dataset.state = 'working'
   try {
-    const snapshot = await window.desktopHost.saveDeepSeekCredential(value)
+    const snapshot = await window.desktopHost.saveModelCredential(provider.credential.ref, value)
     modelApiKey.value = ''
     credentialDialog.close()
     renderModelConnection(snapshot)
@@ -1399,13 +2069,48 @@ credentialDialogForm.addEventListener('submit', async (event) => {
     saveModelCredentialButton.removeAttribute('aria-busy')
   }
 })
+removeModelProviderButton.addEventListener('click', async () => {
+  const provider = selectedCredentialProvider()
+  if (!provider?.removable) return
+  if (pendingProviderRemoval !== provider.id) {
+    resetProviderRemovalConfirmation()
+    pendingProviderRemoval = provider.id
+    removeModelProviderButton.textContent = `再次点击确认移除 ${provider.name}`
+    credentialProviderDescription.textContent = `将先清除 ${provider.name} 的凭据并移除 Provider Profile；不会删除其他模型服务。10 秒内再次点击才会执行。`
+    removeModelProviderButton.focus()
+    providerRemovalTimer = setTimeout(() => {
+      resetProviderRemovalConfirmation()
+      updateCredentialProviderDescription()
+    }, 10000)
+    return
+  }
+  resetProviderRemovalConfirmation()
+  removeModelProviderButton.disabled = true
+  modelCredentialResult.textContent = `正在移除 ${provider.name}…`
+  modelCredentialResult.dataset.state = 'working'
+  try {
+    const result = await window.desktopHost.removeModelProvider(provider.id)
+    credentialDialog.close()
+    renderModelConnection(result.snapshot)
+    modelCredentialResult.textContent = `${result.removed.name} 的凭据和 Provider Profile 已移除。`
+    modelCredentialResult.dataset.state = 'success'
+  } catch (error) {
+    modelCredentialResult.textContent = `没有完全移除：${error.message}`
+    modelCredentialResult.dataset.state = 'error'
+  } finally {
+    resetProviderRemovalConfirmation()
+    updateCredentialProviderDescription()
+  }
+})
 clearModelCredentialButton.addEventListener('click', async () => {
-  if (!window.confirm('清除 Harness 中保存的 DeepSeek API Key？清除后，新任务将无法调用该模型，除非另有环境变量凭据。')) return
+  const provider = selectedCredentialProvider({ configuredOnly: true })
+  if (!provider) return
+  if (!window.confirm(`清除 Harness 中为 ${provider.name} 保存的 API Key？清除后，该 Provider 可能无法调用模型。`)) return
   clearModelCredentialButton.disabled = true
   modelCredentialResult.textContent = '正在请求 Harness 清除可写凭据…'
   let settled = false
   try {
-    const snapshot = await window.desktopHost.clearDeepSeekCredential()
+    const snapshot = await window.desktopHost.clearModelCredential(provider.credential.ref)
     renderModelConnection(snapshot)
     settled = true
     modelCredentialResult.textContent = 'Harness 已清除可写凭据。Deep code 从未保存密钥副本。'
@@ -1417,21 +2122,32 @@ clearModelCredentialButton.addEventListener('click', async () => {
     if (!settled) clearModelCredentialButton.disabled = false
   }
 })
-verifyModelConnectionButton.addEventListener('click', async () => {
-  if (!window.confirm('这会创建一个可见的“验证模型连接”任务并真实调用模型，可能产生极少量 token。继续吗？')) return
-  verifyModelConnectionButton.disabled = true
-  modelCredentialResult.textContent = '正在创建真实验证任务…'
+async function createVisibleConnectionTest(trigger, statusTarget, routing = null) {
+  trigger.disabled = true
+  statusTarget.textContent = '正在创建真实验证任务…'
   try {
-    workbench = await window.desktopHost.createConnectionTest()
+    workbench = await window.desktopHost.createConnectionTest(routing)
     renderWorkbench()
     showPage('workbench')
   } catch (error) {
-    modelCredentialResult.textContent = `无法创建验证任务：${error.message}`
-    modelCredentialResult.dataset.state = 'error'
+    statusTarget.textContent = `无法创建验证任务：${error.message}`
+    statusTarget.dataset.state = 'error'
   } finally {
-    verifyModelConnectionButton.disabled = false
+    trigger.disabled = false
   }
+}
+verifyModelConnectionButton.addEventListener('click', () => {
+  modelCredentialResult.textContent = '请到“模型服务”页面，从具体 Provider 卡片选择要验证的模型。'
+  showPage('model-services')
 })
+verifyModelServiceButton.addEventListener('click', () => { modelServicesStatus.textContent = '请从下方具体 Provider 卡片点击“验证这个服务”。' })
+refreshModelServicesButton.addEventListener('click', async () => {
+  refreshModelServicesButton.disabled = true
+  modelServicesStatus.textContent = '正在读取 Harness Provider、模型目录和凭据状态…'
+  try { await refreshModelServices() } catch (error) { modelServicesStatus.textContent = `刷新失败：${error.message}` }
+  finally { refreshModelServicesButton.disabled = false }
+})
+manageModelServicesButton.addEventListener('click', () => showPage('settings'))
 inspectButton.addEventListener('click', async () => {
   await runVisibleAction({
     button: inspectButton,
@@ -1442,7 +2158,22 @@ inspectButton.addEventListener('click', async () => {
   })
 })
 selectWorkspaceButton.addEventListener('click', selectWorkspace)
-selectWorkspaceSide.addEventListener('click', selectWorkspace)
+sidebarSelectWorkspace.addEventListener('click', selectWorkspace)
+useTaskWorkspaceButton.addEventListener('click', async () => {
+  const thread = activeThread()
+  if (!thread?.workspacePath) return
+  try {
+    const result = await window.desktopHost.useTaskWorkspace(thread.id)
+    renderWorkspace(result.workspacePath)
+    settingsWorkspacePath.textContent = result.workspacePath
+    openWorkspaceButton.disabled = false
+    sidebarOpenWorkspace.disabled = false
+    careResult.textContent = `已切换到此任务的项目：\n${result.workspacePath}\n\n现在的新任务也会默认使用这里；当前任务的 Engine Session 没有被重建。`
+    renderWorkbench()
+  } catch (error) {
+    careResult.textContent = `没有切换：${error.message}`
+  }
+})
 openWorkspaceButton.addEventListener('click', async () => {
   await runVisibleAction({
     button: openWorkspaceButton,
@@ -1452,18 +2183,21 @@ openWorkspaceButton.addEventListener('click', async () => {
     success: (result) => `已在文件资源管理器中打开：\n${result.workspacePath}`
   })
 })
-workspaceButton.addEventListener('click', () => {
+function openWorkspaceDialog(trigger = workspaceButton) {
+  workspaceDialogTrigger = trigger
   workspaceDialogName.value = '我的第一个项目'
   workspaceDialog.showModal()
   workspaceDialogName.select()
-})
+}
+workspaceButton.addEventListener('click', () => openWorkspaceDialog(workspaceButton))
+sidebarCreateWorkspace.addEventListener('click', () => openWorkspaceDialog(sidebarCreateWorkspace))
 cancelWorkspaceDialog.addEventListener('click', () => workspaceDialog.close())
 workspaceDialogForm.addEventListener('submit', async (event) => {
   event.preventDefault()
   const name = workspaceDialogName.value
   workspaceDialog.close()
   const result = await runVisibleAction({
-    button: workspaceButton,
+    button: workspaceDialogTrigger,
     status: careResult,
     working: '正在创建独立工作区和新手文档…',
     action: () => window.desktopHost.createSafeWorkspace(name),
@@ -1516,6 +2250,18 @@ setupCreateWorkspace.addEventListener('click', async () => {
   })
   if (result) await refreshWorkspace()
 })
+sidebarOpenWorkspace.addEventListener('click', async () => {
+  sidebarOpenWorkspace.disabled = true
+  try {
+    const result = await window.desktopHost.openWorkspace()
+    workspaceSummary.textContent = `已打开：${result.workspacePath}`
+    workspaceSummary.title = result.workspacePath
+  } catch (error) {
+    workspaceSummary.textContent = `没有打开：${error.message}`
+  } finally {
+    sidebarOpenWorkspace.disabled = false
+  }
+})
 setupCheckModel.addEventListener('click', async () => {
   await runVisibleAction({
     button: setupCheckModel,
@@ -1531,51 +2277,10 @@ setupCheckModel.addEventListener('click', async () => {
   })
 })
 
-activeUserPersona.addEventListener('change', () => saveActive('user-persona', activeUserPersona))
-activeAgentCharacter.addEventListener('change', () => saveActive('agent-character', activeAgentCharacter))
-activeInteractionStyle.addEventListener('change', () => saveActive('interaction-style', activeInteractionStyle))
-cardList.addEventListener('change', () => {
-  const selected = cardSnapshot.cards.find((card) => card.id === cardList.value)
-  if (selected) fillCardForm(selected)
-  else clearCardForm()
-  renderCardLibrary()
-})
-saveCardButton.addEventListener('click', async () => {
-  try {
-    const wasBuiltIn = cardSnapshot.cards.find((card) => card.id === cardId.value)?.source === 'built-in'
-    const card = await window.desktopHost.saveCard(draftFromForm())
-    await refreshCards(card.id)
-    cardResult.textContent = wasBuiltIn ? `已从内置起点复制出你的本地版本：${card.name}` : `已保存在本机：${card.name}`
-  } catch (error) { cardResult.textContent = error.message }
-})
-importCardButton.addEventListener('click', async () => {
-  try {
-    const result = await window.desktopHost.prepareCardImport()
-    if (result.canceled) return
-    const preview = [`准备导入：[${result.card.kind}] ${result.card.name}`, `简介：${result.card.summary}`, '', ...result.notices].join('\n')
-    if (!window.confirm(`${preview}\n\n确认保存到本机？`)) return
-    const card = await window.desktopHost.commitCardImport(result.card)
-    await refreshCards(card.id)
-    cardResult.textContent = `已导入并保存在本机：${card.name}`
-  } catch (error) { cardResult.textContent = error.message }
-})
-exportCardButton.addEventListener('click', async () => {
-  try {
-    const result = await window.desktopHost.exportCard(cardId.value)
-    cardResult.textContent = result.canceled ? '未导出角色卡。' : `已导出可分享的角色卡：\n${result.path}`
-  } catch (error) { cardResult.textContent = error.message }
-})
-deleteCardButton.addEventListener('click', async () => {
-  const selected = cardSnapshot.cards.find((card) => card.id === cardId.value)
-  if (!selected || !window.confirm(`删除本机卡“${selected.name}”？这不会影响 Harness。`)) return
-  try {
-    await window.desktopHost.deleteCard(selected.id)
-    await refreshCards()
-    cardResult.textContent = `已删除本机卡：${selected.name}`
-  } catch (error) { cardResult.textContent = error.message }
-})
-
 window.desktopHost.onStatus(renderRuntime)
+window.desktopHost.onWorkbenchChanged(() => {
+  refreshWorkbench().catch((error) => { careResult.textContent = error.message })
+})
 window.desktopHost.onSetupProgress((line) => {
   if (!line) return
   setupProgress.textContent = `${setupProgress.textContent}\n${line}`.trim()
@@ -1586,7 +2291,6 @@ window.desktopHost.status().then((status) => {
   if (!status.runtimePath) showPage('setup')
 })
 refreshWorkbench().then(() => syncImageDrafts()).catch((error) => { careResult.textContent = error.message })
-refreshCards().catch((error) => { cardResult.textContent = error.message })
 refreshWorkspace().catch((error) => { careResult.textContent = error.message })
 refreshEcosystemStatus().catch((error) => { ecosystemSource.textContent = error.message })
 refreshControlCenter().catch((error) => { controlSkillStatus.textContent = error.message })
@@ -1594,5 +2298,7 @@ refreshControlCenter().catch((error) => { controlSkillStatus.textContent = error
 setInterval(async () => {
   const thread = activeThread()
   if (!thread?.sessionId || thread.engineState !== 'running') return
+  // 等待你的回答时暂停自动刷新；否则整棵 Decision Gate DOM 会被替换，已选选项和输入文字会丢失。
+  if (thread.agent?.live?.interactions?.length) return
   try { await refreshWorkbench() } catch { /* Keep the last readable state visible. */ }
 }, 1500)

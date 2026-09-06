@@ -7,18 +7,18 @@ test('disclosure state belongs to one task and does not leak into another task',
   const views = createTaskViewState()
 
   views.save('task-a', {
-    runDetailsOpen: true,
+    activeView: 'trace',
     technicalDetailsOpen: true,
     openToolCards: ['tool:1']
   })
 
   assert.deepEqual(views.load('task-b'), {
-    runDetailsOpen: false,
+    activeView: 'conversation',
     technicalDetailsOpen: false,
     openToolCards: []
   })
   assert.deepEqual(views.load('task-a'), {
-    runDetailsOpen: true,
+    activeView: 'trace',
     technicalDetailsOpen: true,
     openToolCards: ['tool:1']
   })
@@ -26,10 +26,17 @@ test('disclosure state belongs to one task and does not leak into another task',
 
 test('loaded task view snapshots cannot mutate the stored state', () => {
   const views = createTaskViewState()
-  views.save('task-a', { runDetailsOpen: true, openToolCards: ['tool:1'] })
+  views.save('task-a', { activeView: 'trace', openToolCards: ['tool:1'] })
 
   const snapshot = views.load('task-a')
   snapshot.openToolCards.push('tool:2')
 
   assert.deepEqual(views.load('task-a').openToolCards, ['tool:1'])
+})
+
+test('keeps the visual work receipt view isolated per task', () => {
+  const views = createTaskViewState()
+  views.save('task-a', { activeView: 'receipt' })
+  assert.equal(views.load('task-a').activeView, 'receipt')
+  assert.equal(views.load('task-b').activeView, 'conversation')
 })

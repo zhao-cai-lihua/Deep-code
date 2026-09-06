@@ -131,7 +131,17 @@ function validateQuestionAnswers(interaction, answers) {
 }
 
 class DshLiveSession {
-  constructor({ baseUrl, sessionId, fetchImpl = globalThis.fetch, WebSocketImpl = globalThis.WebSocket, retryMs = 1200 } = {}) {
+  constructor({
+    baseUrl,
+    sessionId,
+    fetchImpl = globalThis.fetch,
+    WebSocketImpl = globalThis.WebSocket,
+    retryMs = 1200,
+    interactionTimeoutMs = 5 * 60 * 1000,
+    setTimeoutImpl = setTimeout,
+    clearTimeoutImpl = clearTimeout,
+    onInteractionTimeout = () => {}
+  } = {}) {
     if (!sessionId) throw new Error('实时会话缺少 Engine Session 标识。')
     if (typeof fetchImpl !== 'function') throw new Error('当前环境不支持本地 Engine 响应。')
     if (typeof WebSocketImpl !== 'function') throw new Error('当前环境不支持 Engine WebSocket 实时连接。')
@@ -140,16 +150,54 @@ class DshLiveSession {
     this.fetchImpl = fetchImpl
     this.WebSocketImpl = WebSocketImpl
     this.retryMs = retryMs
+    this.interactionTimeoutMs = interactionTimeoutMs
+    this.setTimeoutImpl = setTimeoutImpl
+    this.clearTimeoutImpl = clearTimeoutImpl
+    this.onInteractionTimeout = onInteractionTimeout
     this.socket = null
     this.connectionId = 0
     this.closed = false
     this.retryTimer = null
+    this.interactionTimer = null
     this.status = 'connecting'
     this.error = ''
     this.pending = new Map()
     this.activities = []
     this.draft = null
     this.queue = queueSummary([])
+  }
+
+  clearInteractionTimer() {
+    if (this.interactionTimer) this.clearTimeoutImpl(this.interactionTimer)
+    this.interactionTimer = null
+  }
+
+  syncInteractionTimer() {
+    if (!this.pending.size) {
+      this.clearInteractionTimer()
+      return
+    }
+    if (this.interactionTimer) return
+    this.interactionTimer = this.setTimeoutImpl(() => {
+      this.interactionTimer = null
+      if (this.closed || !this.pending.size) return
+      const interactionCount = this.pending.size
+      this.pending.clear()
+      Promise.resolve(this.onInteractionTimeout({
+        reason: 'waiting-for-user',
+        interactionCount,
+        sessionId: this.sessionId
+      })).catch(() => {})
+    }, this.interactionTimeoutMs)
+  }
+
+  /** Restart the inactivity window without changing the Engine-owned question. */
+  touchInteraction(interactionId) {
+    const interaction = this.pending.get(String(interactionId || ''))
+    if (!interaction || interaction.public.responding) return false
+    this.clearInteractionTimer()
+    this.syncInteractionTimer()
+    return true
   }
 
   start() {
@@ -193,10 +241,11 @@ class DshLiveSession {
     this.status = 'reconnecting'
     this.error = safeText(error?.message, 'Engine 实时状态暂时断开；任务记录仍会继续刷新，待决定事项会在重连后由 Harness 重新发送。', 1200)
     this.pending.clear()
+    this.clearInteractionTimer()
     this.draft = null
     this.queue = queueSummary([])
     if (this.retryTimer) return
-    this.retryTimer = setTimeout(() => {
+    this.retryTimer = this.setTimeoutImpl(() => {
       this.retryTimer = null
       if (!this.closed) this.connect()
     }, this.retryMs)
@@ -210,17 +259,22 @@ class DshLiveSession {
     if (frame.sessionId && frame.sessionId !== this.sessionId) return
     if (frame.type === 'approval/requested' || frame.type === 'question/requested') {
       const interaction = normalizeInteraction(envelope.rpcId, frame)
-      if (interaction) this.pending.set(interaction.public.id, interaction)
+      if (interaction) {
+        this.pending.set(interaction.public.id, interaction)
+        this.syncInteractionTimer()
+      }
       return
     }
     if (frame.type === 'approval/resolved') {
       for (const [id, interaction] of this.pending) {
         if (interaction.internal.approvalId === frame.approvalId) this.pending.delete(id)
       }
+      this.syncInteractionTimer()
       return
     }
     if (frame.type === 'question/resolved') {
       this.pending.delete(`question:${frame.questionRpcId}`)
+      this.syncInteractionTimer()
       return
     }
     if (frame.type === 'stream/error') {
@@ -275,6 +329,8 @@ class DshLiveSession {
     this.draft = null
     this.queue = queueSummary([])
     this.activities = this.activities.filter((item) => item.state !== 'working')
+    this.pending.clear()
+    this.clearInteractionTimer()
   }
 
   async respond({ interactionId, action, answers }) {
@@ -296,6 +352,9 @@ class DshLiveSession {
       }
     }
     interaction.public.responding = true
+    // A submission is user activity and must win the race against the idle
+    // timeout. Re-arm only when the Engine rejects a still-pending response.
+    this.clearInteractionTimer()
     try {
       const response = await this.fetchImpl(`${this.baseUrl}/api/respond`, {
         method: 'POST',
@@ -304,10 +363,22 @@ class DshLiveSession {
       })
       if (!response.ok) throw new Error(`Engine 拒绝了响应（HTTP ${response.status}）。`)
       const receipt = await response.json()
-      if (receipt?.accepted !== true) throw new Error('Engine 没有确认收到这个决定。')
+      if (receipt?.accepted !== true) {
+        if (receipt?.reason === 'not-pending') {
+          this.pending.delete(interaction.public.id)
+          const error = new Error('这个问题已不再处于等待状态；你的回答没有被发送。Deep code 会刷新任务并提供恢复指引。')
+          error.code = 'INTERACTION_NOT_PENDING'
+          throw error
+        }
+        const reason = receipt?.reason === 'bad-response' ? 'Harness 判定回答格式与当前问题不匹配' : 'Harness 没有返回可识别的确认'
+        throw new Error(`Engine 没有确认收到这个决定：${reason}。`)
+      }
       return { accepted: true }
     } catch (error) {
-      interaction.public.responding = false
+      if (this.pending.has(interaction.public.id)) {
+        interaction.public.responding = false
+        this.syncInteractionTimer()
+      }
       throw error
     }
   }
@@ -317,9 +388,10 @@ class DshLiveSession {
     this.connectionId += 1
     this.status = 'closed'
     this.pending.clear()
+    this.clearInteractionTimer()
     this.draft = null
     this.queue = queueSummary([])
-    if (this.retryTimer) clearTimeout(this.retryTimer)
+    if (this.retryTimer) this.clearTimeoutImpl(this.retryTimer)
     this.retryTimer = null
     const socket = this.socket
     this.socket = null

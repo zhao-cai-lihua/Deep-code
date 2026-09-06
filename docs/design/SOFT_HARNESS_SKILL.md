@@ -2,6 +2,8 @@
 
 状态：方向文档 v2。当前只实现其工程可理解层；关系动力层仍处于可检验设计阶段，不伪装成已经生效。
 
+长期 Agent 风格、关系记忆、互动校准和执行章程的工程拆分见 [RELATIONAL_AGENT_STYLE_ARCHITECTURE.md](RELATIONAL_AGENT_STYLE_ARCHITECTURE.md)。
+
 ## 定义
 
 Soft Harness 不是一份更长的系统提示词，也不是一张更黏人的角色卡。

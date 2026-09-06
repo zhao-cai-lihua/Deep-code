@@ -54,6 +54,23 @@ test('binds one Deep code task to one hidden Engine session', () => {
   assert.equal(bound.engineState, 'running')
 })
 
+test('persists a bounded model verification purpose and receipt', () => {
+  const store = makeStore()
+  const task = store.create({
+    prompt: '验证模型',
+    purpose: { kind: 'model-connection-test', requestedRoute: { provider: 'deepseek', model: 'deepseek-v4-flash', reasoningEffort: 'low' } }
+  })
+  store.setVerificationReceipt(task.id, {
+    version: 1, state: 'passed', provider: 'deepseek', model: 'deepseek-v4-flash', modelName: 'DeepSeek V4 Flash', reasoningEffort: 'low',
+    routeEvidence: 'request/header', terminalReason: 'completed', recordedAt: '2026-09-05T00:00:00.000Z'
+  })
+  const saved = store.snapshot().threads[0]
+  assert.equal(saved.purpose.kind, 'model-connection-test')
+  assert.equal(saved.verificationReceipt.state, 'passed')
+  store.clearVerificationReceipt(task.id)
+  assert.equal(store.snapshot().threads[0].verificationReceipt, null)
+})
+
 test('persists a human-readable model-switch notice independently from errors', () => {
   const store = makeStore()
   const task = store.create({ prompt: '分析截图' })
@@ -62,4 +79,41 @@ test('persists a human-readable model-switch notice independently from errors', 
   const saved = store.snapshot().threads[0]
   assert.equal(saved.engineNotice, '已切换到官方图片模型。')
   assert.equal(saved.engineError, '')
+})
+
+test('persists a structured recovery reason and clears it only when work resumes', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '等待我回答' })
+  store.setRecovery(task.id, {
+    kind: 'waiting-timeout',
+    cause: '等待用户回答超过 5 分钟。',
+    safety: '没有替用户选择任何答案。',
+    nextAction: '重新发送任务后再回答。'
+  })
+  assert.equal(store.snapshot().threads[0].recovery.kind, 'waiting-timeout')
+  store.clearRecovery(task.id)
+  assert.equal(store.snapshot().threads[0].recovery, null)
+})
+
+test('binds a task to its workspace and persists a bounded Git baseline', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '修改项目' })
+  store.setWorkspaceBaseline(task.id, {
+    workspacePath: 'C:\\projects\\one',
+    baseline: {
+      version: 1,
+      state: 'dirty',
+      workspacePath: 'C:\\projects\\one',
+      repoRoot: 'C:\\projects\\one',
+      head: 'abc123',
+      dirtyPaths: ['src/existing.cjs'],
+      capturedAt: '2026-09-02T00:00:00.000Z',
+      message: '任务开始前已有 1 个未提交路径。'
+    }
+  })
+
+  const saved = store.snapshot().threads[0]
+  assert.equal(saved.workspacePath, 'C:\\projects\\one')
+  assert.equal(saved.baseline.state, 'dirty')
+  assert.deepEqual(saved.baseline.dirtyPaths, ['src/existing.cjs'])
 })

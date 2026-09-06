@@ -129,6 +129,57 @@ function latestTurnDuration(events) {
   return latest
 }
 
+function terminalFailure(reason) {
+  if (!reason || typeof reason !== 'object' || reason.kind !== 'error') return null
+  const error = reason.error && typeof reason.error === 'object' ? reason.error : {}
+  const code = String(error.code || '').toUpperCase()
+  const status = Number.isInteger(error.status) ? error.status : null
+  const message = String(error.message || '').toLowerCase()
+  const facts = { ...(code ? { code } : {}), ...(status !== null ? { status } : {}) }
+  if (code === 'AUTH' || status === 401 || status === 403 || /auth|api key|credential/.test(message)) {
+    return {
+      kind: 'authentication',
+      title: '模型服务拒绝了 API Key',
+      detail: '当前模型服务认为保存的 API Key 无效、过期或不属于这个服务。',
+      nextAction: '打开“模型服务”，为当前 Provider 替换有效的 API Key，再重新验证。',
+      ...facts
+    }
+  }
+  if (code.includes('QUOTA') || /quota|credit|balance|insufficient/.test(message)) {
+    return {
+      kind: 'quota', title: '模型账户没有可用额度',
+      detail: 'Provider 拒绝了这次请求，原因与账户余额、套餐额度或使用上限有关。',
+      nextAction: '到对应模型厂商确认余额和额度，再回到“模型服务”重新验证。', ...facts
+    }
+  }
+  if (code.includes('RATE') || status === 429 || /rate limit|too many requests/.test(message)) {
+    return {
+      kind: 'rate-limit', title: '模型服务暂时限流',
+      detail: '模型服务当前拒绝了过多或过快的请求。',
+      nextAction: '稍后重试；若持续发生，请检查该 Provider 的并发或速率上限。', ...facts
+    }
+  }
+  if (code.includes('MODEL') || /model.*unavailable|not found/.test(message)) {
+    return {
+      kind: 'model-unavailable', title: '这个模型当前不可用',
+      detail: 'Provider 没有接受当前模型路线，可能是模型名称、权限或服务范围发生变化。',
+      nextAction: '重新打开模型列表，选择 Harness 当前公布的模型后再试。', ...facts
+    }
+  }
+  if (code.includes('NETWORK') || status >= 500 || /network|timeout|fetch failed|connection/.test(message)) {
+    return {
+      kind: 'network', title: '模型服务连接失败',
+      detail: 'Harness 没能从模型服务获得正常响应。',
+      nextAction: '检查网络与 Provider 服务状态后重试。', ...facts
+    }
+  }
+  return {
+    kind: 'unknown', title: '模型请求失败',
+    detail: 'Harness 返回了失败终态，但没有可安全归类的公开原因。',
+    nextAction: '在轨迹中查看错误代码，或导出脱敏诊断后再处理。', ...facts
+  }
+}
+
 function latestTurnTerminal(events) {
   const end = [...events].reverse().find((entry) => entry?.event?.type === 'turn/end')?.event
   if (!end) return null
@@ -139,10 +190,12 @@ function latestTurnTerminal(events) {
     : ['cancelled', 'canceled', 'interrupted', 'aborted'].includes(reason)
       ? 'interrupted'
       : 'failed'
+  const failure = terminalFailure(end.data?.reason)
   return {
     state,
     reason,
-    ...(Number.isFinite(end.data?.turn) ? { turn: end.data.turn } : {})
+    ...(Number.isFinite(end.data?.turn) ? { turn: end.data.turn } : {}),
+    ...(failure ? { failure } : {})
   }
 }
 
@@ -346,4 +399,4 @@ function projectConversation(page) {
   }
 }
 
-module.exports = { projectConversation, textBlocks, imageBlocks, contextSummary, toolKind, presenterKind, presenterDetail, humanFileOperation, toolCardFromActivity, latestTurnTerminal }
+module.exports = { projectConversation, textBlocks, imageBlocks, contextSummary, toolKind, presenterKind, presenterDetail, humanFileOperation, toolCardFromActivity, latestTurnTerminal, terminalFailure }

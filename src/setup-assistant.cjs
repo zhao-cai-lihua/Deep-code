@@ -1,6 +1,7 @@
 const { spawn } = require('node:child_process')
 const { existsSync, mkdirSync, readFileSync } = require('node:fs')
 const { join, resolve } = require('node:path')
+const { sanitizedEnvironment } = require('./safe-child-environment.cjs')
 
 const OFFICIAL_REPOSITORY = 'https://github.com/deepseek-ai/deepseek-harness.git'
 
@@ -16,7 +17,7 @@ function runCommand(command, args, { cwd, onLine = () => {}, spawnProcess = spaw
       cwd,
       windowsHide: true,
       shell: process.platform === 'win32' && command === 'pnpm',
-      env: process.env
+      env: sanitizedEnvironment(process.env)
     })
     child.stdout?.on('data', (chunk) => onLine(String(chunk).trim()))
     child.stderr?.on('data', (chunk) => onLine(String(chunk).trim()))

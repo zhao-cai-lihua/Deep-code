@@ -57,10 +57,42 @@ test('rejects non-GitHub repository URLs from catalog responses', async () => {
   assert.deepEqual(snapshot.entries, [])
 })
 
+test('rejects unsafe repository identities even when the displayed URL is GitHub', async () => {
+  const catalog = new EcosystemCatalog({ fetchImpl: async () => ({
+    ok: true,
+    json: async () => ({ items: [{ id: 1, full_name: '../evil', html_url: 'https://github.com/owner/repo' }] })
+  }) })
+  assert.deepEqual((await catalog.refresh({ enabled: true })).entries, [])
+})
+
 test('does not present the Harness engine repository as a community plugin', async () => {
   const catalog = new EcosystemCatalog({ fetchImpl: async () => ({
     ok: true,
     json: async () => ({ items: [{ id: 1, full_name: 'deepseek-ai/deepseek-harness', html_url: 'https://github.com/deepseek-ai/deepseek-harness' }] })
   }) })
   assert.deepEqual((await catalog.refresh({ enabled: true })).entries, [])
+})
+
+test('prepares a one-use commit-pinned install plan only after static bundle checks', async () => {
+  const calls = []
+  const manifest = Buffer.from(JSON.stringify({ name: 'dsh-example', dsh: { bundle: { patch: './cordis.patch.yml' } } })).toString('base64')
+  const catalog = new EcosystemCatalog({
+    createToken: () => 'one-use-token',
+    fetchImpl: async (url) => {
+      calls.push(url)
+      if (url.includes('/search/repositories')) return { ok: true, json: async () => ({ items: [{ id: 7, full_name: 'owner/plugin', name: 'plugin', html_url: 'https://github.com/owner/plugin', default_branch: 'main' }] }) }
+      if (url.includes('/commits/main')) return { ok: true, json: async () => ({ sha: 'c'.repeat(40) }) }
+      if (url.includes('/contents/package.json')) return { ok: true, json: async () => ({ encoding: 'base64', content: manifest }) }
+      if (url.includes('/contents/cordis.patch.yml')) return { ok: true, json: async () => ({ type: 'file' }) }
+      throw new Error(`unexpected ${url}`)
+    }
+  })
+  await catalog.refresh({ enabled: true })
+  const preview = await catalog.prepareInstall('7')
+  assert.equal(preview.token, 'one-use-token')
+  assert.equal(preview.commit, 'c'.repeat(40))
+  assert.match(preview.warning, /沙箱之外/)
+  assert.equal(catalog.consumeInstallPlan('one-use-token').packageName, 'dsh-example')
+  assert.throws(() => catalog.consumeInstallPlan('one-use-token'), /已过期/)
+  assert.ok(calls.some((url) => url.includes('/contents/cordis.patch.yml?ref=')))
 })

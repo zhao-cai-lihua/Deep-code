@@ -1,14 +1,29 @@
 const { randomUUID } = require('node:crypto')
 const { projectConversation, textBlocks } = require('./conversation-projection.cjs')
 
-const PROVIDER_CREDENTIAL_REFS = Object.freeze({
-  'deepseek-official': 'DEEPSEEK_API_KEY'
-})
-const DEEPSEEK_CREDENTIAL_REF = PROVIDER_CREDENTIAL_REFS['deepseek-official']
 const OFFICIAL_VISION_MODEL = Object.freeze({
   provider: 'deepseek-official',
   model: 'deepseek-v4-flash-vision-exp'
 })
+const SIMPLE_CATALOG_PROVIDERS = Object.freeze({
+  openai: 'OpenAI',
+  anthropic: 'Anthropic / Claude',
+  zai: '智谱 GLM（国际）',
+  'zai-coding-cn': '智谱 GLM Coding（中国）',
+  'qwen-token-plan': '阿里 Qwen（国际）',
+  'qwen-token-plan-cn': '阿里 Qwen（中国）',
+  openrouter: 'OpenRouter',
+  moonshotai: 'Moonshot / Kimi（国际）',
+  'moonshotai-cn': 'Moonshot / Kimi（中国）',
+  minimax: 'MiniMax（国际）',
+  'minimax-cn': 'MiniMax（中国）'
+})
+
+function deriveCredentialRef(provider) {
+  const route = String(provider || '')
+  if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(route)) throw new Error('Provider ID 不能安全地派生凭据引用。')
+  return `${route.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`
+}
 
 function safeCredentialError(error, value) {
   const raw = String(error?.message || 'Engine 拒绝了凭据写入。')
@@ -20,12 +35,44 @@ function humanizeHistory(page) {
   return projectConversation(page)
 }
 
+function valueAtPath(value, path) {
+  let current = value
+  for (const segment of path || []) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined
+    current = current[segment]
+  }
+  return current
+}
+
+function credentialRefForProvider(provider, settingsResult) {
+  const namespace = (settingsResult?.namespaces || []).find((item) => item?.ns === provider?.settingsNs)
+  const profile = valueAtPath(namespace?.value, provider?.settingsPath || [])
+  const ref = String(profile?.apiKeyEnv || '')
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(ref) ? ref : ''
+}
+
+function latestRequestRoute(page) {
+  const events = Array.isArray(page?.events) ? page.events : []
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]?.event || events[index]
+    if (event?.type !== 'request/header') continue
+    const config = event?.data?.header?.config
+    if (!config?.provider || !config?.model) continue
+    return {
+      provider: String(config.provider),
+      model: String(config.model),
+      reasoningEffort: String(config.reasoningEffort || '')
+    }
+  }
+  return null
+}
+
 function connectionCopy(state, { providerNames = [], modelCount = 0 } = {}) {
   const names = providerNames.join('、') || '本机模型服务'
   return ({
     ready: {
-      title: '模型已准备好',
-      message: `${names} 已配置，共发现 ${modelCount} 个可用模型。Deep code 不会读取或显示密钥内容。`
+      title: '模型服务已载入',
+      message: `${names} 已启用，共发现 ${modelCount} 个目录模型。凭据槽已有值时也尚未真实验证；请以该 Provider 的最近一次真实验证为准。`
     },
     'needs-credential': {
       title: '还需要配置 API Key',
@@ -119,6 +166,29 @@ class DshAdapter {
     return { selected: result.selected || OFFICIAL_VISION_MODEL, changed: true }
   }
 
+  modelDirectory({ baseUrl, sessionId }) {
+    if (!sessionId) throw new Error('模型选择缺少 Engine Session。')
+    return this.rpc(baseUrl, 'session.models', { sessionId })
+  }
+
+  globalModelDirectory({ baseUrl }) {
+    return this.rpc(baseUrl, 'llm.models', {})
+  }
+
+  async selectModel({ baseUrl, sessionId, selection }) {
+    if (!sessionId) throw new Error('模型选择缺少 Engine Session。')
+    const provider = String(selection?.provider || '')
+    const model = String(selection?.model || '')
+    if (!provider || !model) throw new Error('模型选择缺少提供方或模型。')
+    const result = await this.rpc(baseUrl, 'session.selectModel', {
+      sessionId,
+      provider,
+      model,
+      ...(selection?.reasoningEffort ? { reasoningEffort: String(selection.reasoningEffort) } : {})
+    })
+    return result?.selected || { provider, model, ...(selection?.reasoningEffort ? { reasoningEffort: String(selection.reasoningEffort) } : {}) }
+  }
+
   listSkills({ baseUrl, sessionId }) {
     if (!sessionId) throw new Error('请先打开一个已经连接 Engine 的任务。')
     return this.rpc(baseUrl, 'skill.list', { sessionId })
@@ -139,28 +209,52 @@ class DshAdapter {
           available: true,
           provider: String(current.provider),
           id: String(current.model),
-          name: String(catalogModel?.name || current.model)
+          name: String(catalogModel?.name || current.model),
+          reasoningEffort: String(current.reasoningEffort || '')
         }
       : {
           available: false,
           ...(modelDirectory?.error ? { error: String(modelDirectory.error) } : {})
         }
-    return { ...humanizeHistory(page), running: Boolean(summary?.running), model }
+    const effectiveRoute = latestRequestRoute(page)
+    const effectiveGroup = (modelDirectory?.groups || []).find((item) => item?.id === effectiveRoute?.provider)
+    const effectiveCatalogModel = (effectiveGroup?.models || []).find((item) => item?.id === effectiveRoute?.model)
+    const effectiveModel = effectiveRoute
+      ? {
+          available: true,
+          provider: effectiveRoute.provider,
+          id: effectiveRoute.model,
+          name: String(effectiveCatalogModel?.name || effectiveRoute.model),
+          reasoningEffort: effectiveRoute.reasoningEffort,
+          evidence: 'request/header'
+        }
+      : { available: false, label: 'Harness 历史尚未记录本轮请求路线。' }
+    return { ...humanizeHistory(page), running: Boolean(summary?.running), model, effectiveModel }
   }
 
   async connectionSnapshot({ baseUrl }) {
-    const [providerResult, modelResult] = await Promise.all([
+    const [providerResult, modelResult, settingsResult] = await Promise.all([
       this.rpc(baseUrl, 'llm.providers', {}),
-      this.rpc(baseUrl, 'llm.models', {})
+      this.rpc(baseUrl, 'llm.models', {}),
+      this.rpc(baseUrl, 'settings.describe', {}).catch((error) => ({ error: error.message, namespaces: [] }))
     ])
     const active = (providerResult?.providers || []).filter((provider) => provider?.active)
+    const availableProviders = (providerResult?.providers || [])
+      .filter((provider) => !provider?.active && SIMPLE_CATALOG_PROVIDERS[provider?.provider])
+      .map((provider) => ({
+        id: String(provider.provider),
+        name: SIMPLE_CATALOG_PROVIDERS[provider.provider],
+        settingsNs: String(provider.settingsNs || ''),
+        settingsPath: Array.isArray(provider.settingsPath) ? provider.settingsPath.map(String) : []
+      }))
     const groups = modelResult?.groups || []
-    const refs = [...new Set(active.map((provider) => PROVIDER_CREDENTIAL_REFS[provider.provider]).filter(Boolean))]
+    const refs = [...new Set(active.map((provider) => credentialRefForProvider(provider, settingsResult)).filter(Boolean))]
     let credentialStates = {}
     const failures = (modelResult?.failures || []).map((failure) => ({
       provider: String(failure?.provider || 'unknown'),
       message: String(failure?.message || failure?.error || '模型提供方返回了未知错误。')
     }))
+    if (settingsResult?.error) failures.push({ provider: 'settings', message: String(settingsResult.error) })
 
     if (refs.length) {
       try {
@@ -177,11 +271,12 @@ class DshAdapter {
         name: String(model.name || model.id || '未命名模型'),
         reasoning: model.reasoning || null
       }))
-      const ref = PROVIDER_CREDENTIAL_REFS[provider.provider]
+      const ref = credentialRefForProvider(provider, settingsResult)
       const described = ref ? credentialStates[ref] : null
       return {
         id: String(provider.provider || ''),
         name: String(provider.displayName || group?.name || provider.provider || '未命名提供方'),
+        removable: Boolean(SIMPLE_CATALOG_PROVIDERS[provider.provider] && provider.settingsNs && Array.isArray(provider.settingsPath) && provider.settingsPath.length),
         modelCount: models.length,
         models,
         credential: ref ? {
@@ -193,10 +288,9 @@ class DshAdapter {
       }
     })
     const modelCount = activeProviders.reduce((total, provider) => total + provider.modelCount, 0)
-    const deepSeekCredential = activeProviders.find((provider) => provider.id === 'deepseek-official')?.credential
     const knownCredentials = activeProviders.map((provider) => provider.credential).filter(Boolean)
     const missingCredential = knownCredentials.some((credential) => credential.configured === false)
-    const unknownCredential = activeProviders.some((provider) => !provider.credential || provider.credential.configured === null)
+    const unknownCredential = knownCredentials.some((credential) => credential.configured === null)
     let state = 'ready'
     if (!activeProviders.length) state = 'unavailable'
     else if (missingCredential) state = 'needs-credential'
@@ -213,10 +307,15 @@ class DshAdapter {
       dormantProviderCount: Math.max(0, (providerResult?.providers || []).length - activeProviders.length),
       failures,
       credentialManagement: {
-        supported: typeof deepSeekCredential?.configured === 'boolean',
-        writable: deepSeekCredential?.writable === true,
-        configured: deepSeekCredential?.configured === true,
-        ...(deepSeekCredential?.source ? { source: deepSeekCredential.source } : {})
+        supported: knownCredentials.length > 0,
+        writable: knownCredentials.some((credential) => credential.writable === true),
+        configured: knownCredentials.length > 0 && knownCredentials.every((credential) => credential.configured === true),
+        providerCount: knownCredentials.length
+      },
+      provisioning: {
+        supported: settingsResult?.writable === true && availableProviders.length > 0,
+        writable: settingsResult?.writable === true,
+        providers: availableProviders
       },
       evidence: {
         activeProviderIds: activeProviders.map((provider) => provider.id),
@@ -226,23 +325,92 @@ class DshAdapter {
     }
   }
 
-  async saveDeepSeekCredential({ baseUrl, value }) {
+  async provisionCatalogProvider({ baseUrl, provider, value }) {
+    const providerId = String(provider || '')
+    if (!SIMPLE_CATALOG_PROVIDERS[providerId]) throw new Error('这个 Provider 不属于当前简单 API Key 服务清单。')
+    const secret = String(value || '')
+    if (!secret || secret !== secret.trim() || /\s/.test(secret) || secret.length > 8192) {
+      throw new Error('API Key 格式无效：不能为空、包含空白或超过长度上限。')
+    }
+    const [directory, settings] = await Promise.all([
+      this.rpc(baseUrl, 'llm.providers', {}),
+      this.rpc(baseUrl, 'settings.describe', {})
+    ])
+    const entry = (directory?.providers || []).find((item) => item?.provider === providerId)
+    if (!entry) throw new Error('当前 Harness 没有公布这个 Provider。')
+    if (entry.active) throw new Error('这个 Provider 已经存在，请在已有服务中设置或替换 API Key。')
+    if (!entry.settingsNs || !Array.isArray(entry.settingsPath) || entry.settingsPath.length === 0) {
+      throw new Error('当前 Harness 没有公布可创建的 Provider Profile 地址。')
+    }
+    if (settings?.writable !== true) throw new Error('当前 Harness 设置为只读，不能添加模型服务。')
+    const namespace = (settings.namespaces || []).find((item) => item?.ns === entry.settingsNs)
+    if (!namespace || !Number.isInteger(namespace.revision)) throw new Error('当前 Harness 没有提供可安全写入的设置版本。')
+    const ref = deriveCredentialRef(providerId)
+    await this.rpc(baseUrl, 'settings.mutate', {
+      ns: entry.settingsNs,
+      ops: [{ op: 'set', path: entry.settingsPath, value: { apiKeyEnv: ref } }],
+      expectedRevision: namespace.revision
+    })
+    try {
+      await this.rpc(baseUrl, 'credentials.set', { ref, value: secret })
+    } catch (error) {
+      throw safeCredentialError(new Error(`模型服务“${SIMPLE_CATALOG_PROVIDERS[providerId]}”已经创建，但密钥阶段失败。请刷新后只重试 API Key：${error.message}`), secret)
+    }
+    return { created: true, provider: providerId, name: SIMPLE_CATALOG_PROVIDERS[providerId], credentialRef: ref }
+  }
+
+  async saveCredential({ baseUrl, ref, value }) {
+    const credentialRef = String(ref || '')
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(credentialRef)) throw new Error('Harness 没有公布有效的凭据引用。')
     const secret = String(value || '')
     if (!secret) throw new Error('API Key 不能为空。')
     if (secret !== secret.trim()) throw new Error('API Key 首尾不能包含空格。请检查复制内容。')
     if (/\s/.test(secret)) throw new Error('API Key 中不能包含空格或换行。请检查复制内容。')
     if (secret.length > 8192) throw new Error('API Key 长度异常，请检查复制内容。')
     try {
-      await this.rpc(baseUrl, 'credentials.set', { ref: DEEPSEEK_CREDENTIAL_REF, value: secret })
+      await this.rpc(baseUrl, 'credentials.set', { ref: credentialRef, value: secret })
       return { saved: true }
     } catch (error) {
       throw safeCredentialError(error, secret)
     }
   }
 
-  async clearDeepSeekCredential({ baseUrl }) {
+  async removeCatalogProvider({ baseUrl, provider }) {
+    const providerId = String(provider || '')
+    if (!SIMPLE_CATALOG_PROVIDERS[providerId]) throw new Error('这个 Provider 不是由 Deep code 简单服务目录管理的，不能在这里移除。')
+    const [directory, settings] = await Promise.all([
+      this.rpc(baseUrl, 'llm.providers', {}),
+      this.rpc(baseUrl, 'settings.describe', {})
+    ])
+    const entry = (directory?.providers || []).find((item) => item?.provider === providerId)
+    if (!entry?.active) throw new Error('这个 Provider 当前没有处于已添加状态。')
+    if (!entry.settingsNs || !Array.isArray(entry.settingsPath) || entry.settingsPath.length === 0) throw new Error('Harness 没有公布这个 Provider Profile 的可删除地址。')
+    if (settings?.writable !== true) throw new Error('当前 Harness 设置为只读，不能移除模型服务。')
+    const namespace = (settings.namespaces || []).find((item) => item?.ns === entry.settingsNs)
+    if (!namespace || !Number.isInteger(namespace.revision)) throw new Error('当前 Harness 没有提供可安全删除的设置版本。')
+    const ref = credentialRefForProvider(entry, settings) || deriveCredentialRef(providerId)
     try {
-      await this.rpc(baseUrl, 'credentials.unset', { ref: DEEPSEEK_CREDENTIAL_REF })
+      await this.rpc(baseUrl, 'credentials.unset', { ref })
+    } catch (error) {
+      throw safeCredentialError(new Error(`没有移除“${SIMPLE_CATALOG_PROVIDERS[providerId]}”：凭据清除失败，因此 Profile 保持不变。${error.message}`))
+    }
+    try {
+      await this.rpc(baseUrl, 'settings.mutate', {
+        ns: entry.settingsNs,
+        ops: [{ op: 'unset', path: entry.settingsPath }],
+        expectedRevision: namespace.revision
+      })
+    } catch (error) {
+      throw new Error(`“${SIMPLE_CATALOG_PROVIDERS[providerId]}”的凭据已经清除，但 Provider Profile 尚未移除：${error.message}`)
+    }
+    return { removed: true, provider: providerId, name: SIMPLE_CATALOG_PROVIDERS[providerId], credentialRef: ref }
+  }
+
+  async clearCredential({ baseUrl, ref }) {
+    const credentialRef = String(ref || '')
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(credentialRef)) throw new Error('Harness 没有公布有效的凭据引用。')
+    try {
+      await this.rpc(baseUrl, 'credentials.unset', { ref: credentialRef })
       return { cleared: true }
     } catch (error) {
       throw safeCredentialError(error)
@@ -254,4 +422,4 @@ class DshAdapter {
   }
 }
 
-module.exports = { DshAdapter, humanizeHistory, textBlocks, connectionCopy, safeCredentialError, OFFICIAL_VISION_MODEL }
+module.exports = { DshAdapter, humanizeHistory, latestRequestRoute, textBlocks, connectionCopy, safeCredentialError, credentialRefForProvider, deriveCredentialRef, SIMPLE_CATALOG_PROVIDERS, OFFICIAL_VISION_MODEL }
