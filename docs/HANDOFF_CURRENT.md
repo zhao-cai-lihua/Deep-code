@@ -1,7 +1,7 @@
 # Deep Code current handoff
 
 Updated: 2026-09-06
-Branch: `codex/release-line-endings`  
+Branch: `codex/release-line-endings`
 Current packaged release candidate: `0.6.1-rc.3`
 Current source version: `0.6.2` (release preparation; rc.3 product behavior unchanged)
 
