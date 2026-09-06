@@ -14,6 +14,7 @@ Current source version: `0.6.2` (published; rc.3 product behavior unchanged)
 - `Deep.code.0.6.2.exe`: 100,556,397 bytes; GitHub SHA-256 `a21c6c0a4a300ef4aaf66bde6dfe6f173a5499a49fece1b6e808491e4dac91c0`.
 - Checksums above are GitHub asset digests, not a claimed local download verification. Packaged rc.3 was manually accepted; published v0.6.2 was not separately installed over the user's application. No commercial signing certificate is configured.
 - The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
+- `docs/FEI_REVIEW_PACKET_2026-09-06.md` is the bounded external review entry for v0.6.2. It points to the fixed release commit, trust boundaries, high-risk files, reproducible commands, known debt, and evidence requirements without copying private conversations or duplicating the whole repository into Markdown.
 
 ## Product truth
 
