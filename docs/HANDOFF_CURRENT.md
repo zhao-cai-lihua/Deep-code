@@ -3,7 +3,17 @@
 Updated: 2026-09-06
 Branch: `codex/release-line-endings`
 Current packaged release candidate: `0.6.1-rc.3`
-Current source version: `0.6.2` (release preparation; rc.3 product behavior unchanged)
+Current source version: `0.6.2` (published; rc.3 product behavior unchanged)
+
+## Release delivery
+
+- v0.6.2 published as a non-draft, non-prerelease on 2026-09-06: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.2
+- Tag source: `889a57981d7478f24f9e52a02b63eb6625bd8a98`; PRs #4 and #5 merged. Runtime `src/` is unchanged from accepted rc.3.
+- Clean Windows release run `34036307913`: 197 tests passed, Setup and portable built and published. Both asset URLs resolve. No new real-provider calls were made during release preparation.
+- `Deep.code.Setup.0.6.2.exe`: 100,779,810 bytes; GitHub SHA-256 `12b4163f0d547395e7169a9ea8e6bf84f3b430ffeb6b621f936f6e8206d6045e`.
+- `Deep.code.0.6.2.exe`: 100,556,397 bytes; GitHub SHA-256 `a21c6c0a4a300ef4aaf66bde6dfe6f173a5499a49fece1b6e808491e4dac91c0`.
+- Checksums above are GitHub asset digests, not a claimed local download verification. Packaged rc.3 was manually accepted; published v0.6.2 was not separately installed over the user's application. No commercial signing certificate is configured.
+- The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
 
 ## Product truth
 
@@ -77,10 +87,10 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Complete v0.6.2 release delivery from the accepted rc.3 implementation; verify both Windows assets and their source revision. Preserve the unsuccessful v0.6.1 tag; do not rewrite it.
+1. Release delivery is complete. Next: extract Model Services UI state behind a focused Renderer module, preserving displayed states, IPC, and Harness routing. Do not expand model routing or provider inference during this refactor.
 2. Add no retroactive receipt for pre-beta.17 verification tasks: they did not persist the structured requested route, so title or prompt inference would create false evidence.
 3. Keep automatic memory extraction, automatic memory injection, automatic model routing, and companion-card prompt injection out of scope until the core task loop is stable.
-4. After rc.3 acceptance, publish the unchanged product source as v0.6.2 Setup and portable artifacts with the cross-checkout test fix; do not add new product scope during release hardening.
+4. Do not repeat rc.3 acceptance for the unchanged product behavior. Future manual checks should target only new user-visible changes or a specifically reproduced regression.
 
 ## Known uncertainty
 
