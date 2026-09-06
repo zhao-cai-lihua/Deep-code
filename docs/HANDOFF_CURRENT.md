@@ -1,9 +1,9 @@
 # Deep Code current handoff
 
 Updated: 2026-09-06
-Branch: `codex/v0.6.1-ui-clarity`  
+Branch: `codex/release-line-endings`
 Current packaged release candidate: `0.6.1-rc.3`
-Current source version: `0.6.1` (release preparation; rc.3 accepted)
+Current source version: `0.6.2` (release preparation; rc.3 product behavior unchanged)
 
 ## Product truth
 
@@ -33,7 +33,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: 197 passed, 0 failed for the current source after rc.2.
+- `npm test`: 197 passed, 0 failed for v0.6.2, including LF and CRLF removal-handler contracts. The unmodified contract failed under CRLF in a focused local reproduction, matching the v0.6.1 Windows release job (196 passed, 1 failed). Only the test extraction was faulty; no runtime change was needed. PR and main-branch Windows tests now run before release.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -77,10 +77,10 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Complete v0.6.1 release delivery from the accepted rc.3 implementation; verify both Windows assets and their source revision.
+1. Complete v0.6.2 release delivery from the accepted rc.3 implementation; verify both Windows assets and their source revision. Preserve the unsuccessful v0.6.1 tag; do not rewrite it.
 2. Add no retroactive receipt for pre-beta.17 verification tasks: they did not persist the structured requested route, so title or prompt inference would create false evidence.
 3. Keep automatic memory extraction, automatic memory injection, automatic model routing, and companion-card prompt injection out of scope until the core task loop is stable.
-4. After rc.3 acceptance, publish the same verified source as v0.6.1 Setup and portable artifacts; do not add new product scope during release hardening.
+4. After rc.3 acceptance, publish the unchanged product source as v0.6.2 Setup and portable artifacts with the cross-checkout test fix; do not add new product scope during release hardening.
 
 ## Known uncertainty
 
