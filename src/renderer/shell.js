@@ -186,12 +186,12 @@ let workbench = { threads: [], activeThreadId: '' }
 let currentWorkspacePath = ''
 let pendingProviderRemoval = ''
 let providerRemovalTimer = null
-let pendingProviderSave = ''
 let providerSaveTimer = null
 let lastRuntimeState = ''
 let lastRenderedThreadId = ''
 let forceFollowNextRender = true
 const taskViewState = window.DeepCodeTaskViewState.createTaskViewState()
+const providerProvisioningFlow = window.DeepCodeProviderProvisioningFlow.createProviderProvisioningFlow()
 let imageDrafts = []
 let workspaceDialogTrigger = workspaceButton
 let modelCatalog = { current: null, groups: [] }
@@ -706,14 +706,13 @@ function renderModelConnection(snapshot) {
 function updateProviderChoiceDescription() {
   const providers = modelConnectionState.provisioning?.providers || []
   const selected = providers.find((provider) => provider.id === providerChoice.value) || providers[0]
-  providerChoiceDescription.textContent = selected
-    ? `${selected.name} · 将只为这个 Harness route 保存密钥。请确认厂商选对；Deep code 无法根据密钥内容可靠识别厂商。`
-    : '当前 Harness 没有公布可用的简单 API Key Provider。'
-  saveModelProviderButton.textContent = selected ? `保存给 ${selected.name}` : '添加并保存到 Harness'
+  const view = providerProvisioningFlow.view(selected)
+  providerChoiceDescription.textContent = view.description
+  saveModelProviderButton.textContent = view.buttonLabel
 }
 
 function resetProviderSaveConfirmation() {
-  pendingProviderSave = ''
+  providerProvisioningFlow.reset()
   if (providerSaveTimer) clearTimeout(providerSaveTimer)
   providerSaveTimer = null
   updateProviderChoiceDescription()
@@ -1986,7 +1985,7 @@ credentialProviderChoice.addEventListener('change', () => {
 })
 providerChoice.addEventListener('change', resetProviderSaveConfirmation)
 providerApiKey.addEventListener('input', () => {
-  if (pendingProviderSave) resetProviderSaveConfirmation()
+  resetProviderSaveConfirmation()
 })
 addModelProviderButton.addEventListener('click', () => {
   providerApiKey.value = ''
@@ -2008,10 +2007,10 @@ providerDialogForm.addEventListener('submit', async (event) => {
   if (!provider) { modelCredentialResult.textContent = '当前没有可添加的模型服务。'; return }
   if (!value) { providerApiKey.focus(); return }
   const selected = (modelConnectionState.provisioning?.providers || []).find((item) => item.id === provider)
-  if (pendingProviderSave !== provider) {
-    pendingProviderSave = provider
-    saveModelProviderButton.textContent = `再次点击确认保存给 ${selected?.name || provider}`
-    providerChoiceDescription.textContent = `即将把这串密钥保存到 ${selected?.name || provider} 的凭据槽。Deep code 不能从密钥内容判断厂商；请核对后再次点击。`
+  const confirmation = providerProvisioningFlow.request(selected || { id: provider, name: provider })
+  if (!confirmation.confirmed) {
+    saveModelProviderButton.textContent = confirmation.view.buttonLabel
+    providerChoiceDescription.textContent = confirmation.view.description
     providerSaveTimer = setTimeout(resetProviderSaveConfirmation, 10000)
     return
   }

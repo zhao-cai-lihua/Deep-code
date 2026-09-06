@@ -2,8 +2,8 @@
 
 Updated: 2026-09-06
 Branch: `codex/v0.6.1-ui-clarity`  
-Current packaged release candidate: `0.6.1-rc.2`
-Current source version: `0.6.1-rc.2`
+Current packaged release candidate: `0.6.1-rc.3`
+Current source version: `0.6.1` (release preparation; rc.3 accepted)
 
 ## Product truth
 
@@ -27,12 +27,13 @@ Deep Code is the beginner-facing desktop Workbench above the official local Deep
 - The model-dialog focus regression remained intermittent in beta.15. Beta.16 removes the Windows/Chromium native select popups from that dialog; a local packaged-app check switched focus to Explorer and back, then successfully selected a model and `Max` through app-owned controls.
 - 砚星 manually accepted beta.16's focus-switch behavior. The affected native model and effort selects are retired.
 - 砚星 manually accepted beta.17's attributable model-verification receipt: the selected route, terminal result, and persisted Provider history remain aligned.
+- 砚星 confirmed all rc.3 acceptance checks passed, including Provider confirmation reset after selection changes, Key edits, and timeout. Do not ask for those checks again for this unchanged implementation.
 
 Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely to repeat these checks.
 
 ## Automated baseline
 
-- `npm test`: 193 passed, 0 failed for rc.2.
+- `npm test`: 197 passed, 0 failed for the current source after rc.2.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -54,7 +55,9 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Terminal tasks now receive one derived next-action projection. Its Renderer accepts only allowlisted action IDs; it cannot submit a prompt or invent execution state. Authentication routes to Model Services, network/wait failures may offer explicit retry, risky completed work opens the receipt first, and successful model verification can continue to a new task.
 - The rc.1 portable artifact was launched in the real Windows desktop. A completed model-verification task displayed the next-action panel and `查看完整回执` navigated to the Harness-backed receipt without starting Engine or making a model request.
 - Credential presence is now consistently labeled `已保存，尚未验证`, never `模型已准备好`. Saving a new Provider requires a second in-dialog click naming the exact Provider; changing the Provider or Key invalidates that confirmation. Deep Code still does not infer provider identity from secret text.
+- The add-Provider confirmation is now owned by a tested Renderer state module instead of ad-hoc variables in `shell.js`. It accepts only Provider identity, never the API Key; changing Provider, editing the Key, expiry, and explicit reset all invalidate the pending confirmation.
 - The rc.2 portable artifact was inspected in the real Windows desktop. It projected an existing authentication failure to Model Services without retry, displayed all four active Provider credentials as saved-but-unverified, named the selected dormant Provider in the add dialog, and was closed after restoring Engine to stopped. No credential was written and no model request was made.
+- The rc.3 uncompressed test portable was built in an isolated candidate directory. Its packaged `app.asar` contains the new Provider provisioning state module and the updated Renderer files, and the unpacked packaged app remained running through an eight-second isolated-profile startup smoke test. No Engine or model task was started.
 - Test-only portable packaging uses `compression=store`: a controlled comparison showed default NSIS compression remained silent past the stop threshold, while the uncompressed test artifact completed in about 26 seconds. Formal release packaging remains compressed.
 
 ## Current decisions
@@ -69,15 +72,15 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 - The execution boundary is reasonably clean: DSH Adapter, task outcome, work-receipt policy, model-service projection, task guidance, stores, and live-session handling are separate CommonJS modules with focused tests.
 - The regression suite is fast and broad, and `pnpm audit --prod --audit-level high` currently reports no known production dependency vulnerabilities.
-- The Renderer orchestration file is not clean enough for long-term growth: `src/renderer/shell.js` is about 2,305 lines and owns too many unrelated dialogs, pages, renderers, and event handlers. `src/main.cjs` is about 851 lines and should also continue losing domain logic to tested modules.
+- The Renderer orchestration file is not clean enough for long-term growth: `src/renderer/shell.js` is about 2,304 lines and owns too many unrelated dialogs, pages, renderers, and event handlers. The first post-rc extraction moved Provider provisioning confirmation into `provider-provisioning-flow.cjs`; this improves ownership and testing but intentionally does not chase a smaller total line count. `src/main.cjs` is about 851 lines and should also continue losing domain logic to tested modules.
 - Do not perform a broad refactor during v0.6.1 release hardening. After release, extract Model Services UI state and task conversation rendering first, preserving the existing IPC and Harness authority seams.
 
 ## Next bounded work
 
-1. Manually sample rc.1 next-action routes: authentication failure, network failure, completed work with warnings, and clean completion. Confirm that only an explicit retry sends work back to Harness.
+1. Complete v0.6.1 release delivery from the accepted rc.3 implementation; verify both Windows assets and their source revision.
 2. Add no retroactive receipt for pre-beta.17 verification tasks: they did not persist the structured requested route, so title or prompt inference would create false evidence.
 3. Keep automatic memory extraction, automatic memory injection, automatic model routing, and companion-card prompt injection out of scope until the core task loop is stable.
-4. After rc.1 acceptance, publish the same verified source as v0.6.1 Setup and portable artifacts; do not add new product scope during release hardening.
+4. After rc.3 acceptance, publish the same verified source as v0.6.1 Setup and portable artifacts; do not add new product scope during release hardening.
 
 ## Known uncertainty
 

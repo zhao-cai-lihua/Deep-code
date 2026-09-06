@@ -6,6 +6,7 @@ const { join } = require('node:path')
 const root = join(__dirname, '..')
 const html = readFileSync(join(root, 'src', 'renderer', 'index.html'), 'utf8')
 const shell = readFileSync(join(root, 'src', 'renderer', 'shell.js'), 'utf8')
+const providerFlow = readFileSync(join(root, 'src', 'renderer', 'provider-provisioning-flow.cjs'), 'utf8')
 const styles = readFileSync(join(root, 'src', 'renderer', 'shell.css'), 'utf8')
 const preload = readFileSync(join(root, 'src', 'preload.cjs'), 'utf8')
 const main = readFileSync(join(root, 'src', 'main.cjs'), 'utf8')
@@ -51,7 +52,7 @@ test('model connection is presented as a normalized human-facing snapshot', () =
 test('saved provider credentials are never presented as verified connectivity', () => {
   assert.match(shell, /凭据：已保存，尚未验证/)
   assert.match(shell, /有已保存值，可替换；厂商归属尚未验证/)
-  assert.match(shell, /saveModelProviderButton\.textContent = selected \? `保存给 \$\{selected\.name\}`/)
+  assert.match(providerFlow, /buttonLabel: `保存给 \$\{provider\.name\}`/)
   assert.doesNotMatch(shell, /凭据：已配置（密钥内容不可见）/)
 })
 
@@ -113,13 +114,16 @@ test('model services can be created from the Harness provider directory without 
 })
 
 test('provider selection remains stable and success echoes the exact provisioned Harness route', () => {
+  assert.match(html, /provider-provisioning-flow\.cjs/)
   assert.match(shell, /providerChoice\.addEventListener\('change', resetProviderSaveConfirmation\)/)
   assert.doesNotMatch(shell, /providerChoice\.addEventListener\('change', renderProviderChoices\)/)
   assert.match(shell, /const previousProvider = providerChoice\.value[\s\S]*providerChoice\.value = previousProvider/)
   assert.match(main, /const provisioned = await dshAdapter\.provisionCatalogProvider[\s\S]*return \{ provisioned, snapshot \}/)
   assert.match(main, /active\.credential\?\.ref !== provisioned\.credentialRef/)
   assert.match(shell, /result\.provisioned\.name[\s\S]*result\.provisioned\.provider/)
-  assert.match(shell, /pendingProviderSave !== provider[\s\S]*再次点击确认保存给/)
+  assert.match(shell, /providerProvisioningFlow\.request\(selected/)
+  assert.match(providerFlow, /再次点击确认保存给/)
+  assert.match(providerFlow, /不能从密钥内容判断厂商/)
   assert.match(shell, /providerApiKey\.addEventListener\('input',[\s\S]*resetProviderSaveConfirmation/)
 })
 
