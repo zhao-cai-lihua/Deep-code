@@ -132,6 +132,7 @@ const providerDialogForm = document.querySelector('#provider-dialog-form')
 const providerChoice = document.querySelector('#provider-choice')
 const providerChoiceDescription = document.querySelector('#provider-choice-description')
 const providerApiKey = document.querySelector('#provider-api-key')
+const saveModelProviderButton = document.querySelector('#save-model-provider')
 const cancelProviderDialog = document.querySelector('#cancel-provider-dialog')
 const skipSetupButton = document.querySelector('#skip-setup')
 const finishSetupButton = document.querySelector('#finish-setup')
@@ -185,6 +186,8 @@ let workbench = { threads: [], activeThreadId: '' }
 let currentWorkspacePath = ''
 let pendingProviderRemoval = ''
 let providerRemovalTimer = null
+let pendingProviderSave = ''
+let providerSaveTimer = null
 let lastRuntimeState = ''
 let lastRenderedThreadId = ''
 let forceFollowNextRender = true
@@ -666,7 +669,7 @@ function renderModelConnection(snapshot) {
     const credentialText = !credential
       ? '凭据：此提供方未提供可检查的凭据状态'
       : credential.configured === true
-        ? '凭据：已配置（密钥内容不可见）'
+        ? '凭据：已保存，尚未验证（密钥内容不可见）'
         : credential.configured === false
           ? '凭据：尚未配置'
           : '凭据：状态未确认'
@@ -704,8 +707,16 @@ function updateProviderChoiceDescription() {
   const providers = modelConnectionState.provisioning?.providers || []
   const selected = providers.find((provider) => provider.id === providerChoice.value) || providers[0]
   providerChoiceDescription.textContent = selected
-    ? `${selected.name} · 将只为这个 Harness route 保存密钥；Deep code 不会根据密钥内容猜测厂商。`
+    ? `${selected.name} · 将只为这个 Harness route 保存密钥。请确认厂商选对；Deep code 无法根据密钥内容可靠识别厂商。`
     : '当前 Harness 没有公布可用的简单 API Key Provider。'
+  saveModelProviderButton.textContent = selected ? `保存给 ${selected.name}` : '添加并保存到 Harness'
+}
+
+function resetProviderSaveConfirmation() {
+  pendingProviderSave = ''
+  if (providerSaveTimer) clearTimeout(providerSaveTimer)
+  providerSaveTimer = null
+  updateProviderChoiceDescription()
 }
 
 function renderProviderChoices() {
@@ -726,7 +737,7 @@ function selectedCredentialProvider({ configuredOnly = false } = {}) {
 function updateCredentialProviderDescription() {
   const provider = selectedCredentialProvider()
   credentialProviderDescription.textContent = provider
-    ? `${provider.name} · ${provider.credential.ref} · ${provider.credential.configured ? '已配置，可替换' : '尚未配置'}`
+    ? `${provider.name} · ${provider.credential.ref} · ${provider.credential.configured ? '有已保存值，可替换；厂商归属尚未验证' : '尚未保存凭据'}`
     : '当前没有 Harness 允许 Deep code 写入的简单 API Key。'
   removeModelProviderButton.disabled = !provider?.removable
 }
@@ -1973,24 +1984,38 @@ credentialProviderChoice.addEventListener('change', () => {
   resetProviderRemovalConfirmation()
   updateCredentialProviderDescription()
 })
-providerChoice.addEventListener('change', updateProviderChoiceDescription)
+providerChoice.addEventListener('change', resetProviderSaveConfirmation)
+providerApiKey.addEventListener('input', () => {
+  if (pendingProviderSave) resetProviderSaveConfirmation()
+})
 addModelProviderButton.addEventListener('click', () => {
   providerApiKey.value = ''
+  resetProviderSaveConfirmation()
   renderProviderChoices()
   providerDialog.showModal()
   providerApiKey.focus()
 })
 cancelProviderDialog.addEventListener('click', () => {
   providerApiKey.value = ''
+  resetProviderSaveConfirmation()
   providerDialog.close()
 })
-providerDialog.addEventListener('cancel', () => { providerApiKey.value = '' })
+providerDialog.addEventListener('cancel', () => { providerApiKey.value = ''; resetProviderSaveConfirmation() })
 providerDialogForm.addEventListener('submit', async (event) => {
   event.preventDefault()
   const provider = providerChoice.value
   const value = providerApiKey.value
   if (!provider) { modelCredentialResult.textContent = '当前没有可添加的模型服务。'; return }
   if (!value) { providerApiKey.focus(); return }
+  const selected = (modelConnectionState.provisioning?.providers || []).find((item) => item.id === provider)
+  if (pendingProviderSave !== provider) {
+    pendingProviderSave = provider
+    saveModelProviderButton.textContent = `再次点击确认保存给 ${selected?.name || provider}`
+    providerChoiceDescription.textContent = `即将把这串密钥保存到 ${selected?.name || provider} 的凭据槽。Deep code 不能从密钥内容判断厂商；请核对后再次点击。`
+    providerSaveTimer = setTimeout(resetProviderSaveConfirmation, 10000)
+    return
+  }
+  resetProviderSaveConfirmation()
   const submit = providerDialogForm.querySelector('[type="submit"]')
   submit.disabled = true
   modelCredentialResult.textContent = '正在创建 Provider Profile，并把 API Key 单向交给 Harness…'

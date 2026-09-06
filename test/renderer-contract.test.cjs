@@ -48,6 +48,13 @@ test('model connection is presented as a normalized human-facing snapshot', () =
   assert.doesNotMatch(shell, /llm\.providers|llm\.models|credentials\.describe|settings\.describe/)
 })
 
+test('saved provider credentials are never presented as verified connectivity', () => {
+  assert.match(shell, /凭据：已保存，尚未验证/)
+  assert.match(shell, /有已保存值，可替换；厂商归属尚未验证/)
+  assert.match(shell, /saveModelProviderButton\.textContent = selected \? `保存给 \$\{selected\.name\}`/)
+  assert.doesNotMatch(shell, /凭据：已配置（密钥内容不可见）/)
+})
+
 test('model service manager separates configuration facts from real verification', () => {
   assert.match(html, /id="page-model-services"/)
   assert.match(html, /Provider、模型目录、凭据、真实验证和当前任务/)
@@ -106,12 +113,14 @@ test('model services can be created from the Harness provider directory without 
 })
 
 test('provider selection remains stable and success echoes the exact provisioned Harness route', () => {
-  assert.match(shell, /providerChoice\.addEventListener\('change', updateProviderChoiceDescription\)/)
+  assert.match(shell, /providerChoice\.addEventListener\('change', resetProviderSaveConfirmation\)/)
   assert.doesNotMatch(shell, /providerChoice\.addEventListener\('change', renderProviderChoices\)/)
   assert.match(shell, /const previousProvider = providerChoice\.value[\s\S]*providerChoice\.value = previousProvider/)
   assert.match(main, /const provisioned = await dshAdapter\.provisionCatalogProvider[\s\S]*return \{ provisioned, snapshot \}/)
   assert.match(main, /active\.credential\?\.ref !== provisioned\.credentialRef/)
   assert.match(shell, /result\.provisioned\.name[\s\S]*result\.provisioned\.provider/)
+  assert.match(shell, /pendingProviderSave !== provider[\s\S]*再次点击确认保存给/)
+  assert.match(shell, /providerApiKey\.addEventListener\('input',[\s\S]*resetProviderSaveConfirmation/)
 })
 
 test('managed catalog providers can be removed as a profile instead of only clearing their credential', () => {

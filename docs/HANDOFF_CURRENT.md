@@ -1,9 +1,9 @@
 # Deep Code current handoff
 
-Updated: 2026-09-05
+Updated: 2026-09-06
 Branch: `codex/v0.6.1-ui-clarity`  
-Current packaged release candidate: `0.6.1-rc.1`
-Current source version: `0.6.1-rc.1`
+Current packaged release candidate: `0.6.1-rc.2`
+Current source version: `0.6.1-rc.2`
 
 ## Product truth
 
@@ -32,7 +32,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: 191 passed, 0 failed for rc.1.
+- `npm test`: 193 passed, 0 failed for rc.2.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -53,6 +53,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Terminal Provider failures are projected into safe beginner-facing categories (authentication, quota, rate limit, unavailable model, network, or unknown) without exposing credential fragments. Runtime-context summaries remain readable by default; verbatim system and Skill payloads require a second explicit disclosure.
 - Terminal tasks now receive one derived next-action projection. Its Renderer accepts only allowlisted action IDs; it cannot submit a prompt or invent execution state. Authentication routes to Model Services, network/wait failures may offer explicit retry, risky completed work opens the receipt first, and successful model verification can continue to a new task.
 - The rc.1 portable artifact was launched in the real Windows desktop. A completed model-verification task displayed the next-action panel and `查看完整回执` navigated to the Harness-backed receipt without starting Engine or making a model request.
+- Credential presence is now consistently labeled `已保存，尚未验证`, never `模型已准备好`. Saving a new Provider requires a second in-dialog click naming the exact Provider; changing the Provider or Key invalidates that confirmation. Deep Code still does not infer provider identity from secret text.
+- The rc.2 portable artifact was inspected in the real Windows desktop. It projected an existing authentication failure to Model Services without retry, displayed all four active Provider credentials as saved-but-unverified, named the selected dormant Provider in the add dialog, and was closed after restoring Engine to stopped. No credential was written and no model request was made.
 - Test-only portable packaging uses `compression=store`: a controlled comparison showed default NSIS compression remained silent past the stop threshold, while the uncompressed test artifact completed in about 26 seconds. Formal release packaging remains compressed.
 
 ## Current decisions
@@ -62,6 +64,13 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 3. A task keeps its launch workspace; changing the new-task workspace never silently migrates an existing task.
 4. Memory MVP is local and reviewable: Markdown is canonical, indexes are rebuildable, candidates do not affect replies before confirmation, and raw private transcripts are excluded by default.
 5. Skills describe reusable procedures; they are not a substitute for durable project memory.
+
+## Code health
+
+- The execution boundary is reasonably clean: DSH Adapter, task outcome, work-receipt policy, model-service projection, task guidance, stores, and live-session handling are separate CommonJS modules with focused tests.
+- The regression suite is fast and broad, and `pnpm audit --prod --audit-level high` currently reports no known production dependency vulnerabilities.
+- The Renderer orchestration file is not clean enough for long-term growth: `src/renderer/shell.js` is about 2,305 lines and owns too many unrelated dialogs, pages, renderers, and event handlers. `src/main.cjs` is about 851 lines and should also continue losing domain logic to tested modules.
+- Do not perform a broad refactor during v0.6.1 release hardening. After release, extract Model Services UI state and task conversation rendering first, preserving the existing IPC and Harness authority seams.
 
 ## Next bounded work
 

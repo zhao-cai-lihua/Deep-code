@@ -71,8 +71,8 @@ function connectionCopy(state, { providerNames = [], modelCount = 0 } = {}) {
   const names = providerNames.join('、') || '本机模型服务'
   return ({
     ready: {
-      title: '模型已准备好',
-      message: `${names} 已配置，共发现 ${modelCount} 个可用模型。Deep code 不会读取或显示密钥内容。`
+      title: '模型服务已载入',
+      message: `${names} 已启用，共发现 ${modelCount} 个目录模型。凭据槽已有值时也尚未真实验证；请以该 Provider 的最近一次真实验证为准。`
     },
     'needs-credential': {
       title: '还需要配置 API Key',

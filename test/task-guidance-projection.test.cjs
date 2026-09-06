@@ -34,6 +34,13 @@ test('sends completed risky work to its receipt before starting over', () => {
   assert.deepEqual(guidance.actions.map((item) => item.id), ['open-receipt', 'open-trace', 'new-task'])
 })
 
+test('a clean completed task can start over or inspect its receipt', () => {
+  const guidance = projectTaskGuidance({
+    outcome: { visible: true, state: 'success', warnings: [], risks: [] }
+  })
+  assert.deepEqual(guidance.actions.map((item) => item.id), ['new-task', 'open-receipt'])
+})
+
 test('a passed model test can continue without overstating permanent availability', () => {
   const guidance = projectTaskGuidance({
     outcome: { visible: true, state: 'success', warnings: [], modelVerification: { state: 'passed' } }
