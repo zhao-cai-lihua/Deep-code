@@ -2,11 +2,15 @@
 
 Updated: 2026-09-08
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.4` (source candidate; publication pending)
+Current packaged release candidate: `0.6.3-rc.4` (published prerelease; awaiting bounded visual acceptance)
 Current source version: `0.6.3-rc.4`
 
 ## Release delivery
 
+- v0.6.3-rc.4 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.4. Release workflow run `34230071185` completed successfully after 246 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.4.exe`: 100,563,534 bytes; GitHub SHA-256 `da5faebc2f8e5c4046e82d903d014df5510c7a494af0b475853452633e935146`.
+- `Deep.code.Setup.0.6.3-rc.4.exe`: 100,786,939 bytes; GitHub SHA-256 `3d6daf6ae69780942ba673bb7af6d02add8f97404f38443f507759a00ba3ede8`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `416de26cfc2cd317b97fbcf05680e5cafdef1b2ae36f2d6f7931096b6a9a62a3`.
 - v0.6.3-rc.4 invalidates a shared Engine candidate when its confirmation-time runtime or Host recheck fails. Instead of leaving the UI in a stale `awaiting-user` state, Runtime Supervisor clears the candidate, enters `incompatible`, preserves null URL/trust, and requires a fresh Engine check. It also moves model-connection display lines into a browser/Node-compatible projection with a real behavior test for saved credential plus historical verification.
 - Zero-token local protocol acceptance on 2026-09-08 used the pinned official checkout. A real shared Harness remained unusable before confirmation, then bound exact `user-confirmed-shared` facts and was not stopped by Deep Code. A fake HTTP-200 service on 3080 was not adopted; Deep Code started an owned managed Engine on random port `1527`, reached `managed-process / ready`, and stopped it cleanly. Port 3080 was free after both checks.
 - Packaged rc.3 single-instance acceptance used an isolated user-data directory. The second launcher exited within six seconds and exactly one main `Deep code.exe` remained. The first instance was then stopped. No real task store, Session, Provider, credential, or workspace was touched.
@@ -86,6 +90,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Model-state and conversation-projection focus suite: **80 passed, 0 failed**. The suite proves an authentication failure is phrased as a historical Turn fact and the settings connection snapshot can display a newer passed receipt.
 - `npm run package:test:win`: passed for rc.4 and produced the local artifact recorded above. Packaged-source inspection found the new model-connection projection, and isolated startup remained healthy for eight seconds. This does not substitute for the final visual composition check or a Provider call.
 - GitHub Windows release run `34223988024`: passed 245 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and prerelease asset publication.
+- GitHub Windows release run `34230071185`: passed 246 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.4 prerelease asset publication.
 - `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
 - `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
 - Release workflow now requires the Git tag to equal `v` plus the package version, marks hyphenated versions such as `-rc.1` as prerelease, and publishes a generated `SHA256SUMS.txt` beside installer and portable assets.
