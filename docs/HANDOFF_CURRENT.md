@@ -2,11 +2,15 @@
 
 Updated: 2026-09-08
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.1` (local test artifact; not yet published)
+Current packaged release candidate: `0.6.3-rc.1` (published prerelease; awaiting human acceptance)
 Current source version: `0.6.3-rc.1`
 
 ## Release delivery
 
+- v0.6.3-rc.1 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.1. Release workflow run `34188241039` passed dependency installation, 243 tests, tag/version validation, installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.1.exe`: 100,562,861 bytes; GitHub SHA-256 `2520f53514b1a5f3145882e153418e13027064341049fd26b2472034f00eb927`.
+- `Deep.code.Setup.0.6.3-rc.1.exe`: 100,786,276 bytes; GitHub SHA-256 `5260beaf914d7ec2fad7e1af9add2d53c3c97df6d649df1c13eb487f1388c8ba`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `86bbaa330ceff819e3b4f837341c757af586b07ae31bca62e00566973119e482`.
 - v0.6.2 remains reproducible at https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.2, but on 2026-09-08 it was marked **prerelease/test-only** and given a safety warning. Its tag and assets were not deleted or rewritten.
 - Tag source: `889a57981d7478f24f9e52a02b63eb6625bd8a98`; PRs #4 and #5 merged. Runtime `src/` is unchanged from accepted rc.3.
 - Clean Windows release run `34036307913`: 197 tests passed, Setup and portable built and published. Both asset URLs resolve. No new real-provider calls were made during release preparation.
@@ -112,8 +116,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Next bounded work
 
 1. Open the local v0.6.3-rc.1 test portable and complete only the new safety acceptance matrix: managed Engine identity/version, hostile or unrelated 3080 refusal, real shared Harness confirmation/cancel behavior, read-only ecosystem discovery, preservation of existing tasks/workspaces, and second-instance focus.
-2. If those pass, commit and push this branch, publish `v0.6.3-rc.1` as a GitHub prerelease, and verify the workflow-generated installer, portable app, and checksum file. Do not tag or publish `v0.6.3` stable yet.
-3. After RC acceptance, publish v0.6.3 stable without broad UI or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
+2. The feature branch, release tag, GitHub prerelease, installer, portable app, and checksum file are already published and verified at the delivery level. Do not tag or publish `v0.6.3` stable yet.
+3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
 ## Human acceptance still required for v0.6.3-rc.1
