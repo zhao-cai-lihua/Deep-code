@@ -2,11 +2,15 @@
 
 Updated: 2026-09-08
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.3` (source candidate; publication pending)
+Current packaged release candidate: `0.6.3-rc.3` (published prerelease; awaiting bounded human acceptance)
 Current source version: `0.6.3-rc.3`
 
 ## Release delivery
 
+- v0.6.3-rc.3 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.3. Release workflow run `34223988024` completed successfully after 245 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.3.exe`: 100,563,236 bytes; GitHub SHA-256 `c2ed757bc03d544c3f362ee2d261a608bbffe977e25323441cd68541f6c4b94a`.
+- `Deep.code.Setup.0.6.3-rc.3.exe`: 100,786,644 bytes; GitHub SHA-256 `2c4f8c2b4e0d2a700902b18ae798c07c1e17c0840f49c6b5307b4b55c59d6a0f`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `36f41b6768b4fdb75a6dde756c702316ef0b1174496651256cdefe64306fb364`.
 - v0.6.3-rc.3 fixes temporal model-state projection without changing Harness credential storage or making a Provider request. A saved credential and a real-call verification receipt are rendered as separate facts; an older failed Turn no longer claims the currently saved credential is invalid when a newer attributable pass exists.
 - 砚星 confirmed rc.2 now admits the correct pinned Engine and displays runtime release `0.1.1-rc.2`. During model-service acceptance, the same API Key passed after being entered again, while an older task failure and the settings connection panel still presented stale or incomplete status. Read-only source/runtime inspection found no evidence of an Engine credential cache: both current credentials were reported by Harness as file-backed, and the pinned upstream adapters resolve credentials per request. rc.3 therefore repairs evidence projection instead of adding an unproven Engine restart or automatic credential rewrite.
 
@@ -78,6 +82,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - `npm test`: **245 passed, 0 failed** for the current v0.6.3-rc.3 source on 2026-09-08. This includes a behavior regression proving settings receives the latest attributable Provider receipt without changing credential facts, plus the existing Engine trust, environment, Memory, immutable store, Session evidence, lifecycle, and race coverage.
 - Model-state and conversation-projection focus suite: **80 passed, 0 failed**. The suite proves an authentication failure is phrased as a historical Turn fact and the settings connection snapshot can display a newer passed receipt.
 - `npm run package:test:win`: passed for rc.3 and produced the local uncompressed portable recorded above. An isolated-profile startup smoke remained alive for eight seconds. Packaging and startup prove artifact construction and launch, not the two visual acceptance states or a Provider call.
+- GitHub Windows release run `34223988024`: passed 245 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and prerelease asset publication.
 - `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
 - `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
 - Release workflow now requires the Git tag to equal `v` plus the package version, marks hyphenated versions such as `-rc.1` as prerelease, and publishes a generated `SHA256SUMS.txt` beside installer and portable assets.
