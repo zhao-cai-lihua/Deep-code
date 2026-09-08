@@ -202,6 +202,7 @@ let lastRenderedThreadId = ''
 let forceFollowNextRender = true
 const taskViewState = window.DeepCodeTaskViewState.createTaskViewState()
 const providerProvisioningFlow = window.DeepCodeProviderProvisioningFlow.createProviderProvisioningFlow()
+const { modelConnectionLines } = window.DeepCodeModelConnectionView
 let imageDrafts = []
 let workspaceDialogTrigger = workspaceButton
 let modelCatalog = { current: null, groups: [] }
@@ -654,28 +655,7 @@ function renderModelConnection(snapshot) {
   modelStatusDot.className = `status-dot ${snapshot.state}`
   modelStatusLabel.textContent = snapshot.title
   modelStatusMessage.textContent = snapshot.message
-  const lines = []
-  for (const provider of snapshot.activeProviders) {
-    const credential = provider.credential
-    const verification = provider.verification
-    const credentialText = !credential
-      ? '凭据：此提供方未提供可检查的凭据状态'
-      : credential.configured === true
-        ? '凭据：已保存（密钥内容不可见）'
-        : credential.configured === false
-          ? '凭据：尚未配置'
-          : '凭据：状态未确认'
-    lines.push(`${provider.name} · ${provider.modelCount} 个模型`, credentialText)
-    if (verification) lines.push(`真实验证：${verification.label}`, `  ${verification.detail}`)
-    for (const model of provider.models) lines.push(`  • ${model.name}`)
-  }
-  if (!snapshot.activeProviders.length) lines.push('尚未发现已激活的模型提供方。')
-  if (snapshot.dormantProviderCount) lines.push('', `另有 ${snapshot.dormantProviderCount} 个未启用的提供方，未列入可用模型。`)
-  if (snapshot.failures.length) {
-    lines.push('', '需要留意：')
-    for (const failure of snapshot.failures) lines.push(`  • ${failure.provider}：${failure.message}`)
-  }
-  modelCatalogSummary.textContent = lines.join('\n')
+  modelCatalogSummary.textContent = modelConnectionLines(snapshot).join('\n')
   checkModelConnectionButton.disabled = snapshot.state === 'engine-offline'
   const management = snapshot.credentialManagement || { supported: false, writable: false, configured: false, providerCount: 0 }
   const credentialProviders = (snapshot.activeProviders || []).filter((provider) => provider.credential)

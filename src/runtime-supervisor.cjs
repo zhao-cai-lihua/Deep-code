@@ -145,12 +145,23 @@ class RuntimeSupervisor extends EventEmitter {
   async confirmShared() {
     const candidate = this.sharedCandidate
     if (!candidate || this.status.state !== 'awaiting-user') throw new Error('当前没有等待确认的共享 Engine。')
-    const currentRuntime = this.inspectRuntime(candidate.runtimePath)
-    const descriptor = assertHostMatchesRuntime(await this.describeHost(candidate.baseUrl), candidate.runtimePath, currentRuntime)
-    if (descriptor.version !== candidate.descriptor.version || descriptor.cwd !== candidate.descriptor.cwd) {
+    let currentRuntime
+    let descriptor
+    try {
+      currentRuntime = this.inspectRuntime(candidate.runtimePath)
+      descriptor = assertHostMatchesRuntime(await this.describeHost(candidate.baseUrl), candidate.runtimePath, currentRuntime)
+      if (descriptor.version !== candidate.descriptor.version || descriptor.cwd !== candidate.descriptor.cwd) {
+        throw new Error('共享 Engine 的版本或工作目录在确认前发生了变化')
+      }
+    } catch (error) {
       this.sharedCandidate = null
-      throw new Error('共享 Engine 在确认前发生了变化，请重新检查。')
+      this.setStatus({
+        state: 'incompatible', url: null, owned: false, kind: 'shared', trust: null,
+        message: `共享 Engine 在确认前未能通过重新检查：${error.message}。请重新启动 Engine 检查，再确认新的实例。`
+      })
+      throw error
     }
+    this.sharedCandidate = null
     this.setStatus({
       state: 'ready', url: candidate.baseUrl, runtimePath: candidate.runtimePath, owned: false, kind: 'shared', trust: 'user-confirmed-shared',
       version: currentRuntime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,

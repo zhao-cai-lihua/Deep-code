@@ -6,6 +6,7 @@ const { join } = require('node:path')
 const root = join(__dirname, '..')
 const html = readFileSync(join(root, 'src', 'renderer', 'index.html'), 'utf8')
 const shell = readFileSync(join(root, 'src', 'renderer', 'shell.js'), 'utf8')
+const modelConnectionView = readFileSync(join(root, 'src', 'renderer', 'model-connection-view.cjs'), 'utf8')
 const providerFlow = readFileSync(join(root, 'src', 'renderer', 'provider-provisioning-flow.cjs'), 'utf8')
 const styles = readFileSync(join(root, 'src', 'renderer', 'shell.css'), 'utf8')
 const preload = readFileSync(join(root, 'src', 'preload.cjs'), 'utf8')
@@ -50,12 +51,14 @@ test('model connection is presented as a normalized human-facing snapshot', () =
 })
 
 test('saved provider credentials are never presented as verified connectivity', () => {
-  assert.match(shell, /凭据：已保存（密钥内容不可见）/)
-  assert.match(shell, /真实验证：\$\{verification\.label\}/)
-  assert.doesNotMatch(shell, /凭据：已保存，尚未验证/)
+  assert.match(modelConnectionView, /凭据：已保存（密钥内容不可见）/)
+  assert.match(modelConnectionView, /真实验证：\$\{verification\.label\}/)
+  assert.doesNotMatch(modelConnectionView, /凭据：已保存，尚未验证/)
+  assert.match(html, /model-connection-view\.cjs[\s\S]*shell\.js/)
+  assert.match(shell, /modelConnectionLines\(snapshot\)/)
   assert.match(shell, /有已保存值，可替换；Deep code 不读取密钥内容/)
   assert.match(providerFlow, /buttonLabel: `保存给 \$\{provider\.name\}`/)
-  assert.doesNotMatch(shell, /凭据：已配置（密钥内容不可见）/)
+  assert.doesNotMatch(modelConnectionView, /凭据：已配置（密钥内容不可见）/)
 })
 
 test('model service manager separates configuration facts from real verification', () => {

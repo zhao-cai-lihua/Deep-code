@@ -2,11 +2,14 @@
 
 Updated: 2026-09-08
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.3` (published prerelease; awaiting bounded human acceptance)
-Current source version: `0.6.3-rc.3`
+Current packaged release candidate: `0.6.3-rc.4` (source candidate; publication pending)
+Current source version: `0.6.3-rc.4`
 
 ## Release delivery
 
+- v0.6.3-rc.4 invalidates a shared Engine candidate when its confirmation-time runtime or Host recheck fails. Instead of leaving the UI in a stale `awaiting-user` state, Runtime Supervisor clears the candidate, enters `incompatible`, preserves null URL/trust, and requires a fresh Engine check. It also moves model-connection display lines into a browser/Node-compatible projection with a real behavior test for saved credential plus historical verification.
+- Zero-token local protocol acceptance on 2026-09-08 used the pinned official checkout. A real shared Harness remained unusable before confirmation, then bound exact `user-confirmed-shared` facts and was not stopped by Deep Code. A fake HTTP-200 service on 3080 was not adopted; Deep Code started an owned managed Engine on random port `1527`, reached `managed-process / ready`, and stopped it cleanly. Port 3080 was free after both checks.
+- Packaged rc.3 single-instance acceptance used an isolated user-data directory. The second launcher exited within six seconds and exactly one main `Deep code.exe` remained. The first instance was then stopped. No real task store, Session, Provider, credential, or workspace was touched.
 - v0.6.3-rc.3 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.3. Release workflow run `34223988024` completed successfully after 245 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.3.exe`: 100,563,236 bytes; GitHub SHA-256 `c2ed757bc03d544c3f362ee2d261a608bbffe977e25323441cd68541f6c4b94a`.
 - `Deep.code.Setup.0.6.3-rc.3.exe`: 100,786,644 bytes; GitHub SHA-256 `2c4f8c2b4e0d2a700902b18ae798c07c1e17c0840f49c6b5307b4b55c59d6a0f`.
@@ -33,7 +36,7 @@ Current source version: `0.6.3-rc.3`
 - The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
 - `docs/FEI_REVIEW_PACKET_2026-09-06.md` is the bounded external review entry for v0.6.2. It points to the fixed release commit, trust boundaries, high-risk files, reproducible commands, known debt, and evidence requirements without copying private conversations or duplicating the whole repository into Markdown.
 
-## v0.6.3-rc.3 safety candidate
+## v0.6.3-rc.4 safety candidate
 
 This candidate implements the security and evidence plan without adding a second Agent Loop:
 
@@ -49,7 +52,7 @@ This candidate implements the security and evidence plan without adding a second
 - Session-scoped mux frames without the exact non-empty Session ID are dropped and counted anonymously. A terminal state is never inferred from idle/ready state, old model headers do not cross into a newer Turn, and permission-like text remains ordinary runtime context.
 - Running tasks use stop-and-delete: cancel first, wait up to ten seconds for a same-task terminal snapshot, and keep the record with recovery guidance when stop is unconfirmed. Renderer refresh responses are gated by generation, visible task ID, and Session ID.
 
-The rc.3 source adds no Engine or credential mutation. It projects persisted, attributable verification receipts into the model-connection snapshot used by settings and changes authentication recovery to describe the failed Turn historically. Its uncompressed local test portable is `dist/Deep-code-Test-0.6.3-rc.3.exe`, 368,759,707 bytes, SHA-256 `a2615d3c9788d701ba5cd8ffcb18822135f9b21fc6ad2f50bc5157c9a7abf112`. The isolated-profile packaged app remained running for eight seconds and was then stopped by exact PID; it created no Session and made no Provider request. Source-level Engine verification remains the accepted rc.2 check against `C:\\Users\\lenovo\\Desktop\\deepseek-harness`: it reached `ready` as `managed-process`, reported release `0.1.1-rc.2` separately from internal host marker `0.0.1`, and the owned process stopped cleanly.
+The rc.4 source changes no credential storage, Session behavior, or task execution authority. It adds one confirmation-time failure transition to Runtime Supervisor and extracts only the model-connection text projection from Renderer orchestration. Its uncompressed local test portable is `dist/Deep-code-Test-0.6.3-rc.4.exe`, 368,761,426 bytes, SHA-256 `196e8876c1bd69719c2d1b03dd89fcbd9322b3cafdf8213e539bcba7fcc8a5de`. The packaged `app.asar` contains the new `DeepCodeModelConnectionView`, and an isolated-profile startup exposed exactly one main process for eight seconds before being stopped. The real shared/fake-3080 protocol checks above exercised the rc.4 Runtime Supervisor source against the pinned official Harness without creating a Session.
 
 ## Product truth
 
@@ -79,9 +82,9 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: **245 passed, 0 failed** for the current v0.6.3-rc.3 source on 2026-09-08. This includes a behavior regression proving settings receives the latest attributable Provider receipt without changing credential facts, plus the existing Engine trust, environment, Memory, immutable store, Session evidence, lifecycle, and race coverage.
+- `npm test`: **246 passed, 0 failed** for the current v0.6.3-rc.4 source on 2026-09-08. This adds user-visible model-connection rendering behavior and a strict shared-candidate invalidation assertion to the existing Engine trust, environment, Memory, immutable store, Session evidence, lifecycle, and race coverage.
 - Model-state and conversation-projection focus suite: **80 passed, 0 failed**. The suite proves an authentication failure is phrased as a historical Turn fact and the settings connection snapshot can display a newer passed receipt.
-- `npm run package:test:win`: passed for rc.3 and produced the local uncompressed portable recorded above. An isolated-profile startup smoke remained alive for eight seconds. Packaging and startup prove artifact construction and launch, not the two visual acceptance states or a Provider call.
+- `npm run package:test:win`: passed for rc.4 and produced the local artifact recorded above. Packaged-source inspection found the new model-connection projection, and isolated startup remained healthy for eight seconds. This does not substitute for the final visual composition check or a Provider call.
 - GitHub Windows release run `34223988024`: passed 245 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and prerelease asset publication.
 - `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
 - `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
@@ -107,7 +110,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Terminal Provider failures are projected into safe beginner-facing categories (authentication, quota, rate limit, unavailable model, network, or unknown) without exposing credential fragments. Runtime-context summaries remain readable by default; verbatim system and Skill payloads require a second explicit disclosure.
 - Terminal tasks now receive one derived next-action projection. Its Renderer accepts only allowlisted action IDs; it cannot submit a prompt or invent execution state. Authentication routes to Model Services, network/wait failures may offer explicit retry, risky completed work opens the receipt first, and successful model verification can continue to a new task.
 - The rc.1 portable artifact was launched in the real Windows desktop. A completed model-verification task displayed the next-action panel and `查看完整回执` navigated to the Harness-backed receipt without starting Engine or making a model request.
-- Credential presence is now consistently labeled `已保存，尚未验证`, never `模型已准备好`. Saving a new Provider requires a second in-dialog click naming the exact Provider; changing the Provider or Key invalidates that confirmation. Deep Code still does not infer provider identity from secret text.
+- Credential presence is labeled `凭据已保存` and displayed separately from `最近一次真实验证`; neither is called `模型已准备好`. Saving a new Provider requires a second in-dialog click naming the exact Provider; changing the Provider or Key invalidates that confirmation. Deep Code still does not infer provider identity from secret text.
 - The add-Provider confirmation is now owned by a tested Renderer state module instead of ad-hoc variables in `shell.js`. It accepts only Provider identity, never the API Key; changing Provider, editing the Key, expiry, and explicit reset all invalidate the pending confirmation.
 - The rc.2 portable artifact was inspected in the real Windows desktop. It projected an existing authentication failure to Model Services without retry, displayed all four active Provider credentials as saved-but-unverified, named the selected dormant Provider in the add dialog, and was closed after restoring Engine to stopped. No credential was written and no model request was made.
 - The rc.3 uncompressed test portable was built in an isolated candidate directory. Its packaged `app.asar` contains the new Provider provisioning state module and the updated Renderer files, and the unpacked packaged app remained running through an eight-second isolated-profile startup smoke test. No Engine or model task was started.
@@ -130,22 +133,21 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Package and publish v0.6.3-rc.3. Human acceptance for this patch is read-only: open “运行时与设置” and confirm that a Provider with an existing passed receipt shows both `凭据已保存` and `最近一次真实验证通过`, with the historical boundary. Do not re-enter a Key or spend tokens merely for this check.
-2. The feature branch and rc.2 release remain reproducible. Do not tag or publish `v0.6.3` stable until rc.3 and the remaining safety matrix are accepted.
+1. Package and publish v0.6.3-rc.4. Human acceptance for the model-state patch remains read-only: open “运行时与设置” and confirm that a Provider with an existing passed receipt shows both `凭据已保存` and `最近一次真实验证通过`, with the historical boundary. Do not re-enter a Key or spend tokens merely for this check.
+2. The feature branch and earlier RC releases remain reproducible. Do not tag or publish `v0.6.3` stable until rc.4 and the remaining user-visible safety matrix are accepted.
 3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
-## Human acceptance still required for v0.6.3-rc.3
+## Human acceptance still required for v0.6.3-rc.4
 
 1. In “运行时与设置”, an already verified Provider shows credential presence and the latest attributable verification as separate facts. An older authentication failure, if opened, is explicitly scoped to that failed Turn. This check must not require another model call.
-2. Managed Engine shows that Deep Code started it and reports exact Harness version `0.1.1-rc.2` (already accepted on rc.2; repeat only if Engine code changes).
-3. An unrelated 2xx service on 3080 is not adopted. A real compatible shared Harness produces the explicit risk gate; cancel blocks use, confirmation enables it.
-4. Ecosystem projects remain browsable but have no executable install path.
-5. Existing workspaces and local tasks survive the upgrade.
-6. Starting installer and portable simultaneously leaves one writer and focuses the existing window.
-7. One ordinary low-cost task visibly progresses from accepted/queued through running to the real Harness terminal state. A read-only task must not claim file changes.
-8. Rapidly switch between two tasks while one refresh is delayed; the old task must not overwrite or receive a message intended for the visible task.
-9. Stop-and-delete a running low-cost task. Delete occurs only after a terminal event; if confirmation is absent, the task and recovery guidance remain.
+2. Ecosystem projects remain browsable but have no executable install path.
+3. Existing workspaces and local tasks survive the upgrade.
+4. One ordinary low-cost task visibly progresses from accepted/queued through running to the real Harness terminal state. A read-only task must not claim file changes.
+5. Rapidly switch between two tasks while one refresh is delayed; the old task must not overwrite or receive a message intended for the visible task.
+6. Stop-and-delete a running low-cost task. Delete occurs only after a terminal event; if confirmation is absent, the task and recovery guidance remain.
+
+Managed Engine version, hostile 3080 refusal, real shared Engine protocol behavior, and packaged single-instance behavior now have direct local runtime evidence. Repeat them only after the corresponding Engine/single-instance code changes.
 
 ## Known uncertainty
 

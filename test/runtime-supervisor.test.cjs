@@ -81,7 +81,7 @@ test('holds a compatible shared Harness for explicit confirmation instead of ado
   assert.equal(confirmed.hostDescribeVersion, '0.0.1')
 })
 
-test('rechecks the pinned runtime when a shared Harness is explicitly confirmed', async () => {
+test('invalidates a shared Harness candidate when confirmation recheck fails', async () => {
   let inspections = 0
   const supervisor = new RuntimeSupervisor({
     pathExists: () => true,
@@ -99,7 +99,20 @@ test('rechecks the pinned runtime when a shared Harness is explicitly confirmed'
   await supervisor.start('C:\\runtime')
   await assert.rejects(supervisor.confirmShared(), /HEAD mismatch after prompt/)
   assert.equal(inspections, 2)
-  assert.notEqual(supervisor.snapshot().state, 'ready')
+  assert.deepEqual(supervisor.snapshot(), {
+    state: 'incompatible',
+    url: null,
+    runtimePath: 'C:\\runtime',
+    owned: false,
+    kind: 'shared',
+    trust: null,
+    version: '0.1.1-rc.2',
+    hostDescribeVersion: '0.0.1',
+    cwd: 'C:\\runtime',
+    message: '共享 Engine 在确认前未能通过重新检查：HEAD mismatch after prompt。请重新启动 Engine 检查，再确认新的实例。',
+    logs: []
+  })
+  await assert.rejects(supervisor.confirmShared(), /当前没有等待确认的共享 Engine/)
 })
 
 test('starts Harness through Node directly instead of relying on pnpm in the desktop PATH', async () => {
