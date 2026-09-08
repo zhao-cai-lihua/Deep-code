@@ -28,9 +28,14 @@ test('does not accept a successful HTTP response with a malformed RPC body', asy
 })
 
 test('rejects host version and working-directory mismatches', () => {
-  const runtime = { version: '0.1.1-rc.2', revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e' }
-  const host = { version: '0.1.1-rc.2', cwd: 'C:\\runtime', attachedSessions: 0, home: 'C:\\Users\\test', canOpenPath: true }
-  assert.throws(() => assertHostMatchesRuntime({ ...host, version: '0.1.2-rc.1' }, 'C:\\runtime', runtime), /版本/)
+  const runtime = {
+    version: '0.1.1-rc.2',
+    revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+    hostDescribeVersion: '0.0.1'
+  }
+  const host = { version: '0.0.1', cwd: 'C:\\runtime', attachedSessions: 0, home: 'C:\\Users\\test', canOpenPath: true }
+  assert.doesNotThrow(() => assertHostMatchesRuntime(host, 'C:\\runtime', runtime))
+  assert.throws(() => assertHostMatchesRuntime({ ...host, version: '0.0.2' }, 'C:\\runtime', runtime), /host\.describe/)
   assert.throws(() => assertHostMatchesRuntime({ ...host, cwd: 'C:\\other' }, 'C:\\runtime', runtime), /工作目录/)
 })
 
@@ -44,4 +49,13 @@ test('rejects an unpinned runtime package, version, or Git HEAD before launch', 
     readText: () => JSON.stringify({ name: 'pretend-harness', version: '0.1.1-rc.2' }),
     runGit: () => 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e\n'
   }), /不是官方/)
+})
+
+test('keeps the pinned runtime release separate from the upstream host.describe placeholder', () => {
+  const runtime = inspectCompatibleRuntime('C:\\runtime', {
+    readText: () => JSON.stringify({ name: '@deepseek-ai/dsh-root', version: '0.1.1-rc.2' }),
+    runGit: () => 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e\n'
+  })
+  assert.equal(runtime.version, '0.1.1-rc.2')
+  assert.equal(runtime.hostDescribeVersion, '0.0.1')
 })

@@ -7,7 +7,10 @@ const VERIFIED_HARNESS = Object.freeze({
   tag: 'dsh-v0.1.1-rc.2',
   version: '0.1.1-rc.2',
   revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
-  packageName: '@deepseek-ai/dsh-root'
+  packageName: '@deepseek-ai/dsh-root',
+  // This pinned upstream checkout hard-codes host.describe.version to 0.0.1.
+  // It is a build marker, not the Harness release or an independent protocol version.
+  hostDescribeVersion: '0.0.1'
 })
 
 function normalizeLocalPath(value) {
@@ -59,7 +62,12 @@ function inspectCompatibleRuntime(runtimePath, { readText = readFileSync, runGit
   try { revision = String(runGit('git', ['-C', runtimePath, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true })).trim() } catch {
     throw new Error('无法确认 Harness 的 Git HEAD；不会启动未经固定的 runtime。')
   }
-  const result = { official: manifest.name === VERIFIED_HARNESS.packageName, version: String(manifest.version || ''), revision }
+  const result = {
+    official: manifest.name === VERIFIED_HARNESS.packageName,
+    version: String(manifest.version || ''),
+    revision,
+    hostDescribeVersion: VERIFIED_HARNESS.hostDescribeVersion
+  }
   if (!result.official) throw new Error('所选目录不是官方 DeepSeek Harness checkout。')
   if (result.version !== VERIFIED_HARNESS.version || result.revision !== VERIFIED_HARNESS.revision) {
     throw new Error(`Harness 版本尚未验证：需要 ${VERIFIED_HARNESS.version} (${VERIFIED_HARNESS.revision.slice(0, 8)})。`)
@@ -69,7 +77,10 @@ function inspectCompatibleRuntime(runtimePath, { readText = readFileSync, runGit
 
 function assertHostMatchesRuntime(descriptor, runtimePath, runtime) {
   const host = validateHostDescription(descriptor)
-  if (host.version !== runtime.version) throw new Error(`Engine 报告版本 ${host.version}，与已验证 runtime ${runtime.version} 不一致。`)
+  if (!runtime?.hostDescribeVersion) throw new Error('已验证 runtime 缺少 host.describe 兼容标记，不能建立可信连接。')
+  if (host.version !== runtime.hostDescribeVersion) {
+    throw new Error(`Engine 的 host.describe 标记为 ${host.version}，与此 runtime 固定提交的预期标记 ${runtime.hostDescribeVersion} 不一致。`)
+  }
   if (normalizeLocalPath(host.cwd) !== normalizeLocalPath(runtimePath)) throw new Error('Engine 的工作目录与所选 Harness runtime 不一致。')
   return host
 }

@@ -14,11 +14,12 @@ function fakeChild() {
 const compatibleRuntime = () => ({
   official: true,
   version: '0.1.1-rc.2',
-  revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
+  revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+  hostDescribeVersion: '0.0.1'
 })
 
 const matchingHost = async () => ({
-  version: '0.1.1-rc.2', cwd: 'C:\\runtime', attachedSessions: 0,
+  version: '0.0.1', cwd: 'C:\\runtime', attachedSessions: 0,
   home: 'C:\\Users\\test', canOpenPath: true
 })
 
@@ -35,6 +36,8 @@ test('becomes ready only after the owned child URL passes host.describe and runt
   assert.equal(supervisor.snapshot().state, 'ready')
   assert.equal(supervisor.snapshot().url, 'http://127.0.0.1:41921')
   assert.equal(supervisor.snapshot().trust, 'managed-process')
+  assert.equal(supervisor.snapshot().version, '0.1.1-rc.2')
+  assert.equal(supervisor.snapshot().hostDescribeVersion, '0.0.1')
 })
 
 test('accepts a parent folder that contains deepseek-harness', async () => {
@@ -58,7 +61,7 @@ test('holds a compatible shared Harness for explicit confirmation instead of ado
     pathExists: () => true,
     probeShared: async () => ({
       baseUrl: 'http://127.0.0.1:3080',
-      descriptor: { version: '0.1.1-rc.2', cwd: 'C:\\runtime', attachedSessions: 0, home: 'C:\\Users\\test', canOpenPath: true }
+      descriptor: { version: '0.0.1', cwd: 'C:\\runtime', attachedSessions: 0, home: 'C:\\Users\\test', canOpenPath: true }
     }),
     describeHost: matchingHost,
     inspectRuntime: compatibleRuntime
@@ -67,11 +70,15 @@ test('holds a compatible shared Harness for explicit confirmation instead of ado
   assert.equal(status.state, 'awaiting-user')
   assert.equal(status.owned, false)
   assert.equal(status.trust, null)
+  assert.equal(status.version, '0.1.1-rc.2')
+  assert.equal(status.hostDescribeVersion, '0.0.1')
   assert.equal(spawned, false)
 
   const confirmed = await supervisor.confirmShared()
   assert.equal(confirmed.state, 'ready')
   assert.equal(confirmed.trust, 'user-confirmed-shared')
+  assert.equal(confirmed.version, '0.1.1-rc.2')
+  assert.equal(confirmed.hostDescribeVersion, '0.0.1')
 })
 
 test('rechecks the pinned runtime when a shared Harness is explicitly confirmed', async () => {

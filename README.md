@@ -8,6 +8,8 @@ It is an independent community client, **not** an official DeepSeek product. It 
 
 > **Safety notice for v0.6.2:** the existing v0.6.2 build is now test-only. Do not enter high-value API keys or use it with private data or important unbacked-up files. Its ecosystem installer is not part of the current safe product boundary. Keep its tag and assets only for reproducibility while v0.6.3 is being verified.
 
+> **Do not use v0.6.3-rc.1 for acceptance:** it rejects the correct pinned Harness because upstream `host.describe.version` is a hard-coded `0.0.1` placeholder, not the `0.1.1-rc.2` release version. Use rc.2 or later. No user runtime, task, workspace, or credential was damaged by this fail-closed error.
+
 Normal users do **not** need to clone the repository or run pnpm. During the v0.6.3 verification period, use [GitHub Releases](https://github.com/zhao-cai-lihua/Deep-code/releases) only if you understand the release label and warning; do not treat v0.6.2 as the stable download recommendation.
 
 - `Deep.code.Setup.x.y.z.exe` — recommended installer; GitHub normalizes spaces in the built filename to dots.

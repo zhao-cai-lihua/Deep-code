@@ -2,11 +2,12 @@
 
 Updated: 2026-09-08
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.1` (published prerelease; awaiting human acceptance)
-Current source version: `0.6.3-rc.1`
+Current packaged release candidate: `0.6.3-rc.2` (local test portable built; GitHub release pending)
+Current source version: `0.6.3-rc.2`
 
 ## Release delivery
 
+- v0.6.3-rc.1 is blocked from acceptance. Both its local test portable and published installer correctly inspected the pinned runtime release and Git SHA, but then incorrectly compared upstream's hard-coded `host.describe.version: "0.0.1"` placeholder with root release version `0.1.1-rc.2`. This failed closed before Session creation; it did not modify a task, workspace, Provider, or credential. Use rc.2 or later.
 - v0.6.3-rc.1 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.1. Release workflow run `34188241039` passed dependency installation, 243 tests, tag/version validation, installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.1.exe`: 100,562,861 bytes; GitHub SHA-256 `2520f53514b1a5f3145882e153418e13027064341049fd26b2472034f00eb927`.
 - `Deep.code.Setup.0.6.3-rc.1.exe`: 100,786,276 bytes; GitHub SHA-256 `5260beaf914d7ec2fad7e1af9add2d53c3c97df6d649df1c13eb487f1388c8ba`.
@@ -20,12 +21,12 @@ Current source version: `0.6.3-rc.1`
 - The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
 - `docs/FEI_REVIEW_PACKET_2026-09-06.md` is the bounded external review entry for v0.6.2. It points to the fixed release commit, trust boundaries, high-risk files, reproducible commands, known debt, and evidence requirements without copying private conversations or duplicating the whole repository into Markdown.
 
-## v0.6.3-rc.1 safety candidate
+## v0.6.3-rc.2 safety candidate
 
 This candidate implements the security and evidence plan without adding a second Agent Loop:
 
-- Engine admission is represented by one managed/shared trust state. Managed Harness uses `--no-open --port 0`, must be the child process Deep Code owns, and becomes ready only after the pinned checkout and `host.describe` agree on version and normalized working directory. A compatible Harness already listening on 3080 remains `awaiting-user`; it cannot receive prompts or credentials until explicitly confirmed. Confirmation repeats both checkout and host checks so a changed `baseUrl + version + cwd + HEAD` cannot reuse an older decision.
-- The compatible runtime allowlist currently contains only tag `dsh-v0.1.1-rc.2`, version `0.1.1-rc.2`, and Git SHA `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`. Local inspection of that exact upstream checkout confirmed the `host.describe` schema and CLI `--port 0` support. `0.1.2-rc.1` remains unapproved.
+- Engine admission is represented by one managed/shared trust state. Managed Harness uses `--no-open --port 0`, must be the child process Deep Code owns, and becomes ready only after the pinned checkout identity and the pinned checkout's actual `host.describe` marker agree with the normalized working directory. A compatible Harness already listening on 3080 remains `awaiting-user`; it cannot receive prompts or credentials until explicitly confirmed. Confirmation repeats both checkout and host checks so a changed `baseUrl + host marker + cwd + HEAD` cannot reuse an older decision.
+- The compatible runtime allowlist currently contains only tag `dsh-v0.1.1-rc.2`, root package version `0.1.1-rc.2`, Git SHA `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`, and that commit's `host.describe.version` marker `0.0.1`. The upstream implementation explicitly labels `0.0.1` as a placeholder to be replaced by the CLI package version; it is neither treated nor displayed as the release version. Local inspection of that exact checkout confirmed the schema and CLI `--port 0` support. `0.1.2-rc.1` remains unapproved.
 - Managed child processes receive only a small runtime/proxy environment allowlist. Unknown names containing Key, Token, Secret, Password, or Credential, `NODE_OPTIONS`, and unrelated application/cloud credentials are excluded; values are never diagnosed.
 - Automatic runtime preparation clones the exact official tag into a revision-named directory and verifies repository identity, package identity, version, and exact HEAD both before executing repository scripts and after the build.
 - Ecosystem discovery remains opt-in and read-only. Product Renderer, Preload, and Main expose no executable installation IPC; popularity is never treated as plugin compatibility.
@@ -36,7 +37,7 @@ This candidate implements the security and evidence plan without adding a second
 - Session-scoped mux frames without the exact non-empty Session ID are dropped and counted anonymously. A terminal state is never inferred from idle/ready state, old model headers do not cross into a newer Turn, and permission-like text remains ordinary runtime context.
 - Running tasks use stop-and-delete: cancel first, wait up to ten seconds for a same-task terminal snapshot, and keep the record with recovery guidance when stop is unconfirmed. Renderer refresh responses are gated by generation, visible task ID, and Session ID.
 
-The local uncompressed test portable is `dist/Deep-code-Test-0.6.3-rc.1.exe`, 368,757,164 bytes, SHA-256 `f89cc1bc5548ad4ed4a653606391452a688edbdc6543a16fb8ce3424b12de812`. It was rebuilt after the final source changes. An isolated-profile GUI smoke was attempted but the host policy rejected the command because it included terminating the spawned test process; no process was launched. Do not record this as a passed startup smoke.
+The local rc.2 uncompressed test portable is `dist/Deep-code-Test-0.6.3-rc.2.exe`, 368,757,931 bytes, SHA-256 `d7dd54fdbd726f939ffea04f43d20f9ec7b129aa54884d9aa898730c5f78e628`. Source-level verification includes a real managed startup against `C:\\Users\\lenovo\\Desktop\\deepseek-harness`: it reached `ready` as `managed-process`, reported release `0.1.1-rc.2` separately from internal host marker `0.0.1`, and the owned process stopped cleanly. This check created no Session and made no Provider request. An isolated-profile packaged-app smoke command was rejected before launch because host policy disallowed the combined test-process termination/cleanup command; no process was launched and this is not recorded as a pass.
 
 ## Product truth
 
@@ -66,8 +67,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: **243 passed, 0 failed** for the current v0.6.3-rc.1 source on 2026-09-08. This includes behavior tests for Engine trust and mismatch rejection, child environment sanitization, fixed runtime installation, Memory quarantine/secret/atomic transitions, immutable task-store fallback, Session frame filtering, same-Turn evidence, stop-and-delete, and task-refresh races.
-- `npm run package:test:win`: passed and produced the local portable artifact recorded above. This verifies packaging, not interactive startup or any provider call.
+- `npm test`: **244 passed, 0 failed** for the current v0.6.3-rc.2 source on 2026-09-08. This includes a regression for the pinned upstream `host.describe.version: "0.0.1"` placeholder and keeps the runtime release version separate in Engine status, plus behavior tests for Engine trust and mismatch rejection, child environment sanitization, fixed runtime installation, Memory quarantine/secret/atomic transitions, immutable task-store fallback, Session frame filtering, same-Turn evidence, stop-and-delete, and task-refresh races.
+- `npm run package:test:win`: passed for rc.2 and produced the local uncompressed portable recorded above. This verifies packaging, not interactive startup or a Provider call.
 - `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
 - `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
 - Release workflow now requires the Git tag to equal `v` plus the package version, marks hyphenated versions such as `-rc.1` as prerelease, and publishes a generated `SHA256SUMS.txt` beside installer and portable assets.
@@ -115,12 +116,12 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Open the local v0.6.3-rc.1 test portable and complete only the new safety acceptance matrix: managed Engine identity/version, hostile or unrelated 3080 refusal, real shared Harness confirmation/cancel behavior, read-only ecosystem discovery, preservation of existing tasks/workspaces, and second-instance focus.
-2. The feature branch, release tag, GitHub prerelease, installer, portable app, and checksum file are already published and verified at the delivery level. Do not tag or publish `v0.6.3` stable yet.
+1. Build and publish v0.6.3-rc.2, then first confirm only that the managed Engine starts and visibly reports release `0.1.1-rc.2`. If that passes, continue the remaining safety acceptance matrix: hostile or unrelated 3080 refusal, real shared Harness confirmation/cancel behavior, read-only ecosystem discovery, preservation of existing tasks/workspaces, and second-instance focus.
+2. The feature branch contains the correction; the rc.2 release tag, GitHub prerelease, installer, portable app, and checksums are not yet published. Do not tag or publish `v0.6.3` stable yet.
 3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
-## Human acceptance still required for v0.6.3-rc.1
+## Human acceptance still required for v0.6.3-rc.2
 
 1. Managed Engine shows that Deep Code started it and reports exact Harness version `0.1.1-rc.2`.
 2. An unrelated 2xx service on 3080 is not adopted. A real compatible shared Harness produces the explicit risk gate; cancel blocks use, confirmation enables it.

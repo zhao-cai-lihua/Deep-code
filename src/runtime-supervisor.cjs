@@ -44,7 +44,7 @@ class RuntimeSupervisor extends EventEmitter {
     this.child = null
     this.sharedCandidate = null
     this.verifyingUrl = null
-    this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, kind: null, trust: null, version: null, cwd: null, message: 'Harness 未运行。' }
+    this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, kind: null, trust: null, version: null, hostDescribeVersion: null, cwd: null, message: 'Harness 未运行。' }
     this.logs = []
     this.startingAt = 0
   }
@@ -84,7 +84,11 @@ class RuntimeSupervisor extends EventEmitter {
     try {
       const descriptor = assertHostMatchesRuntime(shared.descriptor, runtimePath, runtime)
       this.sharedCandidate = { baseUrl: shared.baseUrl, descriptor, runtimePath, runtime }
-      this.setStatus({ state: 'awaiting-user', url: null, runtimePath, owned: false, kind: 'shared', trust: null, version: descriptor.version, cwd: descriptor.cwd, message: '发现不是由 Deep Code 启动的共享 Harness。确认来源后才能连接。' })
+      this.setStatus({
+        state: 'awaiting-user', url: null, runtimePath, owned: false, kind: 'shared', trust: null,
+        version: runtime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+        message: '发现不是由 Deep Code 启动的共享 Harness。确认来源后才能连接。'
+      })
     } catch (error) {
       this.setStatus({ state: 'incompatible', url: null, runtimePath, owned: false, kind: 'shared', trust: null, message: error.message })
     }
@@ -94,11 +98,11 @@ class RuntimeSupervisor extends EventEmitter {
   async startManaged(selectedPath, { resolved = false } = {}) {
     if (this.child) return this.snapshot()
     const runtimePath = resolved ? selectedPath : this.resolveRuntimePath(selectedPath)
-    this.inspectRuntime(runtimePath)
+    const runtime = this.inspectRuntime(runtimePath)
     this.sharedCandidate = null
     this.logs = []
     this.startingAt = Date.now()
-    this.setStatus({ state: 'starting', url: null, runtimePath, owned: true, kind: 'managed', trust: null, version: null, cwd: null, message: '正在启动固定版本的官方 Harness runtime…' })
+    this.setStatus({ state: 'starting', url: null, runtimePath, owned: true, kind: 'managed', trust: null, version: runtime.version, hostDescribeVersion: null, cwd: null, message: '正在启动固定版本的官方 Harness runtime…' })
     const nodeExecutable = resolveNodeExecutable({ platform: this.platform, environment: this.environment, pathExists: this.pathExists })
     const child = this.spawnProcess(nodeExecutable, resolveHarnessEntrypoint(runtimePath, this.pathExists), {
       cwd: runtimePath, env: sanitizedEnvironment(this.environment), shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']
@@ -126,7 +130,11 @@ class RuntimeSupervisor extends EventEmitter {
       const runtime = this.inspectRuntime(this.status.runtimePath)
       const descriptor = assertHostMatchesRuntime(await this.describeHost(url), this.status.runtimePath, runtime)
       const elapsedSeconds = this.startingAt ? Math.max(0.1, (Date.now() - this.startingAt) / 1000).toFixed(1) : null
-      this.setStatus({ state: 'ready', url, owned: true, kind: 'managed', trust: 'managed-process', version: descriptor.version, cwd: descriptor.cwd, message: elapsedSeconds ? `由 Deep Code 启动的 Harness 已验证，用时 ${elapsedSeconds} 秒。` : '由 Deep Code 启动的 Harness 已验证。' })
+      this.setStatus({
+        state: 'ready', url, owned: true, kind: 'managed', trust: 'managed-process',
+        version: runtime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+        message: elapsedSeconds ? `由 Deep Code 启动的 Harness 已验证，用时 ${elapsedSeconds} 秒。` : '由 Deep Code 启动的 Harness 已验证。'
+      })
     } catch (error) {
       this.setStatus({ state: 'error', url: null, trust: null, message: `Engine 验证失败：${error.message}` })
       if (this.child) this.child.kill('SIGINT')
@@ -143,7 +151,11 @@ class RuntimeSupervisor extends EventEmitter {
       this.sharedCandidate = null
       throw new Error('共享 Engine 在确认前发生了变化，请重新检查。')
     }
-    this.setStatus({ state: 'ready', url: candidate.baseUrl, runtimePath: candidate.runtimePath, owned: false, kind: 'shared', trust: 'user-confirmed-shared', version: descriptor.version, cwd: descriptor.cwd, message: '已连接你明确确认的共享 Harness。Deep Code 无法控制它继承的环境变量。' })
+    this.setStatus({
+      state: 'ready', url: candidate.baseUrl, runtimePath: candidate.runtimePath, owned: false, kind: 'shared', trust: 'user-confirmed-shared',
+      version: currentRuntime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+      message: '已连接你明确确认的共享 Harness。Deep Code 无法控制它继承的环境变量。'
+    })
     return this.snapshot()
   }
 
