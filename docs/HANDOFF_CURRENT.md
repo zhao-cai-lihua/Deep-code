@@ -2,12 +2,17 @@
 
 Updated: 2026-09-08
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.2` (local test portable built; GitHub release pending)
+Current packaged release candidate: `0.6.3-rc.2` (published prerelease; awaiting human acceptance)
 Current source version: `0.6.3-rc.2`
 
 ## Release delivery
 
+- v0.6.3-rc.2 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.2. Release workflow run `34200311540` completed successfully after 244 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.2.exe`: 100,562,944 bytes; GitHub SHA-256 `2efa08ace30dfe1e538c75286f0a925d0b24c794bb8b0c894981ba12540c399a`.
+- `Deep.code.Setup.0.6.3-rc.2.exe`: 100,786,359 bytes; GitHub SHA-256 `f8c85b89a35e7b75b913ebfccdff0e420128f1272c97be65f7225025bc976053`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `78448d65d2130a9f6aa030d3b6cc0f3bfb970527302f98a2fde68b032044cd31`.
 - v0.6.3-rc.1 is blocked from acceptance. Both its local test portable and published installer correctly inspected the pinned runtime release and Git SHA, but then incorrectly compared upstream's hard-coded `host.describe.version: "0.0.1"` placeholder with root release version `0.1.1-rc.2`. This failed closed before Session creation; it did not modify a task, workspace, Provider, or credential. Use rc.2 or later.
+- The rc.1 GitHub release remains reproducible but its title and release body now explicitly direct testers to rc.2. Its tag and assets were not deleted or rewritten.
 - v0.6.3-rc.1 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.1. Release workflow run `34188241039` passed dependency installation, 243 tests, tag/version validation, installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.1.exe`: 100,562,861 bytes; GitHub SHA-256 `2520f53514b1a5f3145882e153418e13027064341049fd26b2472034f00eb927`.
 - `Deep.code.Setup.0.6.3-rc.1.exe`: 100,786,276 bytes; GitHub SHA-256 `5260beaf914d7ec2fad7e1af9add2d53c3c97df6d649df1c13eb487f1388c8ba`.
@@ -117,7 +122,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Next bounded work
 
 1. Build and publish v0.6.3-rc.2, then first confirm only that the managed Engine starts and visibly reports release `0.1.1-rc.2`. If that passes, continue the remaining safety acceptance matrix: hostile or unrelated 3080 refusal, real shared Harness confirmation/cancel behavior, read-only ecosystem discovery, preservation of existing tasks/workspaces, and second-instance focus.
-2. The feature branch contains the correction; the rc.2 release tag, GitHub prerelease, installer, portable app, and checksums are not yet published. Do not tag or publish `v0.6.3` stable yet.
+2. The feature branch, rc.2 release tag, GitHub prerelease, installer, portable app, and checksums are published and verified at the delivery level. Do not tag or publish `v0.6.3` stable yet.
 3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
