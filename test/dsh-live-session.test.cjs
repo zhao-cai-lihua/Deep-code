@@ -60,6 +60,25 @@ test('uses the official loopback WebSocket mux downlink and rejects remote URLs'
   live.close()
 })
 
+test('drops session-scoped frames without the exact active session id', () => {
+  const { live } = makeLive()
+  live.receive(envelope('missing-session', {
+    type: 'question/requested', questions: [{ id: 'q1', question: '不应显示' }]
+  }))
+  live.receive(envelope('foreign-session', {
+    type: 'question/requested', sessionId: 'session-other', questions: [{ id: 'q2', question: '也不应显示' }]
+  }))
+  live.receive(envelope('host-error', {
+    type: 'stream/error', error: { message: 'Host channel is separate' }
+  }))
+
+  const snapshot = live.snapshot()
+  assert.equal(snapshot.interactions.length, 0)
+  assert.equal(snapshot.droppedSessionFrameCount, 2)
+  assert.equal(snapshot.status, 'error')
+  live.close()
+})
+
 test('normalizes an approval without exposing its response rpc id', async () => {
   const { live, stream } = makeLive()
   stream.frame('secret-wire-id', {

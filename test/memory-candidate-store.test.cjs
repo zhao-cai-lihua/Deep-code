@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } = require('node:fs')
+const { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } = require('node:fs')
 const { join } = require('node:path')
 const { tmpdir } = require('node:os')
 const { MemoryCandidateStore } = require('../src/memory-candidate-store.cjs')
@@ -35,7 +35,7 @@ test('writes a reviewable Markdown candidate with provenance and no hidden activ
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
-test('confirmation moves a candidate to the confirmed collection without rewriting its source', () => {
+test('confirmation atomically moves a candidate and aligns its declared status', () => {
   const { root, store } = fixture()
   try {
     const candidate = store.createCandidate({
@@ -45,6 +45,7 @@ test('confirmation moves a candidate to the confirmed collection without rewriti
     const confirmed = store.review(candidate.id, 'confirmed')
     assert.equal(confirmed.status, 'confirmed')
     assert.deepEqual(confirmed.sourceRefs, ['human:test'])
+    assert.match(readFileSync(confirmed.path, 'utf8'), /status: "confirmed"/)
     assert.equal(store.list('candidate').length, 0)
     assert.equal(store.list('confirmed')[0].id, candidate.id)
     assert.equal(existsSync(candidate.path), false)
@@ -78,5 +79,115 @@ test('deletes exactly one reviewed record without touching another memory', () =
     assert.equal(existsSync(confirmed.path), false)
     assert.equal(store.list('candidate')[0].id, second.id)
     assert.throws(() => store.remove(confirmed.id), /找不到/)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('quarantines frontmatter status that conflicts with its containing folder', () => {
+  const { root, store } = fixture()
+  try {
+    const candidate = store.createCandidate({
+      kind: 'learning', scope: 'deep-code', sourceRefs: ['human:test'], title: 'Folder owns status',
+      content: 'Directory placement is canonical.', reason: 'Prevents double truth.', limits: 'None.'
+    })
+    const tampered = readFileSync(candidate.path, 'utf8').replace('status: "candidate"', 'status: "confirmed"')
+    writeFileSync(candidate.path, tampered, 'utf8')
+    assert.equal(store.list('candidate').length, 0)
+    assert.equal(store.list('confirmed').length, 0)
+    assert.equal(readdirSync(join(root, '90_Quarantine')).some((name) => name.includes(candidate.id)), true)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('quarantines a record whose editable id disagrees with its safe filename', () => {
+  const { root, store } = fixture()
+  try {
+    store.initialize()
+    const path = join(root, '00_Inbox', 'mem_safe.md')
+    writeFileSync(path, '---\nid: "../../escaped"\nkind: "learning"\nstatus: "candidate"\n---\n\n# bad\n', 'utf8')
+    assert.deepEqual(store.list('candidate'), [])
+    assert.equal(existsSync(path), false)
+    assert.equal(readdirSync(join(root, '90_Quarantine')).some((name) => name.includes('mem_safe')), true)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('rejects high-confidence secrets without echoing their value', () => {
+  const { root, store } = fixture()
+  const secret = 'sk-this-value-must-never-appear'
+  try {
+    assert.throws(() => store.createCandidate({
+      kind: 'learning', scope: 'deep-code', sourceRefs: ['human:test'], title: 'credential',
+      content: `SERVICE_TOKEN=${secret}`, reason: 'test', limits: 'test'
+    }), (error) => /敏感凭据/.test(error.message) && !error.message.includes(secret))
+    assert.doesNotThrow(() => store.createCandidate({
+      kind: 'learning', scope: 'deep-code', sourceRefs: ['human:test'], title: 'API Key policy',
+      content: 'Never paste an API Key into a public issue.', reason: 'Safe policy text.', limits: 'No secret value is present.'
+    }))
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('quarantines a secret introduced into an existing record', () => {
+  const { root, store } = fixture()
+  try {
+    const candidate = store.createCandidate({
+      kind: 'learning', scope: 'deep-code', sourceRefs: ['human:test'], title: 'Safe title',
+      content: 'Safe content.', reason: 'Test migration checks.', limits: 'None.'
+    })
+    writeFileSync(candidate.path, readFileSync(candidate.path, 'utf8').replace('Safe content.', 'SERVICE_TOKEN=super-secret-value'), 'utf8')
+    assert.deepEqual(store.list('candidate'), [])
+    assert.equal(readdirSync(join(root, '90_Quarantine')).some((name) => name.includes(candidate.id)), true)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('moves a reviewed memory atomically without creating a second record first', () => {
+  const root = mkdtempSync(join(tmpdir(), 'deep-code-memory-'))
+  const renames = []
+  const store = new MemoryCandidateStore(root, {
+    now: () => new Date('2026-09-03T12:00:00.000Z'), id: () => 'atomic-1',
+    moveFile: (from, to) => { renames.push({ from, to }); require('node:fs').renameSync(from, to) }
+  })
+  try {
+    const candidate = store.createCandidate({
+      kind: 'decision', scope: 'deep-code', sourceRefs: ['human:test'], title: 'Atomic move',
+      content: 'Move once.', reason: 'One truth.', limits: 'Same volume only.'
+    })
+    const confirmed = store.review(candidate.id, 'confirmed')
+    assert.equal(renames.length, 1)
+    assert.equal(confirmed.status, 'confirmed')
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('keeps the candidate as the only truth when the atomic review move fails', () => {
+  const root = mkdtempSync(join(tmpdir(), 'deep-code-memory-'))
+  const store = new MemoryCandidateStore(root, {
+    now: () => new Date('2026-09-03T12:00:00.000Z'), id: () => 'move-failure',
+    moveFile: () => { throw new Error('simulated move failure') }
+  })
+  try {
+    const candidate = store.createCandidate({
+      kind: 'decision', scope: 'deep-code', sourceRefs: ['human:test'], title: 'Atomic failure',
+      content: 'Keep the source.', reason: 'Avoid two truths.', limits: 'Test only.'
+    })
+    assert.throws(() => store.review(candidate.id, 'confirmed'), /simulated move failure/)
+    assert.equal(existsSync(candidate.path), true)
+    assert.equal(store.list('candidate')[0].id, candidate.id)
+    assert.equal(store.list('confirmed').length, 0)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('quarantines a duplicate id instead of exposing two active records', () => {
+  const { root, store } = fixture()
+  try {
+    const candidate = store.createCandidate({
+      kind: 'learning', scope: 'deep-code', sourceRefs: ['human:test'], title: 'Duplicate',
+      content: 'One record only.', reason: 'Avoid two truths.', limits: 'Test only.'
+    })
+    store.initialize()
+    writeFileSync(
+      join(root, '20_Confirmed', `${candidate.id}.md`),
+      readFileSync(candidate.path, 'utf8').replace('status: "candidate"', 'status: "confirmed"'),
+      'utf8'
+    )
+    const scan = store.scan()
+    assert.equal(scan.candidate.length + scan.confirmed.length, 0)
+    assert.equal(readdirSync(join(root, '90_Quarantine')).filter((name) => name.includes(candidate.id) && !name.endsWith('.reason.json')).length, 2)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })

@@ -1,4 +1,3 @@
-const VERIFICATION_COMMAND = /(?:^|\s|[\\/])(test|tests|testing|check|checks|lint|typecheck|type-check|build|verify|verification|pytest|vitest|jest|mocha|eslint|tsc|cargo test|go test|dotnet test)(?:\s|$|[:./-])/i
 const { projectOutcomeMap } = require('./outcome-map-projection.cjs')
 const { assessWorkReceipt } = require('./work-receipt-policy.cjs')
 
@@ -19,9 +18,8 @@ function workspaceProjection(thread) {
 }
 
 function verificationFrom(card) {
-  if (card?.type !== 'terminal') return null
+  if (card?.type !== 'terminal' || card.verificationIntent !== true) return null
   const label = text(card.command, text(card.title, '验证命令'))
-  if (!VERIFICATION_COMMAND.test(label)) return null
   const exitCode = Number.isInteger(card.exitCode) ? card.exitCode : null
   const failed = card.state === 'error' || (exitCode !== null && exitCode !== 0)
   const passed = card.state === 'done' && exitCode === 0
@@ -33,19 +31,20 @@ function verificationFrom(card) {
 }
 
 function projectTaskOutcome(thread = {}) {
-  const terminal = thread.engineState === 'ready' || thread.engineState === 'error'
+  const snapshot = thread.agent?.taskRunSnapshot || {}
+  const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
+  const terminal = Boolean(snapshot.terminal || recovery || thread.engineState === 'error')
   if (!terminal) return { visible: false }
 
   const details = thread.agent?.runDetails || {}
-  const changes = (details.changedFiles || [])
+  const changes = (snapshot.confirmedChanges || [])
     .filter((item) => item && text(item.path))
     .map((item) => ({ path: text(item.path), operation: text(item.operation, '文件变更') }))
   const tools = Array.isArray(details.toolCards) ? details.toolCards : []
   const verifications = tools.map(verificationFrom).filter(Boolean)
   const failedTools = tools.filter((card) => card?.state === 'error').length
   const warnings = []
-  const terminalState = details.terminal?.state
-  const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
+  const terminalState = snapshot.terminal?.state
   const assessment = assessWorkReceipt({ changes, verifications, recovery, baseline: thread.baseline || null })
   const workspace = workspaceProjection(thread)
   const modelVerification = thread.verificationReceipt || null
@@ -66,8 +65,8 @@ function projectTaskOutcome(thread = {}) {
         ? (interrupted ? '模型连接验证已停止' : '模型连接验证未通过')
         : (interrupted ? '这一轮已停止' : '这轮没有完成'),
       summary: modelVerification?.failure?.detail || text(thread.engineError, interrupted
-        ? `Harness 报告这一轮已停止（${text(details.terminal?.reason, '原因未知')}）。`
-        : `Harness 报告这一轮失败（${text(details.terminal?.reason, '原因未知')}）。`),
+          ? `Harness 报告这一轮已停止（${text(snapshot.terminal?.reason, '原因未知')}）。`
+          : `Harness 报告这一轮失败（${text(snapshot.terminal?.reason, '原因未知')}）。`),
       changes,
       verifications,
       warnings,

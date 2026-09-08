@@ -12,13 +12,22 @@ function projectModelVerificationReceipt(thread = {}, recordedAt = new Date().to
   const requested = thread.purpose?.kind === 'model-connection-test'
     ? thread.purpose.requestedRoute
     : null
-  const terminal = thread.agent?.runDetails?.terminal
-  const effective = thread.agent?.effectiveModel
-  if (!requested || !terminal || effective?.evidence !== 'request/header' || !sameRequestedRoute(requested, effective)) return null
+  const snapshot = thread.agent?.taskRunSnapshot
+  const terminal = snapshot?.terminal
+  const route = snapshot?.route
+  const effective = route ? {
+    available: true,
+    provider: route.provider,
+    id: route.model,
+    name: thread.agent?.effectiveModel?.name || route.model,
+    reasoningEffort: route.reasoningEffort,
+    evidence: 'request/header'
+  } : null
+  if (!requested || !terminal || !sameRequestedRoute(requested, effective)) return null
 
   const terminalState = ['completed', 'failed', 'interrupted'].includes(terminal.state) ? terminal.state : ''
   if (!terminalState) return null
-  const failure = terminal.failure && typeof terminal.failure === 'object' ? terminal.failure : null
+  const failure = thread.agent?.runDetails?.terminal?.failure || null
   return {
     version: 1,
     state: terminalState === 'completed' ? 'passed' : terminalState === 'failed' ? 'failed' : 'interrupted',

@@ -88,6 +88,9 @@ const openRunDetailsButton = document.querySelector('#open-run-details')
 const pathInput = document.querySelector('#runtime-path')
 const selectButton = document.querySelector('#select-runtime')
 const startButton = document.querySelector('#start')
+const confirmSharedEngineButton = document.querySelector('#confirm-shared-engine')
+const startManagedEngineButton = document.querySelector('#start-managed-engine')
+const engineTrustNote = document.querySelector('#engine-trust-note')
 const stopButton = document.querySelector('#stop')
 const label = document.querySelector('#status-label')
 const message = document.querySelector('#status-message')
@@ -183,6 +186,13 @@ const memoryContextSummary = document.querySelector('#memory-context-summary')
 const memoryContextText = document.querySelector('#memory-context-text')
 
 let workbench = { threads: [], activeThreadId: '' }
+const workbenchRefreshGate = window.DeepCodeWorkbenchRefreshGate.createWorkbenchRefreshGate()
+
+function replaceWorkbench(next) {
+  workbenchRefreshGate.invalidate()
+  workbench = next
+  return workbench
+}
 let currentWorkspacePath = ''
 let pendingProviderRemoval = ''
 let providerRemovalTimer = null
@@ -362,14 +372,21 @@ function renderRuntime(status) {
   const runtimeChanged = lastRuntimeState !== status.state
   lastRuntimeState = status.state
   pathInput.value = status.runtimePath || pathInput.value
-  const stateLabel = ({ stopped: '尚未启动', starting: '正在启动', ready: '已就绪', stopping: '正在停止', error: '启动失败' })[status.state] || status.state
+  const stateLabel = ({ stopped: '尚未启动', starting: '正在启动', probing: '正在验证', 'awaiting-user': '等待你确认', incompatible: '版本不兼容', ready: '已就绪', stopping: '正在停止', error: '启动失败' })[status.state] || status.state
   label.textContent = stateLabel
   message.textContent = status.message || ''
   dot.className = `status-dot ${status.state}`
   runtimeDot.className = `status-dot ${status.state}`
   runtimeShort.textContent = status.state === 'ready' ? 'Engine 已连接' : `Engine ${stateLabel}`
-  startButton.disabled = status.state === 'starting' || status.state === 'ready' || !pathInput.value
-  stopButton.disabled = !['starting', 'ready', 'stopping'].includes(status.state)
+  startButton.disabled = ['starting', 'probing', 'ready', 'awaiting-user'].includes(status.state) || !pathInput.value
+  confirmSharedEngineButton.classList.toggle('hidden', status.state !== 'awaiting-user')
+  startManagedEngineButton.classList.toggle('hidden', !['awaiting-user', 'incompatible'].includes(status.state))
+  confirmSharedEngineButton.disabled = status.state !== 'awaiting-user'
+  startManagedEngineButton.disabled = !['awaiting-user', 'incompatible'].includes(status.state)
+  stopButton.disabled = !['starting', 'probing', 'ready', 'stopping'].includes(status.state)
+  engineTrustNote.textContent = status.kind === 'shared'
+    ? '共享 Engine 不是由 Deep Code 启动，无法进行密码学身份认证，也无法控制它继承的环境变量。确认只适用于当前地址、版本和工作目录。'
+    : '托管 Engine 会使用净化后的环境变量；桌面环境中的 API Key 不会被自动继承。请在“模型服务”中保存凭据。'
   logs.textContent = status.logs?.length ? status.logs.map(({ stream, line }) => `[${stream}] ${line}`).join('\n') : '还没有运行日志。'
   if (runtimeChanged) refreshModelConnection().catch(() => {})
 }
@@ -438,36 +455,10 @@ function renderEcosystem(snapshot) {
     })
     const install = document.createElement('button')
     install.type = 'button'
-    install.className = 'primary-button'
-    install.textContent = '检查并安装…'
-    install.disabled = entry.archived
-    install.addEventListener('click', async () => {
-      install.disabled = true
-      ecosystemSource.textContent = `正在只读检查 ${entry.fullName} 的固定版本与 Bundle 声明…`
-      try {
-        const preview = await window.desktopHost.prepareEcosystemInstall(entry.id)
-        const accepted = window.confirm([
-          `准备安装 ${preview.packageName}`,
-          `仓库：${preview.fullName}`,
-          `固定 commit：${preview.commit}`,
-          `Bundle：${preview.patch}`,
-          '',
-          preview.warning,
-          preview.activation,
-          '',
-          '确认继续安装吗？'
-        ].join('\n'))
-        if (!accepted) {
-          ecosystemSource.textContent = '已取消安装；本机 profile 没有被修改。'
-          return
-        }
-        ecosystemSource.textContent = `正在通过官方 DSH CLI 安装 ${preview.packageName}…`
-        const result = await window.desktopHost.installEcosystemPlugin(preview.token)
-        ecosystemSource.textContent = result.message
-      } catch (error) {
-        ecosystemSource.textContent = `没有安装：${error.message}`
-      } finally { install.disabled = entry.archived }
-    })
+    install.className = 'quiet-button'
+    install.textContent = '安装暂时暂停'
+    install.title = '等待 Engine 信任与插件权限底座完成；你仍可查看上游源码和官方说明。'
+    install.disabled = true
     const actions = document.createElement('div')
     actions.className = 'button-row'
     actions.append(open, install)
@@ -1248,7 +1239,9 @@ function renderTaskOutcome(thread) {
 }
 
 async function startNewTask() {
-  workbench = await window.desktopHost.selectTask('')
+  workbenchRefreshGate.invalidate()
+  if (modelRouteDialog.open) modelRouteDialog.close()
+  replaceWorkbench(await window.desktopHost.selectTask(''))
   await syncImageDrafts('new-task')
   showPage('workbench')
   forceFollowNextRender = false
@@ -1410,7 +1403,7 @@ async function respondToInteraction(thread, response, card, errorNode) {
   for (const control of controls) control.disabled = true
   errorNode.textContent = '正在把你的决定交给 Harness…'
   try {
-    workbench = await window.desktopHost.respondToInteraction(thread.id, response)
+    replaceWorkbench(await window.desktopHost.respondToInteraction(thread.id, response))
     renderWorkbench()
   } catch (error) {
     for (const control of controls) control.disabled = false
@@ -1632,7 +1625,9 @@ function renderWorkbench() {
     button.querySelector('.task-item-time').textContent = displayTime(thread.updatedAt)
     button.addEventListener('click', async () => {
       try {
-        workbench = await window.desktopHost.selectTask(thread.id)
+        workbenchRefreshGate.invalidate()
+        if (modelRouteDialog.open) modelRouteDialog.close()
+        replaceWorkbench(await window.desktopHost.selectTask(thread.id))
         await syncImageDrafts(thread.id)
         forceFollowNextRender = true
         showPage('workbench')
@@ -1664,8 +1659,10 @@ function renderWorkbench() {
       : ''
     const labels = {
       draft: '任务已保存，等待连接 Engine。',
+      queued: 'Harness 已接收消息，正在等待这一轮开始。',
       running: 'Deep code 正在处理。结果会自动更新。',
       ready: '这一轮已经完成。你可以继续追问，或展开技术证据。',
+      unknown: 'Deep code 当前没有足够事件确认这一轮是否结束；不会把空闲误报成完成。',
       error: `没有完成：${terminalFailureCopy || thread.engineError || 'Engine 返回了未知错误。'}`
     }
     const { pendingCount, queuedCount } = renderLiveState(thread)
@@ -1687,14 +1684,14 @@ function renderWorkbench() {
     taskRecoveryCause.textContent = recovery ? `原因：${recovery.cause}` : ''
     taskRecoverySafety.textContent = recovery ? `已经确认：${recovery.safety}` : ''
     taskRecoveryNext.textContent = recovery ? `下一步：${recovery.nextAction}` : ''
-    cancelTaskButton.disabled = thread.engineState !== 'running'
-    composerStopButton.classList.toggle('hidden', thread.engineState !== 'running')
-    const canRetry = ['draft', 'error'].includes(thread.engineState)
+    cancelTaskButton.disabled = !['queued', 'running'].includes(thread.engineState)
+    composerStopButton.classList.toggle('hidden', !['queued', 'running'].includes(thread.engineState))
+    const canRetry = ['draft', 'unknown', 'error'].includes(thread.engineState)
     retryTaskButton.classList.remove('hidden')
     retryTaskButton.disabled = !canRetry
     retryTaskButton.textContent = canRetry
       ? (hasHumanMessage ? '重新连接任务' : '重新发送任务')
-      : (thread.engineState === 'running' ? '正在处理' : '已连接，无需重试')
+      : (['queued', 'running'].includes(thread.engineState) ? '正在处理' : '已连接，无需重试')
     conversationFeed.replaceChildren()
     for (const item of agentMessages) {
       conversationFeed.append(renderMessageBubble({ role: item.role, text: item.text, images: item.images || [] }))
@@ -1727,8 +1724,14 @@ function renderWorkbench() {
 }
 
 async function refreshWorkbench() {
-  workbench = await window.desktopHost.workbenchSnapshot()
+  const current = activeThread()
+  const ticket = workbenchRefreshGate.begin({ taskId: workbench.activeThreadId, sessionId: current?.sessionId })
+  const next = await window.desktopHost.workbenchSnapshot()
+  const visible = activeThread()
+  if (!workbenchRefreshGate.accept(ticket, { taskId: workbench.activeThreadId, sessionId: visible?.sessionId })) return false
+  workbench = next
   renderWorkbench()
+  return true
 }
 
 async function createTask() {
@@ -1741,9 +1744,10 @@ async function createTask() {
     const thread = activeThread()
     const attachmentIds = imageDrafts.map((draft) => draft.id)
     const routing = { manualSelection: manualModelSelection }
-    workbench = thread?.sessionId
+    const nextWorkbench = thread?.sessionId
       ? await window.desktopHost.sendMessage(thread.id, prompt, attachmentIds, routing)
       : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds, routing })
+    replaceWorkbench(nextWorkbench)
     taskComposer.value = ''
     await syncImageDrafts(workbench.activeThreadId || 'new-task')
     forceFollowNextRender = true
@@ -1780,7 +1784,9 @@ function renderWorkspace(workspacePath) {
 async function selectWorkspace() {
   const result = await window.desktopHost.selectWorkspace()
   if (!result.canceled) {
-    workbench = await window.desktopHost.selectTask('')
+    workbenchRefreshGate.invalidate()
+    if (modelRouteDialog.open) modelRouteDialog.close()
+    replaceWorkbench(await window.desktopHost.selectTask(''))
     renderWorkspace(result.workspacePath)
     settingsWorkspacePath.textContent = result.workspacePath
     openWorkspaceButton.disabled = false
@@ -1917,7 +1923,7 @@ activeTask.addEventListener('click', async (event) => {
 })
 explainProjectButton.addEventListener('click', async () => {
   explainProjectButton.disabled = true
-  try { workbench = await window.desktopHost.createProjectBrief(); forceFollowNextRender = true; renderWorkbench() } catch (error) {
+  try { replaceWorkbench(await window.desktopHost.createProjectBrief()); forceFollowNextRender = true; renderWorkbench() } catch (error) {
     taskEngineStatus.textContent = `无法开始项目说明：${error.message}`
     taskEngineStatus.dataset.state = 'error'
   } finally { explainProjectButton.disabled = false }
@@ -1926,15 +1932,19 @@ taskComposer.addEventListener('keydown', (event) => { if ((event.ctrlKey || even
 for (const button of document.querySelectorAll('[data-suggestion]')) button.addEventListener('click', () => { taskComposer.value = button.dataset.suggestion; taskComposer.focus() })
 deleteTaskButton.addEventListener('click', async () => {
   const thread = activeThread()
-  if (!thread || !window.confirm(`删除本机任务“${thread.title}”？这不会影响 Harness。`)) return
-  try { workbench = await window.desktopHost.deleteTask(thread.id); taskViewState.clear(thread.id); renderWorkbench() } catch (error) { careResult.textContent = error.message }
+  const active = ['queued', 'running', 'unknown'].includes(thread?.engineState)
+  const question = active
+    ? `停止并删除“${thread?.title}”？Deep code 会先向 Harness 请求停止，只有收到结束证据后才删除本地记录。`
+    : `删除本机任务“${thread?.title}”？已确认的工作区文件不会被删除。`
+  if (!thread || !window.confirm(question)) return
+  try { replaceWorkbench(await window.desktopHost.deleteTask(thread.id)); taskViewState.clear(thread.id); renderWorkbench() } catch (error) { careResult.textContent = error.message }
 })
 async function stopActiveTask() {
   const thread = activeThread()
   if (!thread) return
   cancelTaskButton.disabled = true
   composerStopButton.disabled = true
-  try { workbench = await window.desktopHost.cancelTask(thread.id); renderWorkbench() } catch (error) {
+  try { replaceWorkbench(await window.desktopHost.cancelTask(thread.id)); renderWorkbench() } catch (error) {
     taskEngineStatus.textContent = `无法停止：${error.message}`
     taskEngineStatus.dataset.state = 'error'
   } finally { composerStopButton.disabled = false }
@@ -1945,7 +1955,7 @@ retryTaskButton.addEventListener('click', async () => {
   const thread = activeThread()
   if (!thread) return
   retryTaskButton.disabled = true
-  try { workbench = await window.desktopHost.retryTask(thread.id); forceFollowNextRender = true; renderWorkbench() } catch (error) {
+  try { replaceWorkbench(await window.desktopHost.retryTask(thread.id)); forceFollowNextRender = true; renderWorkbench() } catch (error) {
     taskEngineStatus.textContent = `重试失败：${error.message}`
     taskEngineStatus.dataset.state = 'error'
   } finally { renderWorkbench() }
@@ -1962,6 +1972,8 @@ handoffDialog.addEventListener('click', (event) => { if (event.target === handof
 
 selectButton.addEventListener('click', selectRuntimeNative)
 startButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.start(pathInput.value)))
+confirmSharedEngineButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.confirmSharedEngine()))
+startManagedEngineButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.startManaged(pathInput.value)))
 stopButton.addEventListener('click', () => safelyRenderStatus(() => window.desktopHost.stop()))
 checkModelConnectionButton.addEventListener('click', async () => {
   await runVisibleAction({
@@ -2126,7 +2138,7 @@ async function createVisibleConnectionTest(trigger, statusTarget, routing = null
   trigger.disabled = true
   statusTarget.textContent = '正在创建真实验证任务…'
   try {
-    workbench = await window.desktopHost.createConnectionTest(routing)
+    replaceWorkbench(await window.desktopHost.createConnectionTest(routing))
     renderWorkbench()
     showPage('workbench')
   } catch (error) {
@@ -2297,7 +2309,7 @@ refreshControlCenter().catch((error) => { controlSkillStatus.textContent = error
 
 setInterval(async () => {
   const thread = activeThread()
-  if (!thread?.sessionId || thread.engineState !== 'running') return
+  if (!thread?.sessionId || !['queued', 'running'].includes(thread.engineState)) return
   // 等待你的回答时暂停自动刷新；否则整棵 Decision Gate DOM 会被替换，已选选项和输入文字会丢失。
   if (thread.agent?.live?.interactions?.length) return
   try { await refreshWorkbench() } catch { /* Keep the last readable state visible. */ }

@@ -6,7 +6,9 @@ It is an independent community client, **not** an official DeepSeek product. It 
 
 ## Download for Windows
 
-Normal users do **not** need to clone the repository or run pnpm. Open [GitHub Releases](https://github.com/zhao-cai-lihua/Deep-code/releases/latest), then download one of these files:
+> **Safety notice for v0.6.2:** the existing v0.6.2 build is now test-only. Do not enter high-value API keys or use it with private data or important unbacked-up files. Its ecosystem installer is not part of the current safe product boundary. Keep its tag and assets only for reproducibility while v0.6.3 is being verified.
+
+Normal users do **not** need to clone the repository or run pnpm. During the v0.6.3 verification period, use [GitHub Releases](https://github.com/zhao-cai-lihua/Deep-code/releases) only if you understand the release label and warning; do not treat v0.6.2 as the stable download recommendation.
 
 - `Deep.code.Setup.x.y.z.exe` — recommended installer; GitHub normalizes spaces in the built filename to dots.
 - `Deep.code.x.y.z.exe` — portable app; no installation required.
@@ -36,7 +38,7 @@ The GitHub web page cannot browse arbitrary local folders. Run the downloaded De
 - Safe, structured Markdown for final answers, including headings, lists, quotes, code blocks, and tables. Model-authored HTML stays inert, remote images become visible placeholders instead of loading silently, and only explicit `http`/`https` links can leave the app.
 - Expandable Tool Cards for the official Harness diff, terminal, file-read, search, and web presenters. Every presenter is normalized once by the DSH Adapter, so the interface can explain what happened without teaching the Renderer the Harness wire format.
 - Runtime inspection and redacted diagnostic export.
-- Opt-in ecosystem discovery with real, guarded installation: Deep code statically verifies a root `dsh.bundle.patch`, pins the exact Git commit, explains that Git preparation code may run outside the Agent sandbox, asks again, and then delegates installation to the official DSH CLI in the official `web` profile used by the managed Engine.
+- Opt-in, read-only ecosystem discovery with Chinese summaries, popularity signals, and source links. Executable installation is temporarily paused while the trust boundary is being completed; a popular GitHub project is never presented as an installable Harness plugin merely because it has stars.
 - Preview an exact task-only handoff note without changing Harness permissions. The earlier unapplied Companion Card experiment has been removed from the product and runtime bridge; upgrades do not delete existing local card JSON, so no user-authored draft is destroyed.
 
 ## Developer setup
@@ -61,7 +63,7 @@ pnpm package:win
 
 ## Product boundary
 
-Deep code deliberately does **not** rewrite Harness tool permissions, approval rules, or the Agent Loop. Its optional plugin installer delegates to the official profile mechanism and never treats catalog text as a command. See [the architecture](docs/ARCHITECTURE.md), [the primary-workbench decision](docs/adr/0001-deep-code-is-the-primary-workbench.md), [the beginner-protection roadmap](docs/BEGINNER_PROTECTION_ROADMAP.md), [the official Harness plugin boundary research](docs/research/official-harness-plugin-development.md), [the DSH Desktop UI and ecosystem audit](docs/research/dsh-desktop-ui-ecosystem-audit-2026-08-27.md), and [the community usability audit](docs/research/dsh-community-usability-audit.md). The archived [Companion Card policy](docs/COMPANION_CARDS_POLICY.md) remains as design history, not a current feature promise.
+Deep code deliberately does **not** rewrite Harness tool permissions, approval rules, or the Agent Loop. Ecosystem discovery is currently read-only, and the packaged Renderer/Preload/Main path cannot invoke the retained internal installer experiment. See [the architecture](docs/ARCHITECTURE.md), [the primary-workbench decision](docs/adr/0001-deep-code-is-the-primary-workbench.md), [the beginner-protection roadmap](docs/BEGINNER_PROTECTION_ROADMAP.md), [the official Harness plugin boundary research](docs/research/official-harness-plugin-development.md), [the DSH Desktop UI and ecosystem audit](docs/research/dsh-desktop-ui-ecosystem-audit-2026-08-27.md), and [the community usability audit](docs/research/dsh-community-usability-audit.md). The archived [Companion Card policy](docs/COMPANION_CARDS_POLICY.md) remains as design history, not a current feature promise.
 
 ## Project status
 

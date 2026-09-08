@@ -17,7 +17,6 @@ const { isAllowedAppNavigation } = require('./navigation-policy.cjs')
 const { projectTaskRun } = require('./run-projection.cjs')
 const { ImageDraftStore } = require('./image-draft-store.cjs')
 const { EcosystemCatalog } = require('./ecosystem-catalog.cjs')
-const { PluginInstaller } = require('./plugin-installer.cjs')
 const { chooseModelRoute } = require('./model-router.cjs')
 const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
 const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
@@ -25,6 +24,9 @@ const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retri
 const { projectModelServices } = require('./model-service-projection.cjs')
 const { projectModelVerificationReceipt } = require('./model-verification-receipt.cjs')
 const { projectTaskGuidance } = require('./task-guidance-projection.cjs')
+const { acquireSingleInstance } = require('./single-instance.cjs')
+const { stopAndDeleteTask } = require('./task-lifecycle.cjs')
+const { projectConfirmedBaselineChanges } = require('./baseline-change-projection.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -43,9 +45,9 @@ let setupAssistant
 let liveSession
 let imageDrafts
 let ecosystemCatalog
-let pluginInstaller
 let memoryStore
 const requestedModelRoutes = new Map()
+const hasSingleInstanceLock = acquireSingleInstance({ app, getWindow: () => mainWindow })
 
 function closeLiveSession() {
   if (liveSession) liveSession.close()
@@ -74,7 +76,7 @@ async function handleInteractionTimeout({ sessionId, interactionCount }) {
   if (!thread) return
   const runtime = supervisor.snapshot()
   let cancellationConfirmed = false
-  if (runtime.state === 'ready' && runtime.url) {
+  if (runtime.state === 'ready' && runtime.url && runtime.trust) {
     try {
       await dshAdapter.cancel({ baseUrl: runtime.url, sessionId: thread.sessionId })
       cancellationConfirmed = true
@@ -114,10 +116,10 @@ function saveSettings(next) {
 
 async function ensureEngineReady() {
   const current = supervisor.snapshot()
-  if (current.state === 'ready' && current.url) return current
+  if (current.state === 'ready' && current.url && current.trust) return current
   if (!settings.runtimePath) throw new Error('Engine 尚未准备好。请先在首次向导中自动检测或安装。')
   const started = await supervisor.start(settings.runtimePath)
-  if (started.state === 'ready' && started.url) return started
+  if (started.state === 'ready' && started.url && started.trust) return started
   return supervisor.waitUntilReady()
 }
 
@@ -138,7 +140,18 @@ async function launchTask(thread, { images = [], routing = null } = {}) {
     workbench.setEngineState(thread.id, { sessionId, state: 'running', notice: images.length ? undefined : '' })
     ensureLiveSession(runtime.url, sessionId)
     await prepareModelRoute({ runtime, sessionId, threadId: thread.id, routing })
-    await dshAdapter.prompt({ baseUrl: runtime.url, sessionId, text: thread.prompt, images })
+    workbench.clearAdmission(thread.id)
+    const admission = await dshAdapter.prompt({ baseUrl: runtime.url, sessionId, text: thread.prompt, images })
+    if (admission?.accepted === true || (typeof admission?.messageId === 'string' && admission.messageId)) {
+      workbench.setAdmission(thread.id, {
+        accepted: true,
+        ...(admission?.messageId ? { messageId: admission.messageId } : {}),
+        acceptedAt: new Date().toISOString()
+      })
+      workbench.setEngineState(thread.id, { state: 'queued' })
+    } else {
+      workbench.setEngineState(thread.id, { state: 'unknown' })
+    }
     return true
   } catch (error) {
     workbench.setEngineState(thread.id, { state: 'error', error: error.message })
@@ -195,7 +208,7 @@ async function workbenchSnapshot() {
   const snapshot = workbench.snapshot()
   const thread = snapshot.threads.find((item) => item.id === snapshot.activeThreadId)
   const runtime = supervisor.snapshot()
-  if (!thread?.sessionId || runtime.state !== 'ready' || !runtime.url) {
+  if (!thread?.sessionId || runtime.state !== 'ready' || !runtime.url || !runtime.trust) {
     closeLiveSession()
     const offline = reconcileOfflineWorkbench(snapshot)
     if (thread) {
@@ -207,7 +220,12 @@ async function workbenchSnapshot() {
   }
   try {
     const live = ensureLiveSession(runtime.url, thread.sessionId)
-    thread.agent = await dshAdapter.snapshot({ baseUrl: runtime.url, sessionId: thread.sessionId })
+    thread.agent = await dshAdapter.snapshot({
+      baseUrl: runtime.url,
+      sessionId: thread.sessionId,
+      admission: thread.admission,
+      engine: { kind: runtime.kind, version: runtime.version, trust: runtime.trust }
+    })
     const persistedRequest = thread.purpose?.kind === 'model-connection-test' ? thread.purpose.requestedRoute : null
     const requestedRoute = requestedModelRoutes.get(thread.id) || (persistedRequest ? {
       source: 'user', requested: persistedRequest,
@@ -224,6 +242,23 @@ async function workbenchSnapshot() {
           : null
       }
     }
+    const projectedState = thread.agent.taskRunSnapshot?.turn?.state || 'unknown'
+    if (thread.agent.taskRunSnapshot?.terminal && thread.baseline && thread.workspacePath) {
+      const after = thread.completionBaseline || await workspaceBaseline.capture(thread.workspacePath)
+      if (!thread.completionBaseline) {
+        workbench.setCompletionBaseline(thread.id, after)
+        thread.completionBaseline = after
+      }
+      const independentChanges = projectConfirmedBaselineChanges(thread.baseline, after)
+      const known = new Set((thread.agent.taskRunSnapshot.confirmedChanges || []).map((item) => item.path))
+      for (const change of independentChanges) {
+        if (!known.has(change.path)) thread.agent.taskRunSnapshot.confirmedChanges.push(change)
+        if (!(thread.agent.runDetails.changedFiles || []).some((item) => item.path === change.path)) {
+          thread.agent.runDetails.changedFiles.push(change)
+        }
+      }
+    }
+    thread.agent.running = ['queued', 'running'].includes(projectedState)
     live.reconcileRunning(thread.agent.running)
     thread.agent.live = live.snapshot()
     const terminal = thread.agent.runDetails?.terminal
@@ -239,12 +274,18 @@ async function workbenchSnapshot() {
       thread.engineState = 'error'
     } else if (thread.recovery?.kind === 'waiting-timeout') {
       thread.engineState = 'error'
+    } else if (thread.recovery?.kind === 'stop-unconfirmed') {
+      thread.engineState = 'unknown'
     } else {
-      thread.engineState = thread.agent.running
-        ? 'running'
-        : terminal && ['failed', 'interrupted'].includes(terminal.state)
-          ? 'error'
-          : 'ready'
+      thread.engineState = projectedState === 'queued'
+        ? 'queued'
+        : projectedState === 'running'
+          ? 'running'
+          : projectedState === 'completed'
+            ? 'ready'
+            : ['failed', 'interrupted'].includes(projectedState)
+              ? 'error'
+              : 'unknown'
       thread.engineError = terminal?.state === 'failed'
         ? `Harness 报告这一轮失败（${terminal.reason}）。`
         : terminal?.state === 'interrupted'
@@ -263,7 +304,7 @@ async function workbenchSnapshot() {
 
 async function modelConnectionSnapshot() {
   const runtime = supervisor.snapshot()
-  if (runtime.state !== 'ready' || !runtime.url) {
+  if (runtime.state !== 'ready' || !runtime.url || !runtime.trust) {
     return {
       state: 'engine-offline',
       title: '先启动 Engine',
@@ -283,7 +324,7 @@ async function modelConnectionSnapshot() {
 
 function runningEngine() {
   const runtime = supervisor.snapshot()
-  if (runtime.state !== 'ready' || !runtime.url) {
+  if (runtime.state !== 'ready' || !runtime.url || !runtime.trust) {
     throw new Error('Engine 尚未启动。请先启动 Engine，再配置模型连接。')
   }
   return runtime
@@ -353,7 +394,7 @@ function createMenu() {
   ]))
 }
 
-app.whenReady().then(() => {
+if (hasSingleInstanceLock) app.whenReady().then(() => {
   settings = readSettings()
   workbench = new WorkbenchStore(join(app.getPath('userData'), 'local-tasks.json'))
   imageDrafts = new ImageDraftStore({
@@ -377,7 +418,6 @@ app.whenReady().then(() => {
     }
   })
   ecosystemCatalog = new EcosystemCatalog()
-  pluginInstaller = new PluginInstaller()
   memoryStore = new MemoryCandidateStore(join(app.getPath('userData'), 'memory-vault'))
   memoryStore.initialize()
   setupAssistant = new SetupAssistant()
@@ -495,6 +535,11 @@ ipcMain.handle('host:stop', () => {
   closeLiveSession()
   return supervisor.stop()
 })
+ipcMain.handle('host:start-managed', (_event, runtimePath) => supervisor.startManaged(String(runtimePath || settings.runtimePath || '')).then((status) => {
+  saveSettings({ runtimePath: status.runtimePath })
+  return status
+}))
+ipcMain.handle('host:confirm-shared', () => supervisor.confirmShared())
 ipcMain.handle('host:create-safe-workspace', (_event, name) => {
   const result = hostCare.createSafeWorkspace({ documentsPath: app.getPath('documents'), name: String(name || '') })
   saveSettings({ workspacePath: result.path })
@@ -587,16 +632,6 @@ ipcMain.handle('ecosystem:set-enabled', async (_event, enabled) => {
   return next ? ecosystemCatalog.refresh({ enabled: true }) : ecosystemCatalog.clear()
 })
 ipcMain.handle('ecosystem:refresh', () => ecosystemCatalog.refresh({ enabled: settings.ecosystemDiscoveryEnabled === true }))
-ipcMain.handle('ecosystem:prepare-install', (_event, id) => ecosystemCatalog.prepareInstall(id))
-ipcMain.handle('ecosystem:install', async (_event, token) => {
-  const runtimePath = supervisor.resolveRuntimePath(settings.runtimePath || '')
-  const plan = ecosystemCatalog.consumeInstallPlan(token)
-  const result = await pluginInstaller.install({ runtimePath, plan })
-  return {
-    ...result,
-    message: `${result.packageName} 已实际安装到官方 web profile。请停止已有 Harness，并从 Deep Code 重新启动 Engine，让插件生效。`
-  }
-})
 ipcMain.handle('control-center:snapshot', async () => {
   const runtime = supervisor.snapshot()
   const snapshot = workbench.snapshot()
@@ -607,7 +642,7 @@ ipcMain.handle('control-center:snapshot', async () => {
       ready: Boolean(settings.workspacePath),
       taskCount: snapshot.threads.length
     },
-    engine: { state: runtime.state, ready: runtime.state === 'ready' && Boolean(runtime.url) },
+    engine: { state: runtime.state, ready: runtime.state === 'ready' && Boolean(runtime.url) && Boolean(runtime.trust) },
     task: thread ? { id: thread.id, title: thread.title, sessionId: thread.sessionId || '' } : null,
     skills: [],
     skillsState: 'needs-session',
@@ -742,7 +777,12 @@ ipcMain.handle('workbench:retry-task', async (_event, id) => {
   const runtime = await ensureEngineReady()
   if (thread.sessionId) {
     await dshAdapter.createSession({ baseUrl: runtime.url, cwd: thread.workspacePath || settings.workspacePath, sessionId: thread.sessionId })
-    const agent = await dshAdapter.snapshot({ baseUrl: runtime.url, sessionId: thread.sessionId })
+    const agent = await dshAdapter.snapshot({
+      baseUrl: runtime.url,
+      sessionId: thread.sessionId,
+      admission: thread.admission,
+      engine: { kind: runtime.kind, version: runtime.version, trust: runtime.trust }
+    })
     if (retryDisposition(agent) === 'reconnect') {
       ensureLiveSession(runtime.url, thread.sessionId)
       workbench.setEngineState(thread.id, { state: agent.running ? 'running' : 'ready', error: '' })
@@ -761,6 +801,7 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
   const snapshot = workbench.snapshot()
   const thread = snapshot.threads.find((item) => item.id === String(id || snapshot.activeThreadId || ''))
   if (!thread?.sessionId) throw new Error('这个任务还没有连接到 Engine 会话。')
+  if (thread.id !== snapshot.activeThreadId) throw new Error('当前可见任务已经变化；消息没有发送，请在当前任务中重试。')
   workbench.clearRecovery(thread.id)
   const runtime = await ensureEngineReady()
   const workspacePath = thread.workspacePath || settings.workspacePath
@@ -779,14 +820,24 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
     images,
     routing: routing || null
   })
-  await dshAdapter.prompt({
+  workbench.clearAdmission(thread.id)
+  const admission = await dshAdapter.prompt({
     baseUrl: runtime.url,
     sessionId: thread.sessionId,
     text: String(text || ''),
     images
   })
   imageDrafts.clear(thread.id, ids)
-  workbench.setEngineState(thread.id, { state: 'running', notice: undefined })
+  if (admission?.accepted === true || (typeof admission?.messageId === 'string' && admission.messageId)) {
+    workbench.setAdmission(thread.id, {
+      accepted: true,
+      ...(admission?.messageId ? { messageId: admission.messageId } : {}),
+      acceptedAt: new Date().toISOString()
+    })
+    workbench.setEngineState(thread.id, { state: 'queued', notice: undefined })
+  } else {
+    workbench.setEngineState(thread.id, { state: 'unknown', notice: undefined })
+  }
   return workbenchSnapshot()
 })
 ipcMain.handle('workbench:cancel', async (_event, id) => {
@@ -836,13 +887,68 @@ ipcMain.handle('workbench:select-task', async (_event, id) => {
   workbench.select(String(id || ''))
   return workbenchSnapshot()
 })
-ipcMain.handle('workbench:delete-task', (_event, id) => {
+ipcMain.handle('workbench:delete-task', async (_event, id) => {
   const taskId = String(id || '')
-  if (taskId) {
+  const snapshot = workbench.snapshot()
+  const thread = snapshot.threads.find((item) => item.id === taskId)
+  if (!thread) throw new Error('找不到要删除的任务。')
+  const removeLocal = () => {
     imageDrafts.clear(taskId)
     requestedModelRoutes.delete(taskId)
+    return workbench.remove(taskId)
   }
-  return workbench.remove(taskId)
+  if (!thread.sessionId || thread.engineState === 'draft' || (thread.engineState === 'error' && thread.recovery?.kind === 'launch-failed')) {
+    return removeLocal()
+  }
+
+  const runtime = supervisor.snapshot()
+  if (runtime.state !== 'ready' || !runtime.url || !runtime.trust) {
+    workbench.setEngineState(taskId, {
+      state: 'unknown',
+      error: 'Deep code 当前无法确认 Harness 是否仍在执行，因此没有删除本地任务记录。'
+    })
+    workbench.setRecovery(taskId, {
+      kind: 'stop-unconfirmed',
+      cause: 'Engine 当前离线或尚未通过信任检查，无法确认这项任务是否仍在运行。',
+      safety: '本地任务记录仍保留；Deep code 没有声称后台执行已经停止。',
+      nextAction: '重新连接原 Engine 后再次选择“停止并删除”，或保留这条记录。'
+    })
+    return workbenchSnapshot()
+  }
+
+  const readAgent = () => dshAdapter.snapshot({
+    baseUrl: runtime.url,
+    sessionId: thread.sessionId,
+    admission: thread.admission,
+    engine: { kind: runtime.kind, version: runtime.version, trust: runtime.trust }
+  })
+  const before = await readAgent()
+  if (before.taskRunSnapshot?.terminal) return removeLocal()
+  if (!['queued', 'running'].includes(before.taskRunSnapshot?.turn?.state)) {
+    workbench.setEngineState(taskId, { state: 'unknown', error: 'Harness 没有提供可确认的本轮终态，因此没有删除任务记录。' })
+    workbench.setRecovery(taskId, {
+      kind: 'stop-unconfirmed',
+      cause: '当前 Session 既没有匹配的运行中轮次，也没有匹配的结束事件。',
+      safety: 'Deep code 保留了任务记录，没有把未知状态当成已停止。',
+      nextAction: '先重新连接并查看轨迹；确认状态后再停止并删除。'
+    })
+    return workbenchSnapshot()
+  }
+  const result = await stopAndDeleteTask({
+    expectedTurnId: before.taskRunSnapshot.turn.id,
+    cancel: () => dshAdapter.cancel({ baseUrl: runtime.url, sessionId: thread.sessionId }),
+    readSnapshot: readAgent,
+    remove: removeLocal
+  })
+  if (result.deleted) return workbench.snapshot()
+  workbench.setEngineState(taskId, { state: 'unknown', error: '已发送停止请求，但 10 秒内没有看到 Harness 的同轮结束事件。' })
+  workbench.setRecovery(taskId, {
+    kind: 'stop-unconfirmed',
+    cause: 'Harness 接收了停止请求，但 Deep code 在 10 秒内没有收到同一轮的结束证据。',
+    safety: '任务记录仍保留，避免失去重新连接和再次停止所需的信息。',
+    nextAction: '重新连接后再次停止，或保留记录并稍后核对轨迹。'
+  })
+  return workbenchSnapshot()
 })
 ipcMain.handle('workbench:handoff-preview', (_event, id) => {
   const taskState = workbench.snapshot()

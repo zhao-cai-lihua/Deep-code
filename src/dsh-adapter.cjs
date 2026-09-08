@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto')
 const { projectConversation, textBlocks } = require('./conversation-projection.cjs')
+const { projectTaskRunSnapshot } = require('./task-run-snapshot.cjs')
 
 const OFFICIAL_VISION_MODEL = Object.freeze({
   provider: 'deepseek-official',
@@ -49,22 +50,6 @@ function credentialRefForProvider(provider, settingsResult) {
   const profile = valueAtPath(namespace?.value, provider?.settingsPath || [])
   const ref = String(profile?.apiKeyEnv || '')
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(ref) ? ref : ''
-}
-
-function latestRequestRoute(page) {
-  const events = Array.isArray(page?.events) ? page.events : []
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index]?.event || events[index]
-    if (event?.type !== 'request/header') continue
-    const config = event?.data?.header?.config
-    if (!config?.provider || !config?.model) continue
-    return {
-      provider: String(config.provider),
-      model: String(config.model),
-      reasoningEffort: String(config.reasoningEffort || '')
-    }
-  }
-  return null
 }
 
 function connectionCopy(state, { providerNames = [], modelCount = 0 } = {}) {
@@ -194,7 +179,7 @@ class DshAdapter {
     return this.rpc(baseUrl, 'skill.list', { sessionId })
   }
 
-  async snapshot({ baseUrl, sessionId }) {
+  async snapshot({ baseUrl, sessionId, engine = {}, admission = null }) {
     const [page, list, modelDirectory] = await Promise.all([
       this.rpc(baseUrl, 'session.history', { sessionId, maxMessages: 80 }),
       this.rpc(baseUrl, 'session.list', {}),
@@ -216,7 +201,9 @@ class DshAdapter {
           available: false,
           ...(modelDirectory?.error ? { error: String(modelDirectory.error) } : {})
         }
-    const effectiveRoute = latestRequestRoute(page)
+    const conversation = humanizeHistory(page)
+    const taskRunSnapshot = projectTaskRunSnapshot({ sessionId, engine, page, admission, conversation })
+    const effectiveRoute = taskRunSnapshot.route || null
     const effectiveGroup = (modelDirectory?.groups || []).find((item) => item?.id === effectiveRoute?.provider)
     const effectiveCatalogModel = (effectiveGroup?.models || []).find((item) => item?.id === effectiveRoute?.model)
     const effectiveModel = effectiveRoute
@@ -229,7 +216,7 @@ class DshAdapter {
           evidence: 'request/header'
         }
       : { available: false, label: 'Harness 历史尚未记录本轮请求路线。' }
-    return { ...humanizeHistory(page), running: Boolean(summary?.running), model, effectiveModel }
+    return { ...conversation, running: Boolean(summary?.running), model, effectiveModel, taskRunSnapshot }
   }
 
   async connectionSnapshot({ baseUrl }) {
@@ -422,4 +409,4 @@ class DshAdapter {
   }
 }
 
-module.exports = { DshAdapter, humanizeHistory, latestRequestRoute, textBlocks, connectionCopy, safeCredentialError, credentialRefForProvider, deriveCredentialRef, SIMPLE_CATALOG_PROVIDERS, OFFICIAL_VISION_MODEL }
+module.exports = { DshAdapter, humanizeHistory, textBlocks, connectionCopy, safeCredentialError, credentialRefForProvider, deriveCredentialRef, SIMPLE_CATALOG_PROVIDERS, OFFICIAL_VISION_MODEL }

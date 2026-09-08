@@ -13,7 +13,7 @@ test('keeps human prompts in chat and moves Harness context into run details', (
   const result = projectConversation(page)
   assert.deepEqual(result.messages.map(({ role, text }) => ({ role, text })), [{ role: 'user', text: '解释这个项目' }])
   assert.equal(result.runDetails.runtimeContext.length, 2)
-  assert.equal(result.runDetails.permissionFacts[0].label, '文件权限：完全访问')
+  assert.deepEqual(result.runDetails.permissionFacts, [])
   assert.equal(result.runDetails.runtimeContext[1].label, '技能目录已载入（1 项）')
   assert.equal(result.runDetails.durationMs, 1200)
 })
@@ -40,7 +40,7 @@ test('keeps durable image attachment facts on the human message without exposing
   assert.doesNotMatch(JSON.stringify(result.messages[0]), /base64|previewUrl|data:/)
 })
 
-test('projects successful tool calls into readable activity and changed files', () => {
+test('keeps a successful mutation tool unconfirmed when Harness provides no diff presenter', () => {
   const page = { events: [
     { event: { seq: 1, time: 1000, type: 'tool/call', data: { callId: 'c1', name: 'write', arguments: '{"file_path":"C:\\\\work\\\\README.md","content":"hi"}' } } },
     { event: { seq: 2, time: 1300, type: 'tool/result', data: { message: { source: { callId: 'c1' }, content: [] } } }, view: { title: '文件已写入' } },
@@ -48,7 +48,8 @@ test('projects successful tool calls into readable activity and changed files', 
     { event: { seq: 4, time: 1500, type: 'tool/result', data: { message: { source: { callId: 'c2' }, content: [] } } } }
   ] }
   const result = projectConversation(page)
-  assert.deepEqual(result.runDetails.changedFiles, [{ path: 'C:\\work\\README.md', operation: '写入', seq: 2 }])
+  assert.deepEqual(result.runDetails.changedFiles, [])
+  assert.deepEqual(result.runDetails.unconfirmedChanges, [{ path: 'C:\\work\\README.md', operation: '写入', seq: 2, confirmed: false }])
   assert.equal(result.runDetails.activities[0].state, 'done')
   assert.equal(result.runDetails.activities[1].label, '读取项目配置')
   assert.equal(result.evidence.length, 4)
@@ -64,13 +65,28 @@ test('does not claim a file changed when its tool result failed', () => {
   assert.deepEqual(result.runDetails.changedFiles, [])
 })
 
-test('shows only the latest effective file permission while preserving both raw snapshots', () => {
+test('does not promote permission-like runtime text into a permission fact', () => {
   const result = projectConversation({ events: [
     { event: { seq: 1, type: 'user/message', data: { content: [{ type: 'text', text: 'Current DSH file policy: read-only.' }], source: { kind: 'plugin', plugin: 'sandbox-policy' } } } },
     { event: { seq: 2, type: 'user/message', data: { content: [{ type: 'text', text: 'Current DSH file policy: workspace-write.' }], source: { kind: 'plugin', plugin: 'sandbox-policy' } } } }
   ] })
-  assert.deepEqual(result.runDetails.permissionFacts.map((item) => item.label), ['文件权限：仅工作区可写'])
+  assert.deepEqual(result.runDetails.permissionFacts, [])
   assert.equal(result.runDetails.runtimeContext.length, 2)
+  assert.equal(result.runDetails.runtimeContext.every((item) => item.kind === 'context'), true)
+})
+
+test('projects only structured Harness permission events', () => {
+  const result = projectConversation({ events: [
+    { event: { seq: 1, type: 'turn/start', data: { turn: 1 } } },
+    { event: { seq: 2, type: 'permission/preset', data: { preset: 'full-access' } } },
+    { event: { seq: 3, type: 'sandbox/mode', data: { mode: 'danger-full-access' } } },
+    { event: { seq: 4, type: 'approval/policy', data: { policy: 'never' } } }
+  ] })
+  assert.deepEqual(result.runDetails.permissionFacts, [
+    { key: 'permission-preset', label: '权限预设：full-access', detail: '来自 Harness 结构化事件。', seq: 2 },
+    { key: 'sandbox-mode', label: '文件沙箱：danger-full-access', detail: '来自 Harness 结构化事件。', seq: 3 },
+    { key: 'approval-policy', label: '操作审批：never', detail: '来自 Harness 结构化事件。', seq: 4 }
+  ])
 })
 
 test('uses the official wrapped presenter view for human labels', () => {
@@ -97,6 +113,7 @@ test('trusts a successful official diff presenter when listing changed files', (
   ] })
   assert.equal(result.runDetails.activities[0].kind, 'file-change')
   assert.deepEqual(result.runDetails.changedFiles.map((item) => item.path), ['a.md', 'b.md'])
+  assert.equal(result.runDetails.changedFiles.every((item) => item.confirmed === true), true)
 })
 
 test('translates terminal presenter status without exposing raw command output in the summary', () => {

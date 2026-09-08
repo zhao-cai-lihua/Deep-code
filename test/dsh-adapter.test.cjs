@@ -183,9 +183,13 @@ test('projects the effective Session model without guessing token or cost data',
   const adapter = new DshAdapter({ fetchImpl: async (url) => {
     const method = url.split('/api/')[1]
     const value = ({
-      'session.history': { events: [{ event: { type: 'request/header', data: { header: { config: {
-        provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'high'
-      } } } } }], hasMore: false },
+      'session.history': { events: [
+        { event: { type: 'turn/start', seq: 1, data: { turn: 1 } } },
+        { event: { type: 'request/header', seq: 2, data: { header: { config: {
+          provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'high'
+        } } } } },
+        { event: { type: 'turn/end', seq: 3, data: { turn: 1, reason: { kind: 'completed' } } } }
+      ], hasMore: false },
       'session.list': { items: [{ sessionId: 's-model', running: false }] },
       'session.models': {
         current: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
@@ -195,7 +199,10 @@ test('projects the effective Session model without guessing token or cost data',
     return { ok: true, json: async () => ({ result: { ok: true, value } }) }
   } })
 
-  const snapshot = await adapter.snapshot({ baseUrl: 'http://127.0.0.1:4321', sessionId: 's-model' })
+  const snapshot = await adapter.snapshot({
+    baseUrl: 'http://127.0.0.1:4321', sessionId: 's-model',
+    engine: { kind: 'managed', version: '0.1.1-rc.2', trust: 'managed-process' }
+  })
 
   assert.deepEqual(snapshot.model, {
     available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoningEffort: ''
@@ -205,6 +212,8 @@ test('projects the effective Session model without guessing token or cost data',
     available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash',
     reasoningEffort: 'high', evidence: 'request/header'
   })
+  assert.equal(snapshot.taskRunSnapshot.turn.state, 'completed')
+  assert.equal(snapshot.taskRunSnapshot.route.seq, 2)
 })
 
 function rpcFetch(responses) {

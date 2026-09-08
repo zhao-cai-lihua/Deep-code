@@ -194,7 +194,7 @@ test('terminal tasks expose one projected next-action panel with real controls',
 test('a running task exposes a stop control beside the composer', () => {
   assert.match(html, /id="composer-stop"/)
   assert.match(shell, /composerStopButton\.addEventListener\('click', stopActiveTask\)/)
-  assert.match(shell, /composerStopButton\.classList\.toggle\('hidden', thread\.engineState !== 'running'\)/)
+  assert.match(shell, /composerStopButton\.classList\.toggle\('hidden', !\['queued', 'running'\]\.includes\(thread\.engineState\)\)/)
 })
 
 test('conversation separates the final answer from collapsible run evidence', () => {
@@ -245,6 +245,15 @@ test('each task owns its disclosure state and task switches close shared dialogs
 test('Engine startup explains that only model tasks consume model tokens', () => {
   assert.match(html, /启动只会运行本机 Engine，不会调用模型，也不消耗模型 token/)
   assert.match(html, /发送任务或创建真实验证任务才会调用模型/)
+})
+
+test('shared Engine trust requires an explicit in-app confirmation or managed fallback', () => {
+  assert.match(html, /id="confirm-shared-engine"/)
+  assert.match(html, /id="start-managed-engine"/)
+  assert.match(preload, /host:confirm-shared/)
+  assert.match(preload, /host:start-managed/)
+  assert.match(main, /supervisor\.confirmShared\(\)/)
+  assert.match(shell, /无法进行密码学身份认证/)
 })
 
 test('completed tasks show a compact human result in the fixed sidebar with evidence in trace', () => {
@@ -320,18 +329,17 @@ test('image drafts stay task-scoped and send only through the desktop host', () 
   assert.doesNotMatch(shell, /FileReader|arrayBuffer\(|readAsDataURL/)
 })
 
-test('ecosystem discovery stays opt-in and gates real installation behind static checks and confirmation', () => {
+test('ecosystem discovery stays opt-in and exposes no executable installation path', () => {
   assert.match(html, /id="page-ecosystem"/)
   assert.match(html, /id="ecosystem-enabled"/)
   assert.match(html, /热度不是信任评分/)
   assert.match(preload, /ecosystem:set-enabled/)
-  assert.match(preload, /ecosystem:prepare-install/)
-  assert.match(preload, /ecosystem:install/)
+  assert.doesNotMatch(preload, /ecosystem:prepare-install|ecosystem:install/)
   assert.match(main, /EcosystemCatalog/)
   assert.match(shell, /查看上游源代码/)
-  assert.match(shell, /检查并安装/)
-  assert.match(shell, /window\.confirm/)
-  assert.doesNotMatch(html + shell, /一键安装|自动安装插件/)
+  assert.match(shell, /安装暂时暂停/)
+  assert.doesNotMatch(main, /ipcMain\.handle\('ecosystem:(?:prepare-install|install)'/)
+  assert.doesNotMatch(html + shell, /一键安装|自动安装插件|检查并安装/)
 })
 
 test('projects and Skills have a read-only control center backed by Harness truth', () => {

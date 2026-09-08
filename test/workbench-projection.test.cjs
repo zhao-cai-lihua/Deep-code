@@ -2,11 +2,13 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { reconcileOfflineWorkbench, retryDisposition } = require('../src/workbench-projection.cjs')
 
-test('an offline app never presents a stale task as still running', () => {
-  const snapshot = { activeThreadId: 't1', threads: [{ id: 't1', engineState: 'running', engineError: '' }] }
-  const result = reconcileOfflineWorkbench(snapshot)
-  assert.equal(result.threads[0].engineState, 'error')
-  assert.match(result.threads[0].engineError, /不会在背后继续运行/)
+test('an offline app never presents a stale admitted or running task as stopped', () => {
+  for (const state of ['queued', 'running']) {
+    const snapshot = { activeThreadId: 't1', threads: [{ id: 't1', engineState: state, engineError: '' }] }
+    const result = reconcileOfflineWorkbench(snapshot)
+    assert.equal(result.threads[0].engineState, 'unknown')
+    assert.match(result.threads[0].engineError, /无法确认 Harness 是否仍在执行/)
+  }
 })
 
 test('offline reconciliation leaves completed and draft tasks unchanged', () => {

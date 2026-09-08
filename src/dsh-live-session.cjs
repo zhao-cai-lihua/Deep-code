@@ -112,6 +112,14 @@ function normalizeInteraction(rpcId, frame) {
   return null
 }
 
+function isSessionScopedFrame(frame) {
+  return [
+    'approval/requested', 'approval/resolved',
+    'question/requested', 'question/resolved',
+    'session/subscribed', 'session/queue', 'session/event'
+  ].includes(frame?.type)
+}
+
 function validateQuestionAnswers(interaction, answers) {
   if (!Array.isArray(answers)) throw new Error('请先回答 Engine 的问题。')
   const submitted = new Map(answers.map((answer) => [String(answer?.id || ''), answer]))
@@ -165,6 +173,7 @@ class DshLiveSession {
     this.activities = []
     this.draft = null
     this.queue = queueSummary([])
+    this.droppedSessionFrameCount = 0
   }
 
   clearInteractionTimer() {
@@ -256,7 +265,10 @@ class DshLiveSession {
     try { envelope = JSON.parse(typeof raw === 'string' ? raw : String(raw)) } catch { return }
     if (envelope?.type !== 'server-request' || typeof envelope.rpcId !== 'string') return
     const frame = envelope.payload || {}
-    if (frame.sessionId && frame.sessionId !== this.sessionId) return
+    if (isSessionScopedFrame(frame) && (typeof frame.sessionId !== 'string' || frame.sessionId !== this.sessionId)) {
+      this.droppedSessionFrameCount += 1
+      return
+    }
     if (frame.type === 'approval/requested' || frame.type === 'question/requested') {
       const interaction = normalizeInteraction(envelope.rpcId, frame)
       if (interaction) {
@@ -321,7 +333,15 @@ class DshLiveSession {
   snapshot() {
     const interactions = [...this.pending.values()].map((item) => item.public)
       .sort((a, b) => Number(b.kind === 'question' || b.kind === 'plan-review') - Number(a.kind === 'question' || a.kind === 'plan-review'))
-    return copy({ status: this.status, error: this.error, activities: this.activities, interactions, draft: this.draft, queue: this.queue })
+    return copy({
+      status: this.status,
+      error: this.error,
+      activities: this.activities,
+      interactions,
+      draft: this.draft,
+      queue: this.queue,
+      droppedSessionFrameCount: this.droppedSessionFrameCount
+    })
   }
 
   reconcileRunning(running) {
@@ -405,5 +425,6 @@ module.exports = {
   localMuxUrl,
   normalizeInteraction,
   queueSummary,
-  validateQuestionAnswers
+  validateQuestionAnswers,
+  isSessionScopedFrame
 }

@@ -1,13 +1,13 @@
 # Deep Code current handoff
 
-Updated: 2026-09-06
-Branch: `codex/release-line-endings`
-Current packaged release candidate: `0.6.1-rc.3`
-Current source version: `0.6.2` (published; rc.3 product behavior unchanged)
+Updated: 2026-09-08
+Branch: `codex/v0.6.3-evidence-safety`
+Current packaged release candidate: `0.6.3-rc.1` (local test artifact; not yet published)
+Current source version: `0.6.3-rc.1`
 
 ## Release delivery
 
-- v0.6.2 published as a non-draft, non-prerelease on 2026-09-06: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.2
+- v0.6.2 remains reproducible at https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.2, but on 2026-09-08 it was marked **prerelease/test-only** and given a safety warning. Its tag and assets were not deleted or rewritten.
 - Tag source: `889a57981d7478f24f9e52a02b63eb6625bd8a98`; PRs #4 and #5 merged. Runtime `src/` is unchanged from accepted rc.3.
 - Clean Windows release run `34036307913`: 197 tests passed, Setup and portable built and published. Both asset URLs resolve. No new real-provider calls were made during release preparation.
 - `Deep.code.Setup.0.6.2.exe`: 100,779,810 bytes; GitHub SHA-256 `12b4163f0d547395e7169a9ea8e6bf84f3b430ffeb6b621f936f6e8206d6045e`.
@@ -15,6 +15,24 @@ Current source version: `0.6.2` (published; rc.3 product behavior unchanged)
 - Checksums above are GitHub asset digests, not a claimed local download verification. Packaged rc.3 was manually accepted; published v0.6.2 was not separately installed over the user's application. No commercial signing certificate is configured.
 - The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
 - `docs/FEI_REVIEW_PACKET_2026-09-06.md` is the bounded external review entry for v0.6.2. It points to the fixed release commit, trust boundaries, high-risk files, reproducible commands, known debt, and evidence requirements without copying private conversations or duplicating the whole repository into Markdown.
+
+## v0.6.3-rc.1 safety candidate
+
+This candidate implements the security and evidence plan without adding a second Agent Loop:
+
+- Engine admission is represented by one managed/shared trust state. Managed Harness uses `--no-open --port 0`, must be the child process Deep Code owns, and becomes ready only after the pinned checkout and `host.describe` agree on version and normalized working directory. A compatible Harness already listening on 3080 remains `awaiting-user`; it cannot receive prompts or credentials until explicitly confirmed. Confirmation repeats both checkout and host checks so a changed `baseUrl + version + cwd + HEAD` cannot reuse an older decision.
+- The compatible runtime allowlist currently contains only tag `dsh-v0.1.1-rc.2`, version `0.1.1-rc.2`, and Git SHA `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`. Local inspection of that exact upstream checkout confirmed the `host.describe` schema and CLI `--port 0` support. `0.1.2-rc.1` remains unapproved.
+- Managed child processes receive only a small runtime/proxy environment allowlist. Unknown names containing Key, Token, Secret, Password, or Credential, `NODE_OPTIONS`, and unrelated application/cloud credentials are excluded; values are never diagnosed.
+- Automatic runtime preparation clones the exact official tag into a revision-named directory and verifies repository identity, package identity, version, and exact HEAD both before executing repository scripts and after the build.
+- Ecosystem discovery remains opt-in and read-only. Product Renderer, Preload, and Main expose no executable installation IPC; popularity is never treated as plugin compatibility.
+- Memory IDs and resolved paths are revalidated on read/migration. Folder location is status truth, malformed or duplicate records are quarantined, reviewed state moves atomically, and high-confidence secret material is refused without echoing it. Memory remains outside Agent prompts.
+- Local tasks use immutable numbered snapshots, retain the three latest schema-valid generations, migrate the legacy file without deleting it, and fall back from a corrupt newest generation. A stale crash `.tmp` cannot block future writes. A second Electron instance only focuses the first writer.
+- `TaskRunSnapshot` is the sole task evidence projection. Admission means accepted/queued only; current-turn `turn/start`/matching `turn/end` decide lifecycle; the last in-window `request/header` decides model route; only structured permission events become permission facts; official diff presenter or independent same-worktree baseline evidence is required for confirmed file changes.
+- The pinned Harness version returns `{ accepted: true }` from `session.prompt` and does not provide a `messageId`. Deep Code therefore records an accepted timestamp without inventing an ID; this proves admission, never completion.
+- Session-scoped mux frames without the exact non-empty Session ID are dropped and counted anonymously. A terminal state is never inferred from idle/ready state, old model headers do not cross into a newer Turn, and permission-like text remains ordinary runtime context.
+- Running tasks use stop-and-delete: cancel first, wait up to ten seconds for a same-task terminal snapshot, and keep the record with recovery guidance when stop is unconfirmed. Renderer refresh responses are gated by generation, visible task ID, and Session ID.
+
+The local uncompressed test portable is `dist/Deep-code-Test-0.6.3-rc.1.exe`, 368,757,164 bytes, SHA-256 `f89cc1bc5548ad4ed4a653606391452a688edbdc6543a16fb8ce3424b12de812`. It was rebuilt after the final source changes. An isolated-profile GUI smoke was attempted but the host policy rejected the command because it included terminating the spawned test process; no process was launched. Do not record this as a passed startup smoke.
 
 ## Product truth
 
@@ -44,7 +62,12 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: 197 passed, 0 failed for v0.6.2, including LF and CRLF removal-handler contracts. The unmodified contract failed under CRLF in a focused local reproduction, matching the v0.6.1 Windows release job (196 passed, 1 failed). Only the test extraction was faulty; no runtime change was needed. PR and main-branch Windows tests now run before release.
+- `npm test`: **243 passed, 0 failed** for the current v0.6.3-rc.1 source on 2026-09-08. This includes behavior tests for Engine trust and mismatch rejection, child environment sanitization, fixed runtime installation, Memory quarantine/secret/atomic transitions, immutable task-store fallback, Session frame filtering, same-Turn evidence, stop-and-delete, and task-refresh races.
+- `npm run package:test:win`: passed and produced the local portable artifact recorded above. This verifies packaging, not interactive startup or any provider call.
+- `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
+- `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
+- Release workflow now requires the Git tag to equal `v` plus the package version, marks hyphenated versions such as `-rc.1` as prerelease, and publishes a generated `SHA256SUMS.txt` beside installer and portable assets.
+- Historical v0.6.2 baseline: 197 tests passed, including LF and CRLF removal-handler contracts. The unmodified contract failed under CRLF in a focused local reproduction, matching the v0.6.1 Windows release job (196 passed, 1 failed). Only the test extraction was faulty; no runtime change was needed.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -82,16 +105,27 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Code health
 
 - The execution boundary is reasonably clean: DSH Adapter, task outcome, work-receipt policy, model-service projection, task guidance, stores, and live-session handling are separate CommonJS modules with focused tests.
-- The regression suite is fast and broad, and `pnpm audit --prod --audit-level high` currently reports no known production dependency vulnerabilities.
-- The Renderer orchestration file is not clean enough for long-term growth: `src/renderer/shell.js` is about 2,304 lines and owns too many unrelated dialogs, pages, renderers, and event handlers. The first post-rc extraction moved Provider provisioning confirmation into `provider-provisioning-flow.cjs`; this improves ownership and testing but intentionally does not chase a smaller total line count. `src/main.cjs` is about 851 lines and should also continue losing domain logic to tested modules.
-- Do not perform a broad refactor during v0.6.1 release hardening. After release, extract Model Services UI state and task conversation rendering first, preserving the existing IPC and Harness authority seams.
+- The regression suite is fast and broad, and the current production dependency audit reports no known vulnerabilities.
+- The Renderer orchestration file remains too broad: `src/renderer/shell.js` is about 2,316 lines and owns unrelated dialogs, pages, renderers, and event handlers. `src/main.cjs` is about 956 lines. New high-risk semantics were extracted into tested modules (`engine-trust`, `task-run-snapshot`, `task-lifecycle`, `workbench-refresh-gate`, `single-instance`, and baseline projection) instead of being added as more ad-hoc Renderer state.
+- Do not perform a broad refactor before v0.6.3 acceptance. After stable release, extract Model Services UI state and task conversation rendering while preserving IPC and Harness authority seams.
 
 ## Next bounded work
 
-1. Release delivery is complete. Next: extract Model Services UI state behind a focused Renderer module, preserving displayed states, IPC, and Harness routing. Do not expand model routing or provider inference during this refactor.
-2. Add no retroactive receipt for pre-beta.17 verification tasks: they did not persist the structured requested route, so title or prompt inference would create false evidence.
-3. Keep automatic memory extraction, automatic memory injection, automatic model routing, and companion-card prompt injection out of scope until the core task loop is stable.
-4. Do not repeat rc.3 acceptance for the unchanged product behavior. Future manual checks should target only new user-visible changes or a specifically reproduced regression.
+1. Open the local v0.6.3-rc.1 test portable and complete only the new safety acceptance matrix: managed Engine identity/version, hostile or unrelated 3080 refusal, real shared Harness confirmation/cancel behavior, read-only ecosystem discovery, preservation of existing tasks/workspaces, and second-instance focus.
+2. If those pass, commit and push this branch, publish `v0.6.3-rc.1` as a GitHub prerelease, and verify the workflow-generated installer, portable app, and checksum file. Do not tag or publish `v0.6.3` stable yet.
+3. After RC acceptance, publish v0.6.3 stable without broad UI or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
+4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
+
+## Human acceptance still required for v0.6.3-rc.1
+
+1. Managed Engine shows that Deep Code started it and reports exact Harness version `0.1.1-rc.2`.
+2. An unrelated 2xx service on 3080 is not adopted. A real compatible shared Harness produces the explicit risk gate; cancel blocks use, confirmation enables it.
+3. Ecosystem projects remain browsable but have no executable install path.
+4. Existing workspaces and local tasks survive the upgrade.
+5. Starting installer and portable simultaneously leaves one writer and focuses the existing window.
+6. One ordinary low-cost task visibly progresses from accepted/queued through running to the real Harness terminal state. A read-only task must not claim file changes.
+7. Rapidly switch between two tasks while one refresh is delayed; the old task must not overwrite or receive a message intended for the visible task.
+8. Stop-and-delete a running low-cost task. Delete occurs only after a terminal event; if confirmation is absent, the task and recovery guidance remain.
 
 ## Known uncertainty
 

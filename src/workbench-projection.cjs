@@ -1,8 +1,8 @@
 function reconcileOfflineWorkbench(snapshot) {
   const thread = snapshot?.threads?.find((item) => item.id === snapshot.activeThreadId)
-  if (thread?.engineState === 'running') {
-    thread.engineState = 'error'
-    thread.engineError = 'Deep code 已重新启动，但这项任务没有活动的 Engine 连接。任务不会在背后继续运行；启动 Engine 后可以安全重试。'
+  if (thread && ['queued', 'running'].includes(thread.engineState)) {
+    thread.engineState = 'unknown'
+    thread.engineError = 'Deep code 当前无法确认 Harness 是否仍在执行。为避免丢失控制信息，暂不删除这条任务记录。重新连接 Engine 后再核对状态。'
   }
   return snapshot
 }

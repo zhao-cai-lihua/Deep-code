@@ -1,6 +1,6 @@
 const { randomUUID } = require('node:crypto')
-const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs')
-const { dirname } = require('node:path')
+const { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } = require('node:fs')
+const { basename, dirname, extname, join } = require('node:path')
 
 const MAX_TITLE = 120
 const MAX_PROMPT = 12000
@@ -25,7 +25,23 @@ function titleFromPrompt(prompt) {
 }
 
 function defaultState() {
-  return { version: 4, threads: [], activeThreadId: '' }
+  return { version: 5, threads: [], activeThreadId: '' }
+}
+
+function validateState(raw) {
+  if (![1, 2, 3, 4, 5].includes(raw?.version) || !Array.isArray(raw.threads)) throw new Error('版本或列表格式不兼容')
+  return { version: 5, threads: raw.threads.map(validateThread), activeThreadId: typeof raw.activeThreadId === 'string' ? raw.activeThreadId : '' }
+}
+
+function validateAdmission(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const messageId = typeof raw.messageId === 'string' ? raw.messageId.slice(0, 240) : ''
+  if (raw.accepted !== true && !messageId) return null
+  return {
+    accepted: true,
+    ...(messageId ? { messageId } : {}),
+    acceptedAt: typeof raw.acceptedAt === 'string' ? raw.acceptedAt.slice(0, 80) : ''
+  }
 }
 
 function validateRoute(raw) {
@@ -106,8 +122,10 @@ function validateThread(raw) {
     prompt,
     workspacePath: typeof raw.workspacePath === 'string' ? raw.workspacePath.slice(0, 2048) : '',
     baseline: validateBaseline(raw.baseline),
+    completionBaseline: validateBaseline(raw.completionBaseline),
     sessionId: typeof raw.sessionId === 'string' ? raw.sessionId : '',
-    engineState: ['draft', 'running', 'ready', 'error'].includes(raw.engineState) ? raw.engineState : 'draft',
+    admission: validateAdmission(raw.admission),
+    engineState: ['draft', 'queued', 'running', 'ready', 'unknown', 'error'].includes(raw.engineState) ? raw.engineState : 'draft',
     engineError: typeof raw.engineError === 'string' ? raw.engineError.slice(0, 1200) : '',
     engineNotice: typeof raw.engineNotice === 'string' ? raw.engineNotice.slice(0, 1200) : '',
     recovery: validateRecovery(raw.recovery),
@@ -121,23 +139,68 @@ function validateThread(raw) {
 class WorkbenchStore {
   constructor(storagePath) {
     this.storagePath = storagePath
+    this.lastRecovery = null
+  }
+
+  generationEntries() {
+    const directory = dirname(this.storagePath)
+    if (!existsSync(directory)) return []
+    const stem = basename(this.storagePath, extname(this.storagePath)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const pattern = new RegExp(`^${stem}\\.(\\d{8})\\.json$`)
+    return readdirSync(directory).map((name) => {
+      const match = name.match(pattern)
+      return match ? { name, sequence: Number(match[1]), path: join(directory, name) } : null
+    }).filter(Boolean).sort((a, b) => b.sequence - a.sequence)
   }
 
   load() {
-    if (!existsSync(this.storagePath)) return defaultState()
-    try {
-      const raw = JSON.parse(readFileSync(this.storagePath, 'utf8'))
-      if (![1, 2, 3, 4].includes(raw?.version) || !Array.isArray(raw.threads)) throw new Error('版本或列表格式不兼容')
-      const threads = raw.threads.map(validateThread)
-      return { version: 4, threads, activeThreadId: typeof raw.activeThreadId === 'string' ? raw.activeThreadId : '' }
-    } catch (error) {
-      throw new Error(`无法读取本地任务库：${error.message}`)
+    this.lastRecovery = null
+    const generations = this.generationEntries()
+    for (let index = 0; index < generations.length; index += 1) {
+      try {
+        const state = validateState(JSON.parse(readFileSync(generations[index].path, 'utf8')))
+        if (index > 0) this.lastRecovery = { kind: 'generation-fallback', message: `最新任务记录不完整，已恢复到本地版本 ${generations[index].sequence}。` }
+        return state
+      } catch { /* Try the previous immutable generation. */ }
     }
+    if (existsSync(this.storagePath)) {
+      try {
+        const state = validateState(JSON.parse(readFileSync(this.storagePath, 'utf8')))
+        this.persist(state)
+        this.lastRecovery = { kind: 'legacy-migrated', message: '旧任务记录已安全迁移为可恢复版本，原文件仍保留。' }
+        return state
+      } catch (error) {
+        throw new Error(`无法读取本地任务库：${error.message}`)
+      }
+    }
+    if (generations.length) throw new Error('无法读取本地任务库：所有可恢复版本都已损坏。')
+    return defaultState()
   }
 
   persist(state) {
-    mkdirSync(dirname(this.storagePath), { recursive: true })
-    writeFileSync(this.storagePath, JSON.stringify(state, null, 2), 'utf8')
+    const directory = dirname(this.storagePath)
+    mkdirSync(directory, { recursive: true })
+    const stem = basename(this.storagePath, extname(this.storagePath))
+    const reservedPattern = new RegExp(`^${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\d{8})\\.json(?:\\.tmp)?$`)
+    const highestReserved = readdirSync(directory).reduce((highest, name) => {
+      const match = name.match(reservedPattern)
+      return match ? Math.max(highest, Number(match[1])) : highest
+    }, 0)
+    const nextSequence = highestReserved + 1
+    const finalPath = join(directory, `${stem}.${String(nextSequence).padStart(8, '0')}.json`)
+    const temporaryPath = `${finalPath}.tmp`
+    const descriptor = openSync(temporaryPath, 'wx')
+    try {
+      writeFileSync(descriptor, JSON.stringify(validateState(state), null, 2), 'utf8')
+      fsyncSync(descriptor)
+    } finally { closeSync(descriptor) }
+    renameSync(temporaryPath, finalPath)
+    validateState(JSON.parse(readFileSync(finalPath, 'utf8')))
+    const valid = []
+    for (const entry of this.generationEntries()) {
+      try { validateState(JSON.parse(readFileSync(entry.path, 'utf8'))); valid.push(entry) } catch { /* Corrupt evidence is retained. */ }
+    }
+    for (const entry of valid.slice(3)) unlinkSync(entry.path)
   }
 
   snapshot() {
@@ -148,7 +211,7 @@ class WorkbenchStore {
       : threads.some((thread) => thread.id === state.activeThreadId)
         ? state.activeThreadId
         : (threads[0]?.id || '')
-    return copy({ threads, activeThreadId })
+    return copy({ threads, activeThreadId, ...(this.lastRecovery ? { storageRecovery: this.lastRecovery } : {}) })
   }
 
   create({ title, prompt, hasAttachments = false, purpose = null }) {
@@ -160,7 +223,9 @@ class WorkbenchStore {
       prompt: body,
       workspacePath: '',
       baseline: null,
+      completionBaseline: null,
       sessionId: '',
+      admission: null,
       engineState: 'draft',
       engineError: '',
       engineNotice: '',
@@ -171,7 +236,7 @@ class WorkbenchStore {
       updatedAt: now
     }
     const state = this.load()
-    this.persist({ version: 4, threads: [...state.threads, thread], activeThreadId: thread.id })
+    this.persist({ version: 5, threads: [...state.threads, thread], activeThreadId: thread.id })
     return copy(thread)
   }
 
@@ -187,7 +252,7 @@ class WorkbenchStore {
     const threads = state.threads.filter((thread) => thread.id !== id)
     if (threads.length === state.threads.length) throw new Error('找不到要删除的任务。')
     const activeThreadId = state.activeThreadId === id ? (threads[0]?.id || '') : state.activeThreadId
-    this.persist({ version: 4, threads, activeThreadId })
+    this.persist({ version: 5, threads, activeThreadId })
     return this.snapshot()
   }
 
@@ -201,14 +266,42 @@ class WorkbenchStore {
       return {
         ...thread,
         sessionId: sessionId === undefined ? thread.sessionId : String(sessionId || ''),
-        engineState: ['draft', 'running', 'ready', 'error'].includes(state) ? state : thread.engineState,
+        engineState: ['draft', 'queued', 'running', 'ready', 'unknown', 'error'].includes(state) ? state : thread.engineState,
         engineError: String(error || '').slice(0, 1200),
         engineNotice: notice === undefined ? thread.engineNotice : String(notice || '').slice(0, 1200),
         updatedAt: now
       }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 4, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    return this.snapshot()
+  }
+
+  setAdmission(id, admission) {
+    const current = this.load()
+    const normalized = validateAdmission(admission)
+    if (!normalized) throw new Error('Engine 接纳回执格式不完整。')
+    let found = false
+    const threads = current.threads.map((thread) => {
+      if (thread.id !== id) return thread
+      found = true
+      return { ...thread, admission: normalized, updatedAt: normalized.acceptedAt || thread.updatedAt }
+    })
+    if (!found) throw new Error('找不到要保存接纳回执的任务。')
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    return this.snapshot()
+  }
+
+  clearAdmission(id) {
+    const current = this.load()
+    let found = false
+    const threads = current.threads.map((thread) => {
+      if (thread.id !== id) return thread
+      found = true
+      return { ...thread, admission: null }
+    })
+    if (!found) throw new Error('找不到要清除接纳回执的任务。')
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -223,7 +316,7 @@ class WorkbenchStore {
       return { ...thread, recovery: normalized, updatedAt: normalized.occurredAt }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 4, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -236,7 +329,7 @@ class WorkbenchStore {
       return { ...thread, recovery: null }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 4, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -253,11 +346,27 @@ class WorkbenchStore {
         ...thread,
         workspacePath: normalizedPath,
         baseline: normalizedBaseline,
+        completionBaseline: null,
         updatedAt: normalizedBaseline.capturedAt || thread.updatedAt
       }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 4, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    return this.snapshot()
+  }
+
+  setCompletionBaseline(id, baseline) {
+    const current = this.load()
+    const normalized = validateBaseline(baseline)
+    if (!normalized) throw new Error('任务结束基线格式不完整。')
+    let found = false
+    const threads = current.threads.map((thread) => {
+      if (thread.id !== id) return thread
+      found = true
+      return { ...thread, completionBaseline: normalized }
+    })
+    if (!found) throw new Error('找不到要保存结束基线的任务。')
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -272,7 +381,7 @@ class WorkbenchStore {
       return { ...thread, verificationReceipt: normalized, updatedAt: normalized.recordedAt || thread.updatedAt }
     })
     if (!found) throw new Error('找不到要保存回执的任务。')
-    this.persist({ version: 4, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -285,7 +394,7 @@ class WorkbenchStore {
       return { ...thread, verificationReceipt: null }
     })
     if (!found) throw new Error('找不到要更新回执的任务。')
-    this.persist({ version: 4, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 }
