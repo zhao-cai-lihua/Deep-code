@@ -657,14 +657,16 @@ function renderModelConnection(snapshot) {
   const lines = []
   for (const provider of snapshot.activeProviders) {
     const credential = provider.credential
+    const verification = provider.verification
     const credentialText = !credential
       ? '凭据：此提供方未提供可检查的凭据状态'
       : credential.configured === true
-        ? '凭据：已保存，尚未验证（密钥内容不可见）'
+        ? '凭据：已保存（密钥内容不可见）'
         : credential.configured === false
           ? '凭据：尚未配置'
           : '凭据：状态未确认'
     lines.push(`${provider.name} · ${provider.modelCount} 个模型`, credentialText)
+    if (verification) lines.push(`真实验证：${verification.label}`, `  ${verification.detail}`)
     for (const model of provider.models) lines.push(`  • ${model.name}`)
   }
   if (!snapshot.activeProviders.length) lines.push('尚未发现已激活的模型提供方。')
@@ -727,7 +729,7 @@ function selectedCredentialProvider({ configuredOnly = false } = {}) {
 function updateCredentialProviderDescription() {
   const provider = selectedCredentialProvider()
   credentialProviderDescription.textContent = provider
-    ? `${provider.name} · ${provider.credential.ref} · ${provider.credential.configured ? '有已保存值，可替换；厂商归属尚未验证' : '尚未保存凭据'}`
+    ? `${provider.name} · ${provider.credential.ref} · ${provider.credential.configured ? '有已保存值，可替换；Deep code 不读取密钥内容' : '尚未保存凭据'}`
     : '当前没有 Harness 允许 Deep code 写入的简单 API Key。'
   removeModelProviderButton.disabled = !provider?.removable
 }

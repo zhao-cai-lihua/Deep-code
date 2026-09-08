@@ -21,7 +21,7 @@ const { chooseModelRoute } = require('./model-router.cjs')
 const { WorkspaceBaseline } = require('./workspace-baseline.cjs')
 const { MemoryCandidateStore } = require('./memory-candidate-store.cjs')
 const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retrieval.cjs')
-const { projectModelServices } = require('./model-service-projection.cjs')
+const { projectModelConnectionWithHistory, projectModelServices } = require('./model-service-projection.cjs')
 const { projectModelVerificationReceipt } = require('./model-verification-receipt.cjs')
 const { projectTaskGuidance } = require('./task-guidance-projection.cjs')
 const { acquireSingleInstance } = require('./single-instance.cjs')
@@ -322,6 +322,15 @@ async function modelConnectionSnapshot() {
   return dshAdapter.connectionSnapshot({ baseUrl: runtime.url })
 }
 
+function modelVerificationReceipts() {
+  if (!workbench) return []
+  return workbench.snapshot().threads.map((thread) => thread.verificationReceipt).filter(Boolean)
+}
+
+function modelConnectionWithHistory(connection) {
+  return projectModelConnectionWithHistory(connection, modelVerificationReceipts())
+}
+
 function runningEngine() {
   const runtime = supervisor.snapshot()
   if (runtime.state !== 'ready' || !runtime.url || !runtime.trust) {
@@ -449,10 +458,10 @@ ipcMain.handle('host:copy-text', (_event, value) => {
   clipboard.writeText(text)
   return { copied: true }
 })
-ipcMain.handle('host:model-connection', () => modelConnectionSnapshot())
+ipcMain.handle('host:model-connection', async () => modelConnectionWithHistory(await modelConnectionSnapshot()))
 ipcMain.handle('model-services:snapshot', async () => {
   const snapshot = workbench.snapshot()
-  const receipts = snapshot.threads.map((thread) => thread.verificationReceipt).filter(Boolean)
+  const receipts = modelVerificationReceipts()
   return projectModelServices(await modelConnectionSnapshot(), requestedModelRoutes.get(snapshot.activeThreadId) || null, receipts)
 })
 ipcMain.handle('host:add-model-provider', async (_event, input) => {
@@ -467,26 +476,26 @@ ipcMain.handle('host:add-model-provider', async (_event, input) => {
   if (!active || active.credential?.ref !== provisioned.credentialRef || active.credential?.configured !== true) {
     throw new Error(`Harness 没有用脱敏状态确认“${provisioned.name}”的 Profile 与凭据已经写入。请刷新状态后检查，不要改用其他 Provider 重试。`)
   }
-  return { provisioned, snapshot }
+  return { provisioned, snapshot: modelConnectionWithHistory(snapshot) }
 })
 ipcMain.handle('host:save-model-credential', async (_event, ref, value) => {
   const runtime = runningEngine()
   await writableProviderCredential(ref)
   await dshAdapter.saveCredential({ baseUrl: runtime.url, ref: String(ref || ''), value: String(value || '') })
-  return modelConnectionSnapshot()
+  return modelConnectionWithHistory(await modelConnectionSnapshot())
 })
 ipcMain.handle('host:clear-model-credential', async (_event, ref) => {
   const runtime = runningEngine()
   await writableProviderCredential(ref, { requireConfigured: true })
   await dshAdapter.clearCredential({ baseUrl: runtime.url, ref: String(ref || '') })
-  return modelConnectionSnapshot()
+  return modelConnectionWithHistory(await modelConnectionSnapshot())
 })
 ipcMain.handle('host:remove-model-provider', async (_event, provider) => {
   const runtime = runningEngine()
   const removed = await dshAdapter.removeCatalogProvider({ baseUrl: runtime.url, provider: String(provider || '') })
   const snapshot = await modelConnectionSnapshot()
   if (snapshot.activeProviders.some((item) => item.id === removed.provider)) throw new Error(`Harness 尚未确认“${removed.name}”已经退出可用服务。凭据已清除，请刷新后重试移除 Profile。`)
-  return { removed, snapshot }
+  return { removed, snapshot: modelConnectionWithHistory(snapshot) }
 })
 ipcMain.handle('host:inspect-runtime', (_event, selectedPath) => {
   const selected = String(selectedPath || settings.runtimePath || '')

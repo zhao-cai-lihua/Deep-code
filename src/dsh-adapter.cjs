@@ -57,7 +57,7 @@ function connectionCopy(state, { providerNames = [], modelCount = 0 } = {}) {
   return ({
     ready: {
       title: '模型服务已载入',
-      message: `${names} 已启用，共发现 ${modelCount} 个目录模型。凭据槽已有值时也尚未真实验证；请以该 Provider 的最近一次真实验证为准。`
+      message: `${names} 已启用，共发现 ${modelCount} 个目录模型。凭据槽已有值只证明已经保存；真实调用状态请以该 Provider 的最近一次真实验证为准。`
     },
     'needs-credential': {
       title: '还需要配置 API Key',

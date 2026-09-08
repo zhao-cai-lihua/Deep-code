@@ -50,8 +50,10 @@ test('model connection is presented as a normalized human-facing snapshot', () =
 })
 
 test('saved provider credentials are never presented as verified connectivity', () => {
-  assert.match(shell, /凭据：已保存，尚未验证/)
-  assert.match(shell, /有已保存值，可替换；厂商归属尚未验证/)
+  assert.match(shell, /凭据：已保存（密钥内容不可见）/)
+  assert.match(shell, /真实验证：\$\{verification\.label\}/)
+  assert.doesNotMatch(shell, /凭据：已保存，尚未验证/)
+  assert.match(shell, /有已保存值，可替换；Deep code 不读取密钥内容/)
   assert.match(providerFlow, /buttonLabel: `保存给 \$\{provider\.name\}`/)
   assert.doesNotMatch(shell, /凭据：已配置（密钥内容不可见）/)
 })
@@ -118,7 +120,10 @@ test('provider selection remains stable and success echoes the exact provisioned
   assert.match(shell, /providerChoice\.addEventListener\('change', resetProviderSaveConfirmation\)/)
   assert.doesNotMatch(shell, /providerChoice\.addEventListener\('change', renderProviderChoices\)/)
   assert.match(shell, /const previousProvider = providerChoice\.value[\s\S]*providerChoice\.value = previousProvider/)
-  assert.match(main, /const provisioned = await dshAdapter\.provisionCatalogProvider[\s\S]*return \{ provisioned, snapshot \}/)
+  assert.match(
+    main,
+    /const provisioned = await dshAdapter\.provisionCatalogProvider[\s\S]*return \{ provisioned, snapshot: modelConnectionWithHistory\(snapshot\) \}/
+  )
   assert.match(main, /active\.credential\?\.ref !== provisioned\.credentialRef/)
   assert.match(shell, /result\.provisioned\.name[\s\S]*result\.provisioned\.provider/)
   assert.match(shell, /providerProvisioningFlow\.request\(selected/)

@@ -260,7 +260,7 @@ test('reports a ready model connection without exposing credential values', asyn
   assert.deepEqual(snapshot.activeProviders[0].credential, { ref: 'DEEPSEEK_API_KEY', configured: true, source: 'file', writable: true })
   assert.deepEqual(snapshot.credentialManagement, { supported: true, writable: true, configured: true, providerCount: 1 })
   assert.match(snapshot.title, /模型服务已载入/)
-  assert.match(snapshot.message, /凭据槽已有值.*尚未真实验证/)
+  assert.match(snapshot.message, /凭据槽已有值只证明已经保存.*最近一次真实验证/)
   assert.doesNotMatch(`${snapshot.title}\n${snapshot.message}`, /模型已准备好|DeepSeek 已配置/)
   assert.doesNotMatch(JSON.stringify(snapshot), /sk-|secret|credentialValue/)
 })

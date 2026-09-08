@@ -180,11 +180,12 @@ test('turn failures preserve a safe human recovery without exposing credential f
   assert.deepEqual(result.runDetails.terminal.failure, {
     kind: 'authentication',
     title: '模型服务拒绝了 API Key',
-    detail: '当前模型服务认为保存的 API Key 无效、过期或不属于这个服务。',
-    nextAction: '打开“模型服务”，为当前 Provider 替换有效的 API Key，再重新验证。',
+    detail: '这一轮请求被模型服务拒绝了；当时使用的 API Key 可能无效、已过期或不属于这个服务。这只说明这次请求，不代表当前保存的凭据仍然失败。',
+    nextAction: '打开“模型服务”查看这个 Provider 最近一次真实验证；若没有更晚的通过记录，再替换 API Key 后重新验证。',
     code: 'AUTH',
     status: 401
   })
+  assert.doesNotMatch(result.runDetails.terminal.failure.detail, /当前模型服务认为/)
   assert.doesNotMatch(JSON.stringify(result), /mRsP|api key: \*\*\*\*/i)
 })
 
