@@ -2,12 +2,16 @@
 
 Updated: 2026-09-09
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.6` (publication pending; awaiting two bounded visual checks)
+Current packaged release candidate: `0.6.3-rc.6` (published prerelease; awaiting one zero-token draft-isolation check)
 Current source version: `0.6.3-rc.6`
 
 ## Release delivery
 
-- v0.6.3-rc.6 is the narrow acceptance correction after rc.5. It gives each task and the blank new-task surface an isolated in-memory composer draft, clears only the successfully submitted scope, and separates a yellow “stop still awaiting Harness confirmation” state from a terminally confirmed interruption. It does not change Engine, Provider, credential, model-route, Session, permission, or file-operation behavior.
+- v0.6.3-rc.6 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.6. Release workflow run `34357772354` completed successfully after 259 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.6.exe`: 100,565,188 bytes; GitHub SHA-256 `58a0fa73ad48b95f7008157ecf4936aef0a246a032a3ab59df0f750cde6fdfc8`.
+- `Deep.code.Setup.0.6.3-rc.6.exe`: 100,788,623 bytes; GitHub SHA-256 `d71360ed75b874ec7948d5bb3630890e88f9dd5edc4c157bfa709ccdfee18f47`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `3c6c59a5cf75afcd99642a0155b2ab299660863c27b0ce13ec96ab49b209279e`.
+- rc.6 is the narrow acceptance correction after rc.5. It gives each task and the blank new-task surface an isolated in-memory composer draft, clears only the successfully submitted scope, and separates a yellow “stop still awaiting Harness confirmation” state from a terminally confirmed interruption. It does not change Engine, Provider, credential, model-route, Session, permission, or file-operation behavior.
 - v0.6.3-rc.5 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.5. Release workflow run `34321559334` completed successfully after 251 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.5.exe`: 100,564,496 bytes; GitHub SHA-256 `17b21e20d26c02da9adf403038c8b90b21861665f4f4d6bfe90e138cda9b22b7`.
 - `Deep.code.Setup.0.6.3-rc.5.exe`: 100,787,900 bytes; GitHub SHA-256 `6fee638d3f5b889f6f58665a6b8376a31c3738f82c80f5ad0d122a342ba33e46`.
@@ -101,6 +105,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - GitHub Windows release run `34223988024`: passed 245 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and prerelease asset publication.
 - GitHub Windows release run `34230071185`: passed 246 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.4 prerelease asset publication.
 - GitHub Windows release run `34321559334`: passed 251 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.5 prerelease asset publication.
+- GitHub Windows release run `34357772354`: passed 259 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.6 prerelease asset publication.
 - `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
 - `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
 - Release workflow now requires the Git tag to equal `v` plus the package version, marks hyphenated versions such as `-rc.1` as prerelease, and publishes a generated `SHA256SUMS.txt` beside installer and portable assets.
@@ -148,15 +153,15 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Publish rc.6 and perform only the two bounded visual checks below. Neither needs a Provider validation call or API Key change.
+1. Perform only the zero-token draft-isolation check below. The timeout display may be observed naturally later and does not block immediate draft acceptance.
 2. The feature branch and earlier RC releases remain reproducible. Do not tag or publish `v0.6.3` stable until rc.6 passes those checks.
 3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI, Provider, or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
-## Human acceptance still required for v0.6.3-rc.6
+## Human acceptance for v0.6.3-rc.6
 
-1. Type an unsent sentence in Task A, switch to Task B, and confirm B does not show A's sentence. Type a different sentence in B and switch back; A should restore only A's sentence. No send or model call is needed.
-2. If an unanswered Decision Gate naturally reaches five minutes, the receipt must be yellow and say “停止仍待 Harness 确认” until terminal evidence arrives. After a confirmed interruption it may turn red and say “这一轮已停止”, but the old “尚未确认” sentence must disappear. Do not create a paid task only for this check.
+1. Immediate zero-token check: type an unsent sentence in Task A, switch to Task B, and confirm B does not show A's sentence. Type a different sentence in B and switch back; A should restore only A's sentence. No send or model call is needed.
+2. Non-blocking future observation: if an unanswered Decision Gate naturally reaches five minutes, the receipt must be yellow and say “停止仍待 Harness 确认” until terminal evidence arrives. After a confirmed interruption it may turn red and say “这一轮已停止”, but the old “尚未确认” sentence must disappear. Do not create a paid task only for this check.
 
 The stop-and-delete lifecycle does not need another dedicated manual reproduction for rc.6. Its same-Turn terminal deletion, wrong-Turn refusal, ten-second unconfirmed retention, and cancel-rejection paths remain covered by behavior tests and were not changed.
 
