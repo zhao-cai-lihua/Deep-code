@@ -2,12 +2,16 @@
 
 Updated: 2026-09-09
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.5` (publication pending; awaiting bounded acceptance)
+Current packaged release candidate: `0.6.3-rc.5` (published prerelease; awaiting bounded acceptance)
 Current source version: `0.6.3-rc.5`
 
 ## Release delivery
 
-- v0.6.3-rc.5 closes four final evidence and interaction races found by a cumulative `v0.6.2...rc.4` Spec/Standards review: exact prompt-admission correlation, direct task-selection refresh ordering, a second send-target check immediately before `session.prompt`, and truthful timeout cancellation wording. It does not change Provider credentials, model routing, Harness permissions, or execution authority.
+- v0.6.3-rc.5 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.5. Release workflow run `34321559334` completed successfully after 251 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.5.exe`: 100,564,496 bytes; GitHub SHA-256 `17b21e20d26c02da9adf403038c8b90b21861665f4f4d6bfe90e138cda9b22b7`.
+- `Deep.code.Setup.0.6.3-rc.5.exe`: 100,787,900 bytes; GitHub SHA-256 `6fee638d3f5b889f6f58665a6b8376a31c3738f82c80f5ad0d122a342ba33e46`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `b457a3a8a64685d05d01fcd42314f1f478fa84dcf1726fac5c8bbede1987c47a`.
+- rc.5 closes four final evidence and interaction races found by a cumulative `v0.6.2...rc.4` Spec/Standards review: exact prompt-admission correlation, direct task-selection refresh ordering, a second send-target check immediately before `session.prompt`, and truthful timeout cancellation wording. It does not change Provider credentials, model routing, Harness permissions, or execution authority.
 - v0.6.3-rc.4 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.4. Release workflow run `34230071185` completed successfully after 246 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.4.exe`: 100,563,534 bytes; GitHub SHA-256 `da5faebc2f8e5c4046e82d903d014df5510c7a494af0b475853452633e935146`.
 - `Deep.code.Setup.0.6.3-rc.4.exe`: 100,786,939 bytes; GitHub SHA-256 `3d6daf6ae69780942ba673bb7af6d02add8f97404f38443f507759a00ba3ede8`.
@@ -92,6 +96,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - `npm run package:test:win` passed for rc.5 and produced `dist/Deep-code-Test-0.6.3-rc.5.exe`, 368,766,528 bytes, SHA-256 `020fc87f7d10b33f667b30c0c4c60ff2a3ebd8e077b233e691c893876ec3702c`. Packaged `app.asar` inspection found the new admission, refresh, target, and timeout-projection modules. No user process was stopped. This does not substitute for final UI acceptance or a Provider call.
 - GitHub Windows release run `34223988024`: passed 245 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and prerelease asset publication.
 - GitHub Windows release run `34230071185`: passed 246 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.4 prerelease asset publication.
+- GitHub Windows release run `34321559334`: passed 251 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.5 prerelease asset publication.
 - `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
 - `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
 - Release workflow now requires the Git tag to equal `v` plus the package version, marks hyphenated versions such as `-rc.1` as prerelease, and publishes a generated `SHA256SUMS.txt` beside installer and portable assets.
@@ -139,7 +144,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Publish v0.6.3-rc.5 as a prerelease and perform only the bounded human checks below. Do not re-enter a Key or spend tokens merely to recheck already accepted Provider rendering.
+1. Perform only the bounded rc.5 human checks below. Do not re-enter a Key or spend tokens merely to recheck already accepted Provider rendering.
 2. The feature branch and earlier RC releases remain reproducible. Do not tag or publish `v0.6.3` stable until rc.5 and the remaining user-visible safety matrix are accepted.
 3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI, Provider, or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
