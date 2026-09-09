@@ -41,6 +41,41 @@ test('distinguishes admitted, running, terminal, and unknown states', () => {
   assert.equal(projectTaskRunSnapshot({ sessionId: 's', engine, page: { events: [] } }).turn.state, 'unknown')
 })
 
+test('a newly admitted rpcId cannot inherit an older completed turn', () => {
+  const oldEvents = [
+    entry(1, 'turn/start', { turn: 1 }),
+    { event: { seq: 2, type: 'user/message', data: { message: { source: { kind: 'user', rpcId: 'rpc-old' }, content: [{ type: 'text', text: 'old' }] } } } },
+    entry(3, 'request/header', { header: { config: { provider: 'deepseek', model: 'old-model' } } }),
+    entry(4, 'turn/end', { turn: 1, reason: { kind: 'completed' } })
+  ]
+  const queued = projectTaskRunSnapshot({
+    sessionId: 's', engine, page: { events: oldEvents },
+    admission: { accepted: true, rpcId: 'rpc-new', acceptedAt: '2026-09-09T00:00:00.000Z' },
+    conversation: { runDetails: { toolCards: [{ id: 'old-tool' }], changedFiles: [{ path: 'old.txt', confirmed: true }] } }
+  })
+  assert.equal(queued.turn.state, 'queued')
+  assert.equal(queued.route, undefined)
+  assert.equal(queued.terminal, undefined)
+  assert.deepEqual(queued.toolCards, [])
+  assert.deepEqual(queued.confirmedChanges, [])
+
+  const completed = projectTaskRunSnapshot({
+    sessionId: 's', engine,
+    page: { events: [
+      ...oldEvents,
+      entry(5, 'turn/start', { turn: 2 }),
+      { event: { seq: 6, type: 'user/message', data: { message: { source: { kind: 'user', rpcId: 'rpc-new' }, content: [{ type: 'text', text: 'new' }] } } } },
+      entry(7, 'request/header', { header: { config: { provider: 'zai', model: 'glm-5' } } }),
+      entry(8, 'turn/end', { turn: 2, reason: { kind: 'completed' } })
+    ] },
+    admission: { accepted: true, rpcId: 'rpc-new', acceptedAt: '2026-09-09T00:00:00.000Z' }
+  })
+  assert.equal(completed.turn.id, '2')
+  assert.equal(completed.turn.state, 'completed')
+  assert.deepEqual(completed.route, { provider: 'zai', model: 'glm-5', reasoningEffort: '', seq: 7 })
+  assert.equal(completed.terminal.seq, 8)
+})
+
 test('projects permissions only from structured Harness events', () => {
   const snapshot = projectTaskRunSnapshot({
     sessionId: 's', engine,
@@ -84,7 +119,7 @@ test('ignores malformed turn starts instead of matching an undefined terminal', 
 
 test('carries only confirmed presenter changes into the evidence snapshot', () => {
   const snapshot = projectTaskRunSnapshot({
-    sessionId: 's', engine, page: { events: [] },
+    sessionId: 's', engine, page: { events: [entry(1, 'turn/start', { turn: 1 })] },
     conversation: { runDetails: { toolCards: [{ id: 'tool-1' }], changedFiles: [{ path: 'README.md', operation: '写入', confirmed: true }] } }
   })
   assert.deepEqual(snapshot.toolCards, [{ id: 'tool-1' }])

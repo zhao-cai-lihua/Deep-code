@@ -52,22 +52,22 @@ test('translates a text-only model image rejection into a beginner-facing recove
 })
 
 test('sends selected images through the official DSH prompt content seam', async () => {
-  let payload
+  let request
   const adapter = new DshAdapter({
     fetchImpl: async (_url, init) => {
-      payload = JSON.parse(init.body).payload
+      request = JSON.parse(init.body)
       return { ok: true, json: async () => ({ result: { ok: true, value: { accepted: true } } }) }
     }
   })
 
-  await adapter.prompt({
+  const admission = await adapter.prompt({
     baseUrl: 'http://127.0.0.1:4321',
     sessionId: 's-1',
     text: '这个界面为什么报错？',
     images: [{ type: 'image', mediaType: 'image/png', data: 'cG5n', name: 'error.png' }]
   })
 
-  assert.deepEqual(payload, {
+  assert.deepEqual(request.payload, {
     sessionId: 's-1',
     mode: 'queue',
     content: [
@@ -75,6 +75,8 @@ test('sends selected images through the official DSH prompt content seam', async
       { type: 'image', mediaType: 'image/png', data: 'cG5n', name: 'error.png' }
     ]
   })
+  assert.equal(admission.accepted, true)
+  assert.equal(admission.rpcId, request.rpcId)
 })
 
 test('selects the official vision route before an image prompt and never guesses another model', async () => {

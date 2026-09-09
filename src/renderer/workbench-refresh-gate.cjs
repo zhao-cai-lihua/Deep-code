@@ -24,5 +24,23 @@
     }
   }
 
-  return { createWorkbenchRefreshGate }
+  function selectedIdentity(workbench = {}) {
+    const taskId = String(workbench.activeThreadId || '')
+    const thread = Array.isArray(workbench.threads)
+      ? workbench.threads.find((item) => String(item?.id || '') === taskId)
+      : null
+    return { taskId, sessionId: String(thread?.sessionId || '') }
+  }
+
+  async function runLatestWorkbenchRequest({ gate, expected, request }) {
+    if (!gate || typeof gate.begin !== 'function' || typeof gate.accept !== 'function') {
+      throw new Error('工作台结果门禁不可用。')
+    }
+    if (typeof request !== 'function') throw new Error('工作台请求不可用。')
+    const ticket = gate.begin(expected)
+    const next = await request()
+    return gate.accept(ticket, selectedIdentity(next)) ? next : null
+  }
+
+  return { createWorkbenchRefreshGate, runLatestWorkbenchRequest, selectedIdentity }
 })

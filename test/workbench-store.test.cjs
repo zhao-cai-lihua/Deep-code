@@ -57,9 +57,9 @@ test('binds one Deep code task to one hidden Engine session', () => {
 test('persists only a bounded prompt admission receipt and can clear it', () => {
   const store = makeStore()
   const task = store.create({ prompt: '排队执行' })
-  store.setAdmission(task.id, { accepted: true, messageId: 'message-7', acceptedAt: '2026-09-07T12:00:00.000Z' })
+  store.setAdmission(task.id, { accepted: true, messageId: 'message-7', rpcId: 'deep-code-rpc-7', acceptedAt: '2026-09-07T12:00:00.000Z' })
   assert.deepEqual(store.snapshot().threads[0].admission, {
-    accepted: true, messageId: 'message-7', acceptedAt: '2026-09-07T12:00:00.000Z'
+    accepted: true, messageId: 'message-7', rpcId: 'deep-code-rpc-7', acceptedAt: '2026-09-07T12:00:00.000Z'
   })
   store.clearAdmission(task.id)
   assert.equal(store.snapshot().threads[0].admission, null)

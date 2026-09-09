@@ -80,16 +80,17 @@ class DshAdapter {
     this.fetchImpl = fetchImpl
   }
 
-  async rpc(baseUrl, method, payload = {}) {
+  async request(baseUrl, method, payload = {}) {
     if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(String(baseUrl || ''))) {
       throw new Error('Deep code 只连接本机 127.0.0.1 Engine。')
     }
+    const rpcId = `deep-code-${randomUUID()}`
     const response = await this.fetchImpl(`${baseUrl}/api/${method}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         type: 'client-request',
-        rpcId: `deep-code-${randomUUID()}`,
+        rpcId,
         method,
         payload
       })
@@ -106,7 +107,11 @@ class DshAdapter {
       failure.code = error.code || ''
       throw failure
     }
-    return body.result.value
+    return { value: body.result.value, rpcId }
+  }
+
+  async rpc(baseUrl, method, payload = {}) {
+    return (await this.request(baseUrl, method, payload)).value
   }
 
   async createSession({ baseUrl, cwd, sessionId }) {
@@ -114,7 +119,7 @@ class DshAdapter {
     return this.rpc(baseUrl, 'session.create', { cwd, ...(sessionId ? { sessionId } : {}) })
   }
 
-  prompt({ baseUrl, sessionId, text, images = [] }) {
+  async prompt({ baseUrl, sessionId, text, images = [] }) {
     const message = String(text || '').trim()
     const imageParts = images.filter((item) => item?.type === 'image' && typeof item.data === 'string' && typeof item.mediaType === 'string')
       .map((item) => ({
@@ -124,11 +129,12 @@ class DshAdapter {
         ...(typeof item.name === 'string' && item.name ? { name: item.name } : {})
       }))
     if (!message && !imageParts.length) throw new Error('任务内容不能为空。')
-    return this.rpc(baseUrl, 'session.prompt', {
+    const result = await this.request(baseUrl, 'session.prompt', {
       sessionId,
       mode: 'queue',
       content: [...(message ? [{ type: 'text', text: message }] : []), ...imageParts]
     })
+    return { ...result.value, rpcId: result.rpcId }
   }
 
   async selectOfficialVisionModel({ baseUrl, sessionId }) {

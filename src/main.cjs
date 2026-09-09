@@ -27,6 +27,8 @@ const { projectTaskGuidance } = require('./task-guidance-projection.cjs')
 const { acquireSingleInstance } = require('./single-instance.cjs')
 const { stopAndDeleteTask } = require('./task-lifecycle.cjs')
 const { projectConfirmedBaselineChanges } = require('./baseline-change-projection.cjs')
+const { assertCurrentTaskTarget } = require('./task-target-guard.cjs')
+const { projectInteractionTimeout } = require('./interaction-timeout-projection.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -75,27 +77,16 @@ async function handleInteractionTimeout({ sessionId, interactionCount }) {
   const thread = snapshot.threads.find((item) => item.sessionId === String(sessionId || ''))
   if (!thread) return
   const runtime = supervisor.snapshot()
-  let cancellationConfirmed = false
+  let cancelAccepted = false
   if (runtime.state === 'ready' && runtime.url && runtime.trust) {
     try {
       await dshAdapter.cancel({ baseUrl: runtime.url, sessionId: thread.sessionId })
-      cancellationConfirmed = true
+      cancelAccepted = true
     } catch { /* Recovery text below stays honest about an unconfirmed cancellation. */ }
   }
-  const countLabel = Number(interactionCount) > 1 ? `${interactionCount} 项问题` : '问题'
-  workbench.setEngineState(thread.id, {
-    state: 'error',
-    error: `这一轮因等待你的回答超过 5 分钟而停止。Deep code 没有替你回答${countLabel}。`,
-    notice: '等待用户超时；本轮已停止。'
-  })
-  workbench.setRecovery(thread.id, {
-    kind: 'waiting-timeout',
-    cause: 'Harness 正在等待你的回答；5 分钟内没有收到选择或文字回答。',
-    safety: cancellationConfirmed
-      ? '已向 Harness 发送停止请求，并且没有替你选择任何答案。'
-      : '没有替你选择任何答案；由于 Engine 状态不可用，停止结果尚未由 Harness 确认。',
-    nextAction: '准备好回答后，点击“重新连接任务”；如果原问题没有恢复，就把答案作为一条新消息发送。'
-  })
+  const timeout = projectInteractionTimeout({ interactionCount, cancelAccepted })
+  workbench.setEngineState(thread.id, timeout.engine)
+  workbench.setRecovery(thread.id, timeout.recovery)
   closeLiveSession()
   publishWorkbenchChanged()
 }
@@ -140,12 +131,14 @@ async function launchTask(thread, { images = [], routing = null } = {}) {
     workbench.setEngineState(thread.id, { sessionId, state: 'running', notice: images.length ? undefined : '' })
     ensureLiveSession(runtime.url, sessionId)
     await prepareModelRoute({ runtime, sessionId, threadId: thread.id, routing })
+    assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId })
     workbench.clearAdmission(thread.id)
     const admission = await dshAdapter.prompt({ baseUrl: runtime.url, sessionId, text: thread.prompt, images })
     if (admission?.accepted === true || (typeof admission?.messageId === 'string' && admission.messageId)) {
       workbench.setAdmission(thread.id, {
         accepted: true,
         ...(admission?.messageId ? { messageId: admission.messageId } : {}),
+        ...(admission?.rpcId ? { rpcId: admission.rpcId } : {}),
         acceptedAt: new Date().toISOString()
       })
       workbench.setEngineState(thread.id, { state: 'queued' })
@@ -810,7 +803,7 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
   const snapshot = workbench.snapshot()
   const thread = snapshot.threads.find((item) => item.id === String(id || snapshot.activeThreadId || ''))
   if (!thread?.sessionId) throw new Error('这个任务还没有连接到 Engine 会话。')
-  if (thread.id !== snapshot.activeThreadId) throw new Error('当前可见任务已经变化；消息没有发送，请在当前任务中重试。')
+  assertCurrentTaskTarget(snapshot, { taskId: thread.id, sessionId: thread.sessionId })
   workbench.clearRecovery(thread.id)
   const runtime = await ensureEngineReady()
   const workspacePath = thread.workspacePath || settings.workspacePath
@@ -829,6 +822,7 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
     images,
     routing: routing || null
   })
+  assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId: thread.sessionId })
   workbench.clearAdmission(thread.id)
   const admission = await dshAdapter.prompt({
     baseUrl: runtime.url,
@@ -841,6 +835,7 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
     workbench.setAdmission(thread.id, {
       accepted: true,
       ...(admission?.messageId ? { messageId: admission.messageId } : {}),
+      ...(admission?.rpcId ? { rpcId: admission.rpcId } : {}),
       acceptedAt: new Date().toISOString()
     })
     workbench.setEngineState(thread.id, { state: 'queued', notice: undefined })

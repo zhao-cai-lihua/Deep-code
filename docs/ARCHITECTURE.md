@@ -16,7 +16,7 @@ Deep code Workbench
   |     `-- expandable Run Details / Evidence Drawer
   |-- first-run setup and recovery
   |-- task-scoped image drafts and explicit attachment send
-  |-- opt-in Ecosystem Discover and guarded official-profile install
+  |-- opt-in, read-only Ecosystem Discover
   `-- DSH Adapter
         |-- session.create / prompt / history / cancel
         |-- Conversation Projection
@@ -54,7 +54,7 @@ Deep code Workbench
 | Actual model selection | DSH Model Adapter | Load `session.models`, submit complete selections through `session.selectModel`, and read the effective Session route back from Harness. An absent advisory catalog row never makes a still-routable current selection unusable. |
 | Simple API-key provider setup | DSH Adapter | Derive the provider list from the current Harness directory, accept only the small reviewed catalog whose settings expose a simple API-key profile, create that profile through the official Settings RPC, and pass the submitted value directly to the official Credentials RPC. Submitted values are scrubbed from errors and never returned to the Renderer. OAuth and complex provider authentication remain outside this Interface. |
 | Real model validation | Ordinary Engine Task | Create a visible task through the normal Workbench flow. It may consume tokens and must never be presented as a consequence-free background ping. |
-| Live activity, draft answers, approvals, and questions | DSH Live Session | Consume the official downlink-only mux WebSocket, keep wire correlation private, expose only `text-delta` as an explicitly unfinished draft, normalize activity and waits once, and answer only through the official `/api/respond` carrier. Reasoning deltas never enter the conversation. An unresolved Decision Gate pauses Renderer polling so the form remains interactive; after five minutes it ends the turn without inventing an answer and records an explicit recovery. Harness history remains the durable truth. |
+| Live activity, draft answers, approvals, and questions | DSH Live Session | Consume the official downlink-only mux WebSocket, keep wire correlation private, expose only `text-delta` as an explicitly unfinished draft, normalize activity and waits once, and answer only through the official `/api/respond` carrier. Reasoning deltas never enter the conversation. An unresolved Decision Gate pauses Renderer polling so the form remains interactive; after five inactive minutes Deep Code sends a cancellation request and records an explicit recovery, but does not claim the turn stopped until Harness emits matching terminal evidence. Harness history remains the durable truth. |
 | Optional in-process tools, Skill providers, observers, and LLM adapters | Harness bundle | Add a bundle only when the capability must run inside Harness. Installation is executable-code trust, not ordinary UI customization. |
 | Technical support for an explanation | Run Details / Evidence Drawer | Show duration, permission facts, file changes, and operations first; preserve raw tool presenters and durable context one disclosure deeper. Never expose private reasoning traces. |
 | Human completion summary | Task Outcome + Recovery Projection | Project only terminal Engine state, confirmed changed files, explicit test/check/build commands, failed tools, and missing-verification warnings. Explain cause, impact, safety state, and the next human action. Never infer success from assistant prose; link every summary back to Run Details evidence. |
@@ -63,7 +63,7 @@ Deep code Workbench
 | Workspace attribution | Workspace Baseline | Bind each task to its launch workspace and capture only Git root, HEAD, and path-level dirty state immediately before an admitted prompt. Compare that baseline with Harness-confirmed changed paths to explain attribution or overlap; never treat it as a checkpoint or read file contents. |
 | Unsent image selection | Image Draft Store | Keep selected image bytes in main-process memory under one Task scope, return only metadata, opaque draft ids, and a scoped `deep-code-image:` URL to the Renderer. The main process serves preview bytes on demand with no-store caching; it never returns source paths or base64 through IPC. Clear only after the official prompt is accepted. |
 | Sent image ownership | DSH attachment seam | Submit image content only through official `session.prompt`; Harness validates and durably commits the attachment before logging the user message. Deep code projects the resulting immutable attachment facts instead of inventing a second media store. |
-| Community discovery and install | Ecosystem Catalog + Plugin Installer | Disabled by default. Remote command text is inert. Before installation, read the root manifest and patch through GitHub's API, require `dsh.bundle.patch`, pin a 40-character commit, issue a one-use token, disclose out-of-sandbox build risk, and require confirmation. Only the main process invokes the official CLI with fixed argv and `shell:false`, targeting the official `web` profile used by the managed Engine. |
+| Community discovery | Ecosystem Catalog | Opt-in and read-only. Remote command text is inert; the Renderer, Preload, and Main expose no executable install path. Popularity is discovery metadata, never proof that a repository is a compatible or safe Harness plugin. Any future installer requires a separate reviewed trust design and release. |
 
 ## Current vertical slice
 
@@ -78,7 +78,7 @@ The first live downlink slice deliberately excludes private analysis text. It tr
 1. Reliable first run, workspace selection, and Engine recovery.
 2. Complete DSH Adapter: streaming, Decision Gates, errors, model/mode/permission visibility, resume.
 3. Explanation Layer: project map, change impact, error recovery, and continuous brief.
-4. Recoverable extension management: installed list, explicit restart state, uninstall, and profile rollback evidence.
+4. Re-evaluate recoverable extension management only after an independently reviewed executable-code trust design; ecosystem browsing remains read-only until then.
 5. Optional interaction-style experiments only after the workbench is independently useful and without adding execution authority.
 
 Deep code itself remains an independent desktop product rather than a Harness plugin. See the [official plugin development boundary research](research/official-harness-plugin-development.md) for the pinned upstream contracts and adoption phases.

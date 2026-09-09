@@ -36,10 +36,12 @@ function validateState(raw) {
 function validateAdmission(raw) {
   if (!raw || typeof raw !== 'object') return null
   const messageId = typeof raw.messageId === 'string' ? raw.messageId.slice(0, 240) : ''
+  const rpcId = typeof raw.rpcId === 'string' ? raw.rpcId.slice(0, 240) : ''
   if (raw.accepted !== true && !messageId) return null
   return {
     accepted: true,
     ...(messageId ? { messageId } : {}),
+    ...(rpcId ? { rpcId } : {}),
     acceptedAt: typeof raw.acceptedAt === 'string' ? raw.acceptedAt.slice(0, 80) : ''
   }
 }

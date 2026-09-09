@@ -187,6 +187,7 @@ const memoryContextText = document.querySelector('#memory-context-text')
 
 let workbench = { threads: [], activeThreadId: '' }
 const workbenchRefreshGate = window.DeepCodeWorkbenchRefreshGate.createWorkbenchRefreshGate()
+const runLatestWorkbenchRequest = window.DeepCodeWorkbenchRefreshGate.runLatestWorkbenchRequest
 
 function replaceWorkbench(next) {
   workbenchRefreshGate.invalidate()
@@ -1221,9 +1222,14 @@ function renderTaskOutcome(thread) {
 }
 
 async function startNewTask() {
-  workbenchRefreshGate.invalidate()
   if (modelRouteDialog.open) modelRouteDialog.close()
-  replaceWorkbench(await window.desktopHost.selectTask(''))
+  const next = await runLatestWorkbenchRequest({
+    gate: workbenchRefreshGate,
+    expected: { taskId: '', sessionId: '' },
+    request: () => window.desktopHost.selectTask('')
+  })
+  if (!next) return
+  replaceWorkbench(next)
   await syncImageDrafts('new-task')
   showPage('workbench')
   forceFollowNextRender = false
@@ -1607,9 +1613,14 @@ function renderWorkbench() {
     button.querySelector('.task-item-time').textContent = displayTime(thread.updatedAt)
     button.addEventListener('click', async () => {
       try {
-        workbenchRefreshGate.invalidate()
         if (modelRouteDialog.open) modelRouteDialog.close()
-        replaceWorkbench(await window.desktopHost.selectTask(thread.id))
+        const next = await runLatestWorkbenchRequest({
+          gate: workbenchRefreshGate,
+          expected: { taskId: thread.id, sessionId: thread.sessionId },
+          request: () => window.desktopHost.selectTask(thread.id)
+        })
+        if (!next) return
+        replaceWorkbench(next)
         await syncImageDrafts(thread.id)
         forceFollowNextRender = true
         showPage('workbench')
@@ -1766,9 +1777,14 @@ function renderWorkspace(workspacePath) {
 async function selectWorkspace() {
   const result = await window.desktopHost.selectWorkspace()
   if (!result.canceled) {
-    workbenchRefreshGate.invalidate()
     if (modelRouteDialog.open) modelRouteDialog.close()
-    replaceWorkbench(await window.desktopHost.selectTask(''))
+    const next = await runLatestWorkbenchRequest({
+      gate: workbenchRefreshGate,
+      expected: { taskId: '', sessionId: '' },
+      request: () => window.desktopHost.selectTask('')
+    })
+    if (!next) return
+    replaceWorkbench(next)
     renderWorkspace(result.workspacePath)
     settingsWorkspacePath.textContent = result.workspacePath
     openWorkspaceButton.disabled = false

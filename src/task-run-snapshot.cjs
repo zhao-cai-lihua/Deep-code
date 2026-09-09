@@ -24,12 +24,35 @@ function normalizedEngine(engine = {}) {
   }
 }
 
+function userMessageRpcId(entry) {
+  const event = eventOf(entry)
+  if (event.type !== 'user/message') return ''
+  const message = event.data?.message || event.data || {}
+  return typeof message.source?.rpcId === 'string' ? message.source.rpcId : ''
+}
+
+function startIndexForAdmission(events, admission) {
+  const rpcId = typeof admission?.rpcId === 'string' ? admission.rpcId : ''
+  if (!rpcId) return null
+  const messageIndex = events.findIndex((entry) => userMessageRpcId(entry) === rpcId)
+  if (messageIndex < 0) return -1
+  for (let index = messageIndex; index >= 0; index -= 1) {
+    const candidate = eventOf(events[index])
+    if (candidate.type === 'turn/end') break
+    if (candidate.type === 'turn/start' && validTurnId(candidate.data?.turn)) return index
+  }
+  return -1
+}
+
 function projectTaskRunSnapshot({ sessionId, engine, page = {}, admission = null, conversation = null } = {}) {
   const events = Array.isArray(page?.events) ? page.events : []
-  let startIndex = -1
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const candidate = eventOf(events[index])
-    if (candidate.type === 'turn/start' && validTurnId(candidate.data?.turn)) { startIndex = index; break }
+  const admittedStartIndex = startIndexForAdmission(events, admission)
+  let startIndex = admittedStartIndex ?? -1
+  if (admittedStartIndex === null) {
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const candidate = eventOf(events[index])
+      if (candidate.type === 'turn/start' && validTurnId(candidate.data?.turn)) { startIndex = index; break }
+    }
   }
   const start = startIndex >= 0 ? eventOf(events[startIndex]) : null
   const turnId = start?.data?.turn
@@ -91,7 +114,10 @@ function projectTaskRunSnapshot({ sessionId, engine, page = {}, admission = null
   const reasonLabel = typeof reason === 'object' ? String(reason?.kind || 'unknown') : String(reason || 'unknown')
   const terminal = end ? { state: terminalState(reason), reason: reasonLabel, seq: Number.isFinite(end.seq) ? end.seq : null } : undefined
   const details = conversation?.runDetails || {}
-  const confirmedChanges = (details.changedFiles || []).filter((change) => change?.confirmed === true)
+  const currentTurnObserved = startIndex >= 0
+  const confirmedChanges = currentTurnObserved
+    ? (details.changedFiles || []).filter((change) => change?.confirmed === true)
+    : []
 
   return {
     version: 1,
@@ -101,6 +127,7 @@ function projectTaskRunSnapshot({ sessionId, engine, page = {}, admission = null
       admission: {
         accepted: true,
         ...(admission?.messageId ? { messageId: String(admission.messageId) } : {}),
+        ...(admission?.rpcId ? { rpcId: String(admission.rpcId) } : {}),
         acceptedAt: String(admission.acceptedAt || '')
       }
     } : {}),
@@ -108,7 +135,7 @@ function projectTaskRunSnapshot({ sessionId, engine, page = {}, admission = null
     ...(route ? { route } : {}),
     ...(terminal ? { terminal } : {}),
     ...(permissions.evidenceSeqs.length ? { permissions } : {}),
-    toolCards: Array.isArray(details.toolCards) ? details.toolCards : [],
+    toolCards: currentTurnObserved && Array.isArray(details.toolCards) ? details.toolCards : [],
     confirmedChanges
   }
 }
