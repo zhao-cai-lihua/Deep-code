@@ -144,8 +144,8 @@ test('a verification without an explicit successful exit code stays unknown', ()
 
 test('turns a user-wait timeout into an honest recovery path', () => {
   const outcome = projectTaskOutcome({
-    engineState: 'error',
-    engineError: '这一轮因等待你的回答超过 5 分钟而停止。',
+    engineState: 'unknown',
+    engineError: '停止请求已发送，但 Harness 尚未确认这一轮已停止。',
     recovery: {
       kind: 'waiting-timeout',
       cause: 'Harness 正在等待你的回答；5 分钟内没有收到回答。',
@@ -154,10 +154,40 @@ test('turns a user-wait timeout into an honest recovery path', () => {
     },
     agent: { runDetails: { toolCards: [], changedFiles: [] } }
   })
+  assert.equal(outcome.state, 'pending')
+  assert.equal(outcome.title, '停止仍待 Harness 确认')
+  assert.equal(outcome.map.nodes.find((node) => node.id === 'result').state, 'warning')
   assert.equal(outcome.recovery.kind, 'waiting-timeout')
   assert.match(outcome.impact, /没有替你选择/)
   assert.equal(outcome.nextAction, '重新连接任务后再回答。')
   assert.equal(outcome.recoveryAssessment.state, 'available')
+})
+
+test('a later Harness terminal supersedes stale unconfirmed timeout wording', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'error',
+    engineError: '停止请求已发送，但 Harness 尚未确认这一轮已停止。',
+    recovery: {
+      kind: 'waiting-timeout',
+      cause: 'Harness 等待回答超过 5 分钟。',
+      safety: '停止请求已发送，但 Harness 尚未确认停止。',
+      nextAction: '重新连接任务。'
+    },
+    agent: {
+      taskRunSnapshot: {
+        turn: { id: 'turn-7', state: 'interrupted' },
+        terminal: { state: 'interrupted', reason: 'aborted', seq: 8 },
+        confirmedChanges: []
+      },
+      runDetails: { terminal: { state: 'interrupted', reason: 'aborted' }, toolCards: [], changedFiles: [] }
+    }
+  })
+
+  assert.equal(outcome.terminalConfirmed, true)
+  assert.equal(outcome.title, '这一轮已停止')
+  assert.match(outcome.summary, /Harness 已确认.*停止/)
+  assert.doesNotMatch(outcome.summary, /尚未确认/)
+  assert.match(outcome.recovery.safety, /Harness 已确认.*停止/)
 })
 
 test('makes high-impact files visible even when ordinary tests pass', () => {

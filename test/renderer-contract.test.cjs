@@ -337,6 +337,15 @@ test('image drafts stay task-scoped and send only through the desktop host', () 
   assert.doesNotMatch(shell, /FileReader|arrayBuffer\(|readAsDataURL/)
 })
 
+test('unsent composer text is routed through task-scoped draft state', () => {
+  const draftScript = html.indexOf('src="./composer-draft-state.cjs"')
+  const shellScript = html.indexOf('src="./shell.js"')
+  assert.ok(draftScript >= 0 && draftScript < shellScript)
+  assert.match(shell, /createComposerDraftState\('new-task'\)/)
+  assert.match(shell, /taskComposer\.value = composerDraftState\.switchTo\(composerTextScope\(next\), taskComposer\.value\)/)
+  assert.match(shell, /composerDraftState\.clear\(sourceComposerScope\)/)
+})
+
 test('ecosystem discovery stays opt-in and exposes no executable installation path', () => {
   assert.match(html, /id="page-ecosystem"/)
   assert.match(html, /id="ecosystem-enabled"/)

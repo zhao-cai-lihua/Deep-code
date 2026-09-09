@@ -13,4 +13,25 @@ function retryDisposition(agentSnapshot) {
     : 'resend'
 }
 
-module.exports = { reconcileOfflineWorkbench, retryDisposition }
+function projectOnlineEngineState({ projectedState = 'unknown', terminal = null, recovery = null, existingError = '' } = {}) {
+  if (terminal?.state) {
+    if (terminal.state === 'completed') return { state: 'ready', error: '' }
+    if (terminal.state === 'interrupted') {
+      return { state: 'error', error: `Harness 报告这一轮已停止（${terminal.reason || '原因未知'}）。` }
+    }
+    if (terminal.state === 'failed') {
+      return { state: 'error', error: `Harness 报告这一轮失败（${terminal.reason || '原因未知'}）。` }
+    }
+  }
+  if (recovery?.kind === 'waiting-timeout' || recovery?.kind === 'stop-unconfirmed') {
+    return { state: 'unknown', error: String(existingError || '') }
+  }
+  if (recovery?.kind === 'launch-failed') return { state: 'error', error: String(existingError || '') }
+  if (projectedState === 'queued') return { state: 'queued', error: '' }
+  if (projectedState === 'running') return { state: 'running', error: '' }
+  if (projectedState === 'completed') return { state: 'ready', error: '' }
+  if (projectedState === 'failed' || projectedState === 'interrupted') return { state: 'error', error: String(existingError || '') }
+  return { state: 'unknown', error: '' }
+}
+
+module.exports = { reconcileOfflineWorkbench, retryDisposition, projectOnlineEngineState }

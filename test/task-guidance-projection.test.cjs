@@ -22,9 +22,17 @@ test('offers explicit retry for network failures and wait timeouts', () => {
   })
   assert.equal(network.actions[0].id, 'retry-task')
   const waiting = projectTaskGuidance({
-    outcome: { visible: true, state: 'error', recovery: { kind: 'waiting-timeout' } }
+    outcome: { visible: true, state: 'pending', recovery: { kind: 'waiting-timeout' }, terminalConfirmed: false }
   })
+  assert.equal(waiting.title, '停止仍待 Harness 确认')
   assert.equal(waiting.actions[0].id, 'retry-task')
+})
+
+test('names a timeout as stopped only after Harness terminal evidence', () => {
+  const guidance = projectTaskGuidance({
+    outcome: { visible: true, state: 'error', recovery: { kind: 'waiting-timeout' }, terminalConfirmed: true }
+  })
+  assert.equal(guidance.title, '这一轮已经确认停止')
 })
 
 test('sends completed risky work to its receipt before starting over', () => {

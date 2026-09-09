@@ -188,9 +188,15 @@ const memoryContextText = document.querySelector('#memory-context-text')
 let workbench = { threads: [], activeThreadId: '' }
 const workbenchRefreshGate = window.DeepCodeWorkbenchRefreshGate.createWorkbenchRefreshGate()
 const runLatestWorkbenchRequest = window.DeepCodeWorkbenchRefreshGate.runLatestWorkbenchRequest
+const composerDraftState = window.DeepCodeComposerDraftState.createComposerDraftState('new-task')
+
+function composerTextScope(snapshot = workbench) {
+  return String(snapshot?.activeThreadId || 'new-task')
+}
 
 function replaceWorkbench(next) {
   workbenchRefreshGate.invalidate()
+  taskComposer.value = composerDraftState.switchTo(composerTextScope(next), taskComposer.value)
   workbench = next
   return workbench
 }
@@ -1204,7 +1210,7 @@ function renderTaskOutcome(thread) {
   if (!outcome?.visible) return
   taskOutcome.dataset.state = outcome.state
   taskOutcomeTitle.textContent = outcome.title
-  taskOutcomeBadge.textContent = outcome.state === 'success' ? '已完成' : '需要处理'
+  taskOutcomeBadge.textContent = outcome.state === 'success' ? '已完成' : outcome.state === 'pending' ? '等待确认' : '需要处理'
   taskOutcomeSummary.textContent = outcome.summary
   taskOutcomeSections.replaceChildren()
   const modelVerification = outcome.modelVerification
@@ -1672,10 +1678,10 @@ function renderWorkbench() {
     const notice = thread.engineNotice ? `\n${thread.engineNotice}` : ''
     taskEngineStatus.textContent = `${statusCopy}${timing ? ` ${timing}。` : ''}${notice}`
     taskEngineStatus.dataset.state = pendingCount ? 'waiting' : (thread.engineState || 'draft')
-    const recovery = thread.recovery
+    const recovery = thread.outcome?.visible ? (thread.outcome.recovery || null) : thread.recovery
     taskRecovery.classList.toggle('hidden', !recovery)
     taskRecoveryCause.textContent = recovery ? `原因：${recovery.cause}` : ''
-    taskRecoverySafety.textContent = recovery ? `已经确认：${recovery.safety}` : ''
+    taskRecoverySafety.textContent = recovery ? `状态边界：${recovery.safety}` : ''
     taskRecoveryNext.textContent = recovery ? `下一步：${recovery.nextAction}` : ''
     cancelTaskButton.disabled = !['queued', 'running'].includes(thread.engineState)
     composerStopButton.classList.toggle('hidden', !['queued', 'running'].includes(thread.engineState))
@@ -1730,6 +1736,7 @@ async function refreshWorkbench() {
 async function createTask() {
   const prompt = taskComposer.value.trim()
   if (!prompt && !imageDrafts.length) { taskComposer.focus(); return }
+  const sourceComposerScope = composerTextScope()
   try {
     createTaskButton.disabled = true
     taskComposer.disabled = true
@@ -1741,6 +1748,8 @@ async function createTask() {
       ? await window.desktopHost.sendMessage(thread.id, prompt, attachmentIds, routing)
       : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds, routing })
     replaceWorkbench(nextWorkbench)
+    composerDraftState.clear(sourceComposerScope)
+    composerDraftState.clear(composerTextScope())
     taskComposer.value = ''
     await syncImageDrafts(workbench.activeThreadId || 'new-task')
     forceFollowNextRender = true
@@ -1935,7 +1944,7 @@ deleteTaskButton.addEventListener('click', async () => {
     ? `停止并删除“${thread?.title}”？Deep code 会先向 Harness 请求停止，只有收到结束证据后才删除本地记录。`
     : `删除本机任务“${thread?.title}”？已确认的工作区文件不会被删除。`
   if (!thread || !window.confirm(question)) return
-  try { replaceWorkbench(await window.desktopHost.deleteTask(thread.id)); taskViewState.clear(thread.id); renderWorkbench() } catch (error) { careResult.textContent = error.message }
+  try { replaceWorkbench(await window.desktopHost.deleteTask(thread.id)); taskViewState.clear(thread.id); composerDraftState.clear(thread.id); renderWorkbench() } catch (error) { careResult.textContent = error.message }
 })
 async function stopActiveTask() {
   const thread = activeThread()

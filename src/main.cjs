@@ -10,7 +10,7 @@ const { buildHandoffPreview } = require('./handoff-preview.cjs')
 const { DshAdapter } = require('./dsh-adapter.cjs')
 const { DshLiveSession } = require('./dsh-live-session.cjs')
 const { buildProjectBriefPrompt } = require('./project-explainer.cjs')
-const { reconcileOfflineWorkbench, retryDisposition } = require('./workbench-projection.cjs')
+const { reconcileOfflineWorkbench, retryDisposition, projectOnlineEngineState } = require('./workbench-projection.cjs')
 const { normalizeExternalUrl } = require('./external-links.cjs')
 const { projectTaskOutcome } = require('./task-outcome-projection.cjs')
 const { isAllowedAppNavigation } = require('./navigation-policy.cjs')
@@ -264,27 +264,15 @@ async function workbenchSnapshot() {
     }
     if (thread.recovery?.kind === 'launch-failed' && thread.engineState === 'error') {
       thread.agent.effectiveModel = { available: false, label: '任务未完成模型启动，Session 默认路线不作为本轮采用证据。' }
-      thread.engineState = 'error'
-    } else if (thread.recovery?.kind === 'waiting-timeout') {
-      thread.engineState = 'error'
-    } else if (thread.recovery?.kind === 'stop-unconfirmed') {
-      thread.engineState = 'unknown'
-    } else {
-      thread.engineState = projectedState === 'queued'
-        ? 'queued'
-        : projectedState === 'running'
-          ? 'running'
-          : projectedState === 'completed'
-            ? 'ready'
-            : ['failed', 'interrupted'].includes(projectedState)
-              ? 'error'
-              : 'unknown'
-      thread.engineError = terminal?.state === 'failed'
-        ? `Harness 报告这一轮失败（${terminal.reason}）。`
-        : terminal?.state === 'interrupted'
-          ? `Harness 报告这一轮已停止（${terminal.reason}）。`
-          : ''
     }
+    const onlineState = projectOnlineEngineState({
+      projectedState,
+      terminal: thread.agent.taskRunSnapshot?.terminal,
+      recovery: thread.recovery,
+      existingError: thread.engineError
+    })
+    thread.engineState = onlineState.state
+    thread.engineError = onlineState.error
   } catch (error) {
     thread.engineState = 'error'
     thread.engineError = error.message

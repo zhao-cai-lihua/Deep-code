@@ -2,11 +2,12 @@
 
 Updated: 2026-09-09
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.5` (published prerelease; awaiting bounded acceptance)
-Current source version: `0.6.3-rc.5`
+Current packaged release candidate: `0.6.3-rc.6` (publication pending; awaiting two bounded visual checks)
+Current source version: `0.6.3-rc.6`
 
 ## Release delivery
 
+- v0.6.3-rc.6 is the narrow acceptance correction after rc.5. It gives each task and the blank new-task surface an isolated in-memory composer draft, clears only the successfully submitted scope, and separates a yellow “stop still awaiting Harness confirmation” state from a terminally confirmed interruption. It does not change Engine, Provider, credential, model-route, Session, permission, or file-operation behavior.
 - v0.6.3-rc.5 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.5. Release workflow run `34321559334` completed successfully after 251 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.5.exe`: 100,564,496 bytes; GitHub SHA-256 `17b21e20d26c02da9adf403038c8b90b21861665f4f4d6bfe90e138cda9b22b7`.
 - `Deep.code.Setup.0.6.3-rc.5.exe`: 100,787,900 bytes; GitHub SHA-256 `6fee638d3f5b889f6f58665a6b8376a31c3738f82c80f5ad0d122a342ba33e46`.
@@ -45,7 +46,7 @@ Current source version: `0.6.3-rc.5`
 - The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
 - `docs/FEI_REVIEW_PACKET_2026-09-06.md` is the bounded external review entry for v0.6.2. It points to the fixed release commit, trust boundaries, high-risk files, reproducible commands, known debt, and evidence requirements without copying private conversations or duplicating the whole repository into Markdown.
 
-## v0.6.3-rc.5 safety candidate
+## v0.6.3-rc.6 safety candidate
 
 This candidate implements the security and evidence plan without adding a second Agent Loop:
 
@@ -62,6 +63,8 @@ This candidate implements the security and evidence plan without adding a second
 - Running tasks use stop-and-delete: cancel first, wait up to ten seconds for a same-task terminal snapshot, and keep the record with recovery guidance when stop is unconfirmed. Renderer refresh responses are gated by generation, visible task ID, and Session ID.
 
 The rc.5 source changes no credential storage, Provider routing, Session authority, or Harness execution behavior. Direct task selection now uses the same monotonic generation and `{taskId, sessionId}` guard as background refreshes. Sending checks that identity once before asynchronous route preparation and again immediately before `session.prompt`. A five-minute Decision Gate timeout may prove that Harness accepted a cancellation request, but only matching terminal evidence may claim the Turn stopped. The cumulative review is recorded in `docs/V0.6.3_FINAL_REVIEW_2026-09-09.md`.
+
+The rc.6 acceptance patch adds a Renderer-only `ComposerDraftState`: typing in Task A is saved only for A, Task B starts with B's own draft, returning to A restores A, and a successful send clears only the submitted scope. Drafts remain in memory and never become Harness input before submission. The timeout receipt now has a third `pending` presentation state. Without terminal evidence it says “停止仍待 Harness 确认”; with a later matching terminal it replaces stale unconfirmed copy with the proven terminal result.
 
 ## Product truth
 
@@ -91,7 +94,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: **251 passed, 0 failed** for the current v0.6.3-rc.5 source on 2026-09-09. New behavior tests cover prompt RPC admission correlation, rejection of old-Turn evidence for a newly admitted prompt, delayed direct-selection results, pre-prompt task identity, and honest timeout cancellation projection.
+- `npm test`: **259 passed, 0 failed** for the current v0.6.3-rc.6 source on 2026-09-09. New behavior tests prove task/new-task text-draft isolation, successful-send clearing, stale-selection capture, pending timeout presentation, later terminal supersession, terminal-aware guidance, and structured-terminal precedence over temporary recovery state.
+- `npm run package:test:win` passed for rc.6 and produced `dist/Deep-code-Test-0.6.3-rc.6.exe`, 368,771,147 bytes, SHA-256 `8ff274bcee420733026c7a239193f50a8ccb129a6ae610587650f329faca6e77`. Packaged `app.asar` contains Composer Draft State plus the updated outcome, guidance, and online Engine-state projections.
 - Model-state and conversation-projection focus suite: **80 passed, 0 failed**. The suite proves an authentication failure is phrased as a historical Turn fact and the settings connection snapshot can display a newer passed receipt.
 - `npm run package:test:win` passed for rc.5 and produced `dist/Deep-code-Test-0.6.3-rc.5.exe`, 368,766,528 bytes, SHA-256 `020fc87f7d10b33f667b30c0c4c60ff2a3ebd8e077b233e691c893876ec3702c`. Packaged `app.asar` inspection found the new admission, refresh, target, and timeout-projection modules. No user process was stopped. This does not substitute for final UI acceptance or a Provider call.
 - GitHub Windows release run `34223988024`: passed 245 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and prerelease asset publication.
@@ -144,18 +148,17 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Perform only the bounded rc.5 human checks below. Do not re-enter a Key or spend tokens merely to recheck already accepted Provider rendering.
-2. The feature branch and earlier RC releases remain reproducible. Do not tag or publish `v0.6.3` stable until rc.5 and the remaining user-visible safety matrix are accepted.
+1. Publish rc.6 and perform only the two bounded visual checks below. Neither needs a Provider validation call or API Key change.
+2. The feature branch and earlier RC releases remain reproducible. Do not tag or publish `v0.6.3` stable until rc.6 passes those checks.
 3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI, Provider, or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
-## Human acceptance still required for v0.6.3-rc.5
+## Human acceptance still required for v0.6.3-rc.6
 
-1. Existing workspaces and local tasks survive the upgrade; ecosystem projects remain browsable but still have no executable install path.
-2. Start an ordinary task and immediately switch to another task. The newly admitted task must stay queued/running until its own durable Turn appears; it must not momentarily show the older Turn's answer, model, tools, or completion.
-3. Switch rapidly between two tasks and send only after the intended task is visibly selected. A delayed result from the first task must not replace the second or receive the second task's message.
-4. If a Decision Gate is left inactive for five minutes, Deep Code may say it sent a stop request, but it must not say “本轮已停止” until Harness confirms a terminal state.
-5. Stop-and-delete a running low-cost task. Delete occurs only after a terminal event; if confirmation is absent, the task and recovery guidance remain.
+1. Type an unsent sentence in Task A, switch to Task B, and confirm B does not show A's sentence. Type a different sentence in B and switch back; A should restore only A's sentence. No send or model call is needed.
+2. If an unanswered Decision Gate naturally reaches five minutes, the receipt must be yellow and say “停止仍待 Harness 确认” until terminal evidence arrives. After a confirmed interruption it may turn red and say “这一轮已停止”, but the old “尚未确认” sentence must disappear. Do not create a paid task only for this check.
+
+The stop-and-delete lifecycle does not need another dedicated manual reproduction for rc.6. Its same-Turn terminal deletion, wrong-Turn refusal, ten-second unconfirmed retention, and cancel-rejection paths remain covered by behavior tests and were not changed.
 
 Managed Engine version, hostile 3080 refusal, real shared Engine protocol behavior, and packaged single-instance behavior now have direct local runtime evidence. Repeat them only after the corresponding Engine/single-instance code changes.
 
