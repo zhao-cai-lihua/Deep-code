@@ -227,6 +227,39 @@ const conversationMessageView = window.DeepCodeConversationMessageView.createCon
   copyText: (value) => window.desktopHost.copyText(value),
   formatImageBytes: imageBytes
 })
+const taskEvidenceView = window.DeepCodeTaskEvidenceView.createTaskEvidenceView({
+  document,
+  elements: {
+    trace: {
+      label: runDetailsLabel,
+      permissionFacts,
+      changedFiles,
+      toolCards: toolCardsContainer,
+      evidenceContent: taskEvidenceContent,
+      evidenceRaw: taskEvidenceRaw
+    },
+    receipt: {
+      outcome: taskOutcome,
+      title: taskOutcomeTitle,
+      badge: taskOutcomeBadge,
+      summary: taskOutcomeSummary,
+      sections: taskOutcomeSections,
+      map: outcomeMap,
+      mapFlow: outcomeMapFlow,
+      mapLegend: outcomeMapLegend,
+      mapEmpty: outcomeMapEmpty
+    },
+    guidance: {
+      root: taskGuidance,
+      title: taskGuidanceTitle,
+      summary: taskGuidanceSummary,
+      actions: taskGuidanceActions
+    }
+  },
+  formatDuration: displayDuration,
+  onGuidanceAction: runGuidanceAction,
+  onEvidenceTarget: openTaskEvidenceTarget
+})
 let imageDrafts = []
 let workspaceDialogTrigger = workspaceButton
 let modelCatalog = { current: null, groups: [] }
@@ -831,284 +864,6 @@ function updateJumpLatest() {
   jumpLatestButton.classList.toggle('hidden', !visible || window.deepCodeReading.shouldFollow(mainPanel))
 }
 
-function replaceFactList(container, items, emptyCopy, copy) {
-  container.replaceChildren()
-  for (const item of items?.length ? items : [null]) {
-    const row = document.createElement('li')
-    row.textContent = item ? copy(item) : emptyCopy
-    if (!item) row.className = 'fact-empty'
-    container.append(row)
-  }
-}
-
-function appendPre(container, text, className = '') {
-  const pre = document.createElement('pre')
-  if (className) pre.className = className
-  pre.textContent = String(text || '')
-  container.append(pre)
-}
-
-function toolCardState(card) {
-  if (card.state === 'error') return '失败'
-  if (card.state === 'working') return '进行中'
-  return '已完成'
-}
-
-function renderDiffCard(body, card) {
-  if (!card.diffs?.length) {
-    body.textContent = 'Harness 没有提供可显示的差异。'
-    return
-  }
-  for (const diff of card.diffs) {
-    const file = document.createElement('details')
-    file.className = 'diff-file'
-    file.open = card.diffs.length === 1
-    const label = document.createElement('summary')
-    label.textContent = diff.path
-    const panes = document.createElement('div')
-    panes.className = 'diff-panes'
-    const before = document.createElement('section')
-    const after = document.createElement('section')
-    const beforeLabel = document.createElement('strong')
-    const afterLabel = document.createElement('strong')
-    beforeLabel.textContent = diff.oldText === null ? '此前内容未提供' : '修改前'
-    afterLabel.textContent = diff.oldText === null ? '新内容' : '修改后'
-    before.append(beforeLabel)
-    after.append(afterLabel)
-    appendPre(before, diff.oldText === null ? '（新建文件或 Harness 未提供修改前内容）' : diff.oldText, 'diff-before')
-    appendPre(after, diff.newText, 'diff-after')
-    panes.append(before, after)
-    file.append(label, panes)
-    body.append(file)
-  }
-}
-
-function renderTerminalCard(body, card) {
-  const meta = document.createElement('p')
-  meta.className = 'tool-card-meta'
-  meta.textContent = [card.cwd ? `目录：${card.cwd}` : '', Number.isInteger(card.exitCode) ? `退出代码：${card.exitCode}` : '', card.signal ? `信号：${card.signal}` : ''].filter(Boolean).join(' · ') || 'Harness 没有提供工作目录或退出状态。'
-  body.append(meta)
-  appendPre(body, card.output || '（命令没有返回可显示的输出）', 'terminal-output')
-}
-
-function renderReadCard(body, card) {
-  const meta = document.createElement('p')
-  meta.className = 'tool-card-meta'
-  meta.textContent = `${card.path || '未提供路径'}${Number.isInteger(card.totalLines) ? ` · 文件共 ${card.totalLines} 行` : ''}${card.lang ? ` · ${card.lang}` : ''}`
-  body.append(meta)
-  const lines = document.createElement('div')
-  lines.className = 'read-lines'
-  for (const line of card.lines || []) {
-    const number = document.createElement('span')
-    const text = document.createElement('code')
-    number.textContent = String(line.number)
-    text.textContent = line.text
-    lines.append(number, text)
-  }
-  if (!card.lines?.length) lines.textContent = 'Harness 没有返回可显示的文本行。'
-  body.append(lines)
-}
-
-function renderSearchCard(body, card) {
-  const meta = document.createElement('p')
-  meta.className = 'tool-card-meta'
-  meta.textContent = `${Number.isInteger(card.total) ? `共找到 ${card.total} 项` : '搜索结果'}${card.truncated ? ' · 当前只显示部分结果' : ''}`
-  body.append(meta)
-  if (card.shape === 'matches') {
-    for (const file of card.files || []) {
-      const group = document.createElement('details')
-      group.className = 'search-group'
-      const label = document.createElement('summary')
-      label.textContent = `${file.path} · ${file.matches.length} 处`
-      const matches = document.createElement('div')
-      matches.className = 'read-lines'
-      for (const match of file.matches) {
-        const number = document.createElement('span')
-        const line = document.createElement('code')
-        number.textContent = String(match.lineNumber)
-        line.textContent = match.line
-        matches.append(number, line)
-      }
-      group.append(label, matches)
-      body.append(group)
-    }
-  } else {
-    const paths = document.createElement('ul')
-    paths.className = 'tool-path-list'
-    for (const path of card.paths || []) {
-      const item = document.createElement('li')
-      item.textContent = path
-      paths.append(item)
-    }
-    body.append(paths)
-  }
-}
-
-function renderWebCard(body, card) {
-  const meta = document.createElement('p')
-  meta.className = 'tool-card-meta'
-  meta.textContent = card.kind === 'fetch'
-    ? `${Number.isInteger(card.statusCode) ? `HTTP ${card.statusCode}` : '网页读取'}${card.truncated ? ' · 内容已截断' : ''}`
-    : `${card.sources?.length || 0} 个来源${card.truncated ? ' · 来源列表已截断' : ''}`
-  body.append(meta)
-  if (card.answer) {
-    const answer = document.createElement('p')
-    answer.textContent = card.answer
-    body.append(answer)
-  }
-  if (card.kind === 'fetch' && card.url) {
-    const link = document.createElement('a')
-    link.href = card.url
-    link.textContent = card.url
-    body.append(link)
-  }
-  for (const source of card.sources || []) {
-    const sourceNode = document.createElement('article')
-    sourceNode.className = 'web-source'
-    const link = document.createElement('a')
-    link.href = source.url
-    link.textContent = source.title || source.url
-    sourceNode.append(link)
-    if (source.snippet) {
-      const snippet = document.createElement('p')
-      snippet.textContent = source.snippet
-      sourceNode.append(snippet)
-    }
-    body.append(sourceNode)
-  }
-}
-
-function renderGenericCard(body, card) {
-  if (card.locations?.length) {
-    const locations = document.createElement('ul')
-    locations.className = 'tool-path-list'
-    for (const location of card.locations) {
-      const item = document.createElement('li')
-      item.textContent = `${location.path}${location.line ? `:${location.line}` : ''}`
-      locations.append(item)
-    }
-    body.append(locations)
-  }
-  if (card.rawInput !== null && card.rawInput !== undefined) {
-    appendPre(body, typeof card.rawInput === 'string' ? card.rawInput : JSON.stringify(card.rawInput, null, 2))
-  }
-  const content = (card.content || []).filter((item) => item?.type === 'text').map((item) => item.text).join('')
-  if (content) appendPre(body, content)
-  if (!body.childNodes.length) body.textContent = 'Harness 没有提供更详细的展示信息。'
-}
-
-function renderToolCard(card) {
-  const node = document.createElement('details')
-  node.className = 'tool-card'
-  node.dataset.card = card.type
-  node.dataset.cardId = String(card.id || '')
-  node.dataset.state = card.state
-  node.open = card.state === 'error'
-  const summary = document.createElement('summary')
-  const kind = document.createElement('span')
-  kind.className = 'tool-card-kind'
-  kind.textContent = ({ terminal: '命令', diff: '文件', read: '读取', search: '搜索', web: '网页', generic: '工具' })[card.type] || '工具'
-  const title = document.createElement('strong')
-  title.textContent = card.title
-  const status = document.createElement('span')
-  status.className = 'tool-card-status'
-  status.textContent = `${toolCardState(card)}${Number.isFinite(card.durationMs) ? ` · ${displayDuration(card.durationMs)}` : ''}`
-  summary.append(kind, title, status)
-  const body = document.createElement('div')
-  body.className = 'tool-card-body'
-  if (card.type === 'diff') renderDiffCard(body, card)
-  else if (card.type === 'terminal') renderTerminalCard(body, card)
-  else if (card.type === 'read') renderReadCard(body, card)
-  else if (card.type === 'search') renderSearchCard(body, card)
-  else if (card.type === 'web') renderWebCard(body, card)
-  else renderGenericCard(body, card)
-  node.append(summary, body)
-  return node
-}
-
-function renderToolCards(cards) {
-  toolCardsContainer.replaceChildren()
-  if (!cards?.length) {
-    const empty = document.createElement('p')
-    empty.className = 'fact-empty'
-    empty.textContent = '没有工具操作。'
-    toolCardsContainer.append(empty)
-    return
-  }
-  toolCardsContainer.append(...cards.map(renderToolCard))
-}
-
-function renderRunDetails(thread) {
-  const details = thread.agent?.runDetails || {}
-  const duration = displayDuration(details.durationMs)
-  const changedCount = details.changedFiles?.length || 0
-  const activityCount = details.activities?.length || 0
-  const labelParts = ['运行详情']
-  if (duration) labelParts.push(`用时 ${duration}`)
-  if (changedCount) labelParts.push(`改动 ${changedCount} 个文件`)
-  else if (activityCount) labelParts.push(`${activityCount} 项操作`)
-  runDetailsLabel.textContent = labelParts.join(' · ')
-  replaceFactList(permissionFacts, details.permissionFacts, 'Harness 没有提供可确认的权限快照。', (item) => `${item.label}。${item.detail}`)
-  replaceFactList(changedFiles, details.changedFiles, '没有确认到文件改动。', (item) => `${item.path}（${item.operation}）`)
-  renderToolCards(details.toolCards || [])
-  const evidence = thread.agent?.evidence || []
-  const context = details.runtimeContext || []
-  const sections = []
-  const rawSections = []
-  if (thread.baseline) {
-    const baseline = thread.baseline
-    const head = baseline.head ? String(baseline.head).slice(0, 12) : '此工作区没有可用的 Git HEAD（与模型连接无关）'
-    const dirtyCount = Array.isArray(baseline.dirtyPaths) ? baseline.dirtyPaths.length : 0
-    sections.push(`任务开始前的本地 Git 基线\n\n项目：${thread.workspacePath || baseline.workspacePath || '未记录'}\n记录时间：${baseline.capturedAt || '未记录'}\n状态：${baseline.message || baseline.state}\nHEAD：${head}\n任务前已有未提交路径：${dirtyCount} 个\n\n这份基线只记录路径级状态，不包含文件正文，也不是可撤回 checkpoint。`)
-  }
-  if (context.length) {
-    sections.push(`运行上下文摘要（不作为你的发言显示）\n\n${context.map((item) => `• ${item.label}。${item.detail}`).join('\n')}`)
-    rawSections.push(`Harness 原始运行上下文\n\n${context.map((item) => `[${item.source?.plugin || item.source?.kind || 'Harness'}] ${item.raw}`).join('\n\n')}`)
-  }
-  if (evidence.length) rawSections.push(`Harness 原始技术证据\n\n${evidence.map((item) => `${item.type}\n${JSON.stringify(item.detail, null, 2)}`).join('\n\n')}`)
-  taskEvidenceContent.textContent = sections.join('\n\n---\n\n') || '还没有技术记录。'
-  taskEvidenceRaw.textContent = rawSections.join('\n\n---\n\n') || '还没有原始记录。'
-}
-
-function appendOutcomeSection(title, items, className = '') {
-  if (!items.length) return
-  const section = document.createElement('section')
-  const heading = document.createElement('h4')
-  heading.textContent = title
-  const list = document.createElement('ul')
-  if (className) list.className = className
-  for (const value of items) {
-    const item = document.createElement('li')
-    item.textContent = value
-    list.append(item)
-  }
-  section.append(heading, list)
-  taskOutcomeSections.append(section)
-}
-
-function renderTaskOutcome(thread) {
-  const outcome = thread.outcome
-  taskOutcome.classList.toggle('hidden', !outcome?.visible)
-  renderOutcomeMap(outcome?.map)
-  if (!outcome?.visible) return
-  taskOutcome.dataset.state = outcome.state
-  taskOutcomeTitle.textContent = outcome.title
-  taskOutcomeBadge.textContent = outcome.state === 'success' ? '已完成' : outcome.state === 'pending' ? '等待确认' : '需要处理'
-  taskOutcomeSummary.textContent = outcome.summary
-  taskOutcomeSections.replaceChildren()
-  const modelVerification = outcome.modelVerification
-  appendOutcomeSection('模型验证回执', modelVerification ? [
-    `${modelVerification.state === 'passed' ? '通过' : modelVerification.state === 'failed' ? '未通过' : '已中止'} · ${modelVerification.modelName || modelVerification.model}${modelVerification.reasoningEffort ? ` · ${modelVerification.reasoningEffort}` : ''}；路线证据：Harness 请求头；终态：${modelVerification.terminalReason || modelVerification.state}`
-  ] : [])
-  appendOutcomeSection('确认的文件改动', outcome.changes.map((item) => `${item.operation} · ${item.path}`))
-  const verificationLabel = (state) => state === 'passed' ? '通过' : state === 'failed' ? '未通过' : '未确认'
-  appendOutcomeSection('明确的验证', outcome.verifications.map((item) => `${verificationLabel(item.state)} · ${item.label}（${item.detail}）`), 'outcome-verifications')
-  appendOutcomeSection('需要你留意的高影响改动', (outcome.risks || []).map((item) => `${item.label}：${item.detail}`), 'outcome-risks')
-  appendOutcomeSection('仍需留意', outcome.warnings, 'outcome-warnings')
-  appendOutcomeSection('任务与改动归属', outcome.recoveryAssessment ? [`${outcome.workspace?.label || '未记录项目'}：${outcome.recoveryAssessment.label}。${outcome.recoveryAssessment.detail}`] : [])
-  appendOutcomeSection('这会影响什么', outcome.impact ? [outcome.impact] : [])
-  appendOutcomeSection('接下来只需做什么', outcome.nextAction ? [outcome.nextAction] : [])
-}
 
 async function startNewTask() {
   if (modelRouteDialog.open) modelRouteDialog.close()
@@ -1137,61 +892,12 @@ function runGuidanceAction(id) {
   if (id === 'new-task') startNewTask().catch((error) => { careResult.textContent = error.message; showPage('settings') })
 }
 
-function renderTaskGuidance(thread) {
-  const guidance = thread.guidance
-  taskGuidance.classList.toggle('hidden', !guidance?.visible)
-  taskGuidanceActions.replaceChildren()
-  if (!guidance?.visible) return
-  taskGuidance.dataset.tone = guidance.tone || 'review'
-  taskGuidanceTitle.textContent = guidance.title
-  taskGuidanceSummary.textContent = guidance.summary
-  for (const [index, next] of (guidance.actions || []).entries()) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = index === 0 ? 'primary-button' : 'quiet-button'
-    button.textContent = next.label
-    button.title = next.detail
-    button.addEventListener('click', () => runGuidanceAction(next.id))
-    taskGuidanceActions.append(button)
-  }
-}
-
-function renderOutcomeMap(map) {
-  const visible = Boolean(map?.visible && map.nodes?.length)
-  outcomeMap.classList.toggle('hidden', !visible)
-  outcomeMapEmpty.classList.toggle('hidden', visible)
-  outcomeMapFlow.replaceChildren()
-  outcomeMapLegend.textContent = visible ? map.legend : ''
-  if (!visible) return
-  const edgeTargets = new Set((map.edges || []).map((edge) => edge.to))
-  for (const node of map.nodes) {
-    const card = document.createElement('button')
-    card.type = 'button'
-    card.className = 'outcome-map-node'
-    card.dataset.state = node.state
-    card.dataset.kind = node.kind
-    if (edgeTargets.has(node.id)) card.classList.add('has-incoming-edge')
-    const eyebrow = document.createElement('span')
-    eyebrow.className = 'outcome-map-node-eyebrow'
-    eyebrow.textContent = node.eyebrow
-    const title = document.createElement('strong')
-    title.textContent = node.title
-    const summary = document.createElement('span')
-    summary.className = 'outcome-map-node-summary'
-    summary.textContent = node.summary
-    const action = document.createElement('span')
-    action.className = 'outcome-map-node-action'
-    action.textContent = '查看证据 →'
-    card.append(eyebrow, title, summary, action)
-    card.addEventListener('click', () => {
-      setTaskView('trace')
-      const selector = { changes: '#trace-changes', tools: '#trace-tools', technical: '.technical-details' }[node.evidenceTarget] || '#run-details'
-      const target = document.querySelector(selector)
-      if (target?.tagName === 'DETAILS') target.open = true
-      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-    outcomeMapFlow.append(card)
-  }
+function openTaskEvidenceTarget(evidenceTarget) {
+  setTaskView('trace')
+  const selector = { changes: '#trace-changes', tools: '#trace-tools', technical: '.technical-details' }[evidenceTarget] || '#run-details'
+  const target = document.querySelector(selector)
+  if (target?.tagName === 'DETAILS') target.open = true
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function captureTaskViewState(taskId) {
@@ -1582,9 +1288,7 @@ function renderWorkbench() {
     if (draft?.text) {
       conversationFeed.append(conversationMessageView.render({ role: 'assistant', text: draft.text, draft: true, truncated: draft.truncated }))
     }
-    renderRunDetails(thread)
-    renderTaskOutcome(thread)
-    renderTaskGuidance(thread)
+    taskEvidenceView.render(thread)
     restoreTaskViewState(selectedThreadId)
   } else {
     decisionGates.replaceChildren()
