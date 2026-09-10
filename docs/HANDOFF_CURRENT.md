@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-10
-Branch: `main`
+Branch: `codex/v0.7.0-evidence-view-seam`
 Current packaged stable release: `0.6.3`
 Current source version: `0.6.3`
 
-Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`; behavior-preserving Renderer seam extraction, not a v0.7.0 release.
+Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`; Model Services and conversation presentation seams are on `main`. The current branch adds a behavior-preserving task evidence/receipt presentation seam; it is not a v0.7.0 release.
 
 ## Release delivery
 
@@ -106,6 +106,9 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
+- Task evidence view focus suite plus Renderer contract: **47 passed, 0 failed** on 2026-09-10. Four new interface-level behavior tests cover all supported tool cards, structured permission and file facts, baseline/context disclosure, receipt sections, evidence-map delegation, allowlisted guidance delegation, stale-content clearing, and distinct pending/error labels.
+- Current branch `npm test`: **269 passed, 0 failed**. The new view receives already-projected `runDetails`, `outcome`, and `guidance`; the tests do not manufacture execution truth from Assistant text.
+- Current branch `npm run package:test:win` completed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,785,785 bytes, local SHA-256 `88d26ea51023d6e46ded5d20e71ad5b82accdf2e910c5680e554f4dfc7368091`. An isolated packaged-app CDP probe reached a complete `Deep code` page, loaded `DeepCodeTaskEvidenceView`, and found the trace, receipt, and guidance anchors. All four isolated packaged processes were stopped; Engine and Provider were not used.
 - Post-stable Renderer seam baseline `npm test`: **265 passed, 0 failed** on 2026-09-10. Six new behavior tests cover Model Services projection rendering, credential/catalog gating, offline truthfulness, final and live conversation rendering, copy feedback, image metadata, and user/assistant distinction.
 - PR #8 regression workflow run `34451299886` completed successfully with the same 265-test suite before merge.
 - Post-stable `npm run package:test:win` passed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,782,040 bytes, local SHA-256 `816e52892711eb775d705f40d1651825f7dbe20c3ba1f338463fabebca56ccce`. Packaged `app.asar` contains both new Renderer modules.
@@ -163,13 +166,14 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - The execution boundary is reasonably clean: DSH Adapter, task outcome, work-receipt policy, model-service projection, task guidance, stores, and live-session handling are separate CommonJS modules with focused tests.
 - The regression suite is fast and broad, and the current production dependency audit reports no known vulnerabilities.
 - The first post-stable Renderer decomposition is complete. `model-services-view.cjs` exposes one `render(snapshot)` interface and only displays already-projected Provider/catalog/credential/verification/current-route facts. `conversation-message-view.cjs` exposes one `render(message)` interface and owns message DOM, Markdown, copy feedback, attachment metadata, and live-draft presentation without deciding Session or terminal state.
-- `src/renderer/shell.js` is now 2,118 lines, down from 2,230 in the v0.6.3 source. The line count is secondary evidence; the meaningful change is that Model Services and conversation presentation now have behavior-tested interfaces. `src/main.cjs` remains about 956 lines.
+- The second decomposition adds `task-evidence-view.cjs` with one `render(thread)` interface. It owns trace cards, structured fact lists, technical disclosure, visual receipt, and next-action presentation. Evidence-map and guidance buttons only delegate inert IDs back to the workbench; the module cannot retry, select a model, start Engine, or alter a task.
+- `src/renderer/shell.js` is now 1,910 lines, down from 2,230 in the v0.6.3 source. The line count is secondary evidence; the meaningful change is that Model Services, conversation, and task evidence presentation now have behavior-tested interfaces. `src/main.cjs` remains about 956 lines.
 - Main, Preload, DSH Adapter, `TaskRunSnapshot`, IPC contracts, Provider storage, model routing, and Harness authority were not changed by this decomposition.
 
 ## Next bounded work
 
 1. v0.6.3 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, or task-draft checks unless the corresponding implementation changes.
-2. The first Renderer seam extraction is complete. The next safe decomposition candidate is the task evidence/receipt presentation layer: it may consume `TaskRunSnapshot` and existing receipt projections, but must not parse raw Harness text or create another lifecycle state. Keep this separate from any visual redesign.
+2. Model Services, conversation, and task evidence/receipt presentation seams are now extracted. Stop decomposition here unless a concrete defect exposes another seam. The next bounded product step should use zero-token fixture states for completed, failed, pending, and no-change tasks to make the trace compact by default while preserving one-click access to exact evidence.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
