@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-10
-Branch: `codex/v0.7.0-evidence-view-seam`
+Branch: `main`
 Current packaged stable release: `0.6.3`
 Current source version: `0.6.3`
 
-Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`; Model Services and conversation presentation seams are on `main`. The current branch adds a behavior-preserving task evidence/receipt presentation seam; it is not a v0.7.0 release.
+Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f` and PR #9 merged at `1258c5138b1b2b88070ce04b702ca6208320b053`. Model Services, conversation, and task evidence/receipt presentation seams are on `main`; this is not a v0.7.0 release.
 
 ## Release delivery
 
@@ -108,6 +108,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 - Task evidence view focus suite plus Renderer contract: **47 passed, 0 failed** on 2026-09-10. Four new interface-level behavior tests cover all supported tool cards, structured permission and file facts, baseline/context disclosure, receipt sections, evidence-map delegation, allowlisted guidance delegation, stale-content clearing, and distinct pending/error labels.
 - Current branch `npm test`: **269 passed, 0 failed**. The new view receives already-projected `runDetails`, `outcome`, and `guidance`; the tests do not manufacture execution truth from Assistant text.
+- PR #9 regression workflow run `34470348278` completed successfully with the same 269-test suite before merge.
 - Current branch `npm run package:test:win` completed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,785,785 bytes, local SHA-256 `88d26ea51023d6e46ded5d20e71ad5b82accdf2e910c5680e554f4dfc7368091`. An isolated packaged-app CDP probe reached a complete `Deep code` page, loaded `DeepCodeTaskEvidenceView`, and found the trace, receipt, and guidance anchors. All four isolated packaged processes were stopped; Engine and Provider were not used.
 - Post-stable Renderer seam baseline `npm test`: **265 passed, 0 failed** on 2026-09-10. Six new behavior tests cover Model Services projection rendering, credential/catalog gating, offline truthfulness, final and live conversation rendering, copy feedback, image metadata, and user/assistant distinction.
 - PR #8 regression workflow run `34451299886` completed successfully with the same 265-test suite before merge.
