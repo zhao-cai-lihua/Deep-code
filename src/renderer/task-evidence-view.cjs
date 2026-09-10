@@ -42,6 +42,51 @@
       return '已完成'
     }
 
+    function traceState(details, thread) {
+      const cards = array(details.toolCards)
+      const terminal = details.terminal?.state || thread.agent?.taskRunSnapshot?.terminal?.state || ''
+      const verificationFailed = array(thread.outcome?.verifications).some((item) => item.state === 'failed')
+      if (verificationFailed) return { tone: 'error', title: '验证未通过' }
+      if (thread.outcome?.state === 'error' || cards.some((card) => card.state === 'error') || ['failed', 'interrupted'].includes(terminal)) {
+        return { tone: 'error', title: thread.outcome?.title || (terminal === 'interrupted' ? '这一轮已停止' : '这一轮需要处理') }
+      }
+      if (thread.outcome?.state === 'pending') {
+        return { tone: 'warning', title: thread.outcome.title || '终态仍待 Harness 确认' }
+      }
+      if (cards.some((card) => card.state === 'working') || ['queued', 'running'].includes(thread.engineState)) {
+        return { tone: 'active', title: thread.engineState === 'queued' ? '这一轮正在排队' : '这一轮仍在运行' }
+      }
+      if (terminal === 'completed') {
+        const needsReview = array(thread.outcome?.warnings).length
+          || array(thread.outcome?.risks).length
+          || array(thread.outcome?.verifications).some((item) => item.state !== 'passed')
+        return needsReview
+          ? { tone: 'warning', title: '这一轮已结束，仍需核查' }
+          : { tone: 'success', title: '这一轮已结束' }
+      }
+      return { tone: 'unknown', title: cards.length ? '终态尚未确认' : '等待 Harness 事件' }
+    }
+
+    function renderTraceOverview(thread, details) {
+      const cards = array(details.toolCards)
+      const changes = array(details.changedFiles)
+      const permissions = array(details.permissionFacts)
+      const failedCount = cards.filter((card) => card.state === 'error').length
+      const workingCount = cards.filter((card) => card.state === 'working').length
+      const state = traceState(details, thread)
+      trace.overview.dataset.tone = state.tone
+      trace.overviewTitle.textContent = state.title
+      const parts = [
+        cards.length ? `${cards.length} 项操作` : '没有工具操作',
+        changes.length ? `${changes.length} 个确认文件改动` : '没有确认到文件改动'
+      ]
+      if (failedCount) parts.push(`${failedCount} 项工具失败`)
+      else if (workingCount) parts.push(`${workingCount} 项仍在进行`)
+      trace.overviewSummary.textContent = `${parts.join(' · ')}。`
+      trace.changesSection.classList.toggle('hidden', !changes.length)
+      trace.supportingSummary.textContent = `权限、Git 基线与技术证据 · ${permissions.length ? `${permissions.length} 项权限事实` : '权限未确认'} · ${thread.baseline ? '已记录任务前基线' : '没有任务前基线'}`
+    }
+
     function renderDiffCard(body, card) {
       const diffs = array(card.diffs)
       if (!diffs.length) {
@@ -196,7 +241,7 @@
       node.dataset.card = String(card.type || 'generic')
       node.dataset.cardId = String(card.id || '')
       node.dataset.state = String(card.state || 'done')
-      node.open = card.state === 'error'
+      node.open = false
       const summary = document.createElement('summary')
       const kind = document.createElement('span')
       kind.className = 'tool-card-kind'
@@ -241,6 +286,7 @@
       if (changedCount) labelParts.push(`改动 ${changedCount} 个文件`)
       else if (activityCount) labelParts.push(`${activityCount} 项操作`)
       trace.label.textContent = labelParts.join(' · ')
+      renderTraceOverview(thread, details)
       replaceFactList(trace.permissionFacts, details.permissionFacts, 'Harness 没有提供可确认的权限快照。', (item) => `${item.label}。${item.detail}`)
       replaceFactList(trace.changedFiles, details.changedFiles, '没有确认到文件改动。', (item) => `${item.path}（${item.operation}）`)
       renderToolCards(details.toolCards)

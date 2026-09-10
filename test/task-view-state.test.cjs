@@ -9,17 +9,20 @@ test('disclosure state belongs to one task and does not leak into another task',
   views.save('task-a', {
     activeView: 'trace',
     technicalDetailsOpen: true,
+    supportingFactsOpen: true,
     openToolCards: ['tool:1']
   })
 
   assert.deepEqual(views.load('task-b'), {
     activeView: 'conversation',
     technicalDetailsOpen: false,
+    supportingFactsOpen: false,
     openToolCards: []
   })
   assert.deepEqual(views.load('task-a'), {
     activeView: 'trace',
     technicalDetailsOpen: true,
+    supportingFactsOpen: true,
     openToolCards: ['tool:1']
   })
 })
