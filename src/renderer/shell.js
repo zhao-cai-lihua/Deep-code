@@ -58,8 +58,14 @@ const conversationFeed = document.querySelector('#conversation-feed')
 const jumpLatestButton = document.querySelector('#jump-latest')
 const runDetails = document.querySelector('#run-details')
 const runDetailsLabel = document.querySelector('#run-details-label')
+const traceOverview = document.querySelector('#trace-overview')
+const traceOverviewTitle = document.querySelector('#trace-overview-title')
+const traceOverviewSummary = document.querySelector('#trace-overview-summary')
+const traceSupportingFacts = document.querySelector('#trace-supporting-facts')
+const traceSupportingSummary = document.querySelector('#trace-supporting-summary')
 const technicalDetails = document.querySelector('.technical-details')
 const permissionFacts = document.querySelector('#permission-facts')
+const traceChanges = document.querySelector('#trace-changes')
 const changedFiles = document.querySelector('#changed-files')
 const toolCardsContainer = document.querySelector('#tool-cards')
 const taskEvidenceContent = document.querySelector('#task-evidence-content')
@@ -232,7 +238,13 @@ const taskEvidenceView = window.DeepCodeTaskEvidenceView.createTaskEvidenceView(
   elements: {
     trace: {
       label: runDetailsLabel,
+      overview: traceOverview,
+      overviewTitle: traceOverviewTitle,
+      overviewSummary: traceOverviewSummary,
+      supportingFacts: traceSupportingFacts,
+      supportingSummary: traceSupportingSummary,
       permissionFacts,
+      changesSection: traceChanges,
       changedFiles,
       toolCards: toolCardsContainer,
       evidenceContent: taskEvidenceContent,
@@ -905,6 +917,7 @@ function captureTaskViewState(taskId) {
   taskViewState.save(taskId, {
     activeView: traceView.classList.contains('is-active') ? 'trace' : receiptView.classList.contains('is-active') ? 'receipt' : 'conversation',
     technicalDetailsOpen: technicalDetails.open,
+    supportingFactsOpen: traceSupportingFacts.open,
     openToolCards: [...toolCardsContainer.querySelectorAll('.tool-card[open]')]
       .map((card) => card.dataset.cardId)
       .filter(Boolean)
@@ -915,6 +928,7 @@ function restoreTaskViewState(taskId) {
   const snapshot = taskViewState.load(taskId)
   setTaskView(snapshot.activeView)
   technicalDetails.open = snapshot.technicalDetailsOpen
+  traceSupportingFacts.open = snapshot.supportingFactsOpen
   if (!taskViewState.has(taskId)) return
   const openCards = new Set(snapshot.openToolCards)
   for (const card of toolCardsContainer.querySelectorAll('.tool-card')) {
@@ -1299,6 +1313,7 @@ function renderWorkbench() {
     taskGuidance.classList.add('hidden')
     composerStopButton.classList.add('hidden')
     technicalDetails.open = false
+    traceSupportingFacts.open = false
     setTaskView('conversation')
   }
   lastRenderedThreadId = selectedThreadId

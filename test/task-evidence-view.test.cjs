@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { createTaskEvidenceView } = require('../src/renderer/task-evidence-view.cjs')
 const { FakeDocument, FakeElement, findAll } = require('../test-utils/fake-dom.cjs')
+const { taskEvidenceStates } = require('../test-utils/task-evidence-states.cjs')
 
 function element(tag = 'div') {
   return new FakeElement(tag)
@@ -12,7 +13,13 @@ function createFixture() {
   const elements = {
     trace: {
       label: element('h3'),
+      overview: element('section'),
+      overviewTitle: element('h3'),
+      overviewSummary: element('p'),
+      supportingFacts: element('details'),
+      supportingSummary: element('summary'),
       permissionFacts: element('ul'),
+      changesSection: element('section'),
       changedFiles: element('ul'),
       toolCards: element('div'),
       evidenceContent: element('pre'),
@@ -77,12 +84,17 @@ test('renders projected trace facts and every supported tool card without inferr
   })
 
   assert.equal(elements.trace.label.textContent, '运行详情 · 用时 2 秒 · 改动 1 个文件')
+  assert.equal(elements.trace.overview.dataset.tone, 'error')
+  assert.equal(elements.trace.overviewTitle.textContent, '这一轮需要处理')
+  assert.equal(elements.trace.overviewSummary.textContent, '6 项操作 · 1 个确认文件改动 · 1 项工具失败。')
+  assert.equal(elements.trace.changesSection.classList.contains('hidden'), false)
+  assert.equal(elements.trace.supportingSummary.textContent, '权限、Git 基线与技术证据 · 1 项权限事实 · 已记录任务前基线')
   assert.match(elements.trace.permissionFacts.textContent, /权限预设：workspace-write.*来自 Harness 结构化事件/)
   assert.match(elements.trace.changedFiles.textContent, /README\.md（修改）/)
   const cards = findAll(elements.trace.toolCards, (node) => node.tagName === 'DETAILS' && node.className === 'tool-card')
   assert.equal(cards.length, 6)
   assert.deepEqual(cards.map((card) => card.dataset.card), ['terminal', 'diff', 'read', 'search', 'web', 'generic'])
-  assert.equal(cards.at(-1).open, true)
+  assert.equal(cards.every((card) => card.open === false), true)
   assert.match(elements.trace.toolCards.textContent, /退出代码：0/)
   assert.match(elements.trace.toolCards.textContent, /修改前old修改后new/)
   assert.match(elements.trace.toolCards.textContent, /文件共 1 行/)
@@ -173,6 +185,10 @@ test('clears stale receipt and guidance content when the projected task has no t
   assert.equal(elements.guidance.actions.textContent, '')
   assert.equal(elements.trace.permissionFacts.textContent, 'Harness 没有提供可确认的权限快照。')
   assert.equal(elements.trace.changedFiles.textContent, '没有确认到文件改动。')
+  assert.equal(elements.trace.changesSection.classList.contains('hidden'), true)
+  assert.equal(elements.trace.overview.dataset.tone, 'unknown')
+  assert.equal(elements.trace.overviewTitle.textContent, '等待 Harness 事件')
+  assert.equal(elements.trace.supportingSummary.textContent, '权限、Git 基线与技术证据 · 权限未确认 · 没有任务前基线')
   assert.equal(elements.trace.toolCards.textContent, '没有工具操作。')
   assert.equal(elements.trace.evidenceContent.textContent, '还没有技术记录。')
   assert.equal(elements.trace.evidenceRaw.textContent, '还没有原始记录。')
@@ -193,4 +209,19 @@ test('keeps pending and failed outcome labels distinct from completion', () => {
   view.render({ outcome: { ...outcome, state: 'error', title: '这一轮已停止' } })
   assert.equal(elements.receipt.badge.textContent, '需要处理')
   assert.notEqual(elements.receipt.badge.textContent, '已完成')
+})
+
+test('keeps ten zero-token task states visually distinct while technical evidence stays compact', () => {
+  assert.equal(taskEvidenceStates.length, 10)
+  for (const fixture of taskEvidenceStates) {
+    const { view, elements } = createFixture()
+    view.render(fixture.thread)
+    assert.equal(elements.trace.overview.dataset.tone, fixture.expectedTone, fixture.id)
+    assert.equal(elements.trace.overviewTitle.textContent, fixture.expectedTitle, fixture.id)
+    assert.equal(elements.trace.changesSection.classList.contains('hidden'), fixture.changesHidden, fixture.id)
+    assert.match(elements.trace.overviewSummary.textContent, /项操作|没有工具操作/, fixture.id)
+    assert.match(elements.trace.supportingSummary.textContent, /权限.*Git 基线.*技术证据/, fixture.id)
+    const cards = findAll(elements.trace.toolCards, (node) => node.tagName === 'DETAILS' && node.className === 'tool-card')
+    assert.equal(cards.every((card) => card.open === false), true, fixture.id)
+  }
 })

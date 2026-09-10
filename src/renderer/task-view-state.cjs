@@ -6,6 +6,7 @@
   const EMPTY = Object.freeze({
     activeView: 'conversation',
     technicalDetailsOpen: false,
+    supportingFactsOpen: false,
     openToolCards: Object.freeze([])
   })
 
@@ -13,6 +14,7 @@
     return {
       activeView: ['trace', 'receipt'].includes(snapshot.activeView) ? snapshot.activeView : 'conversation',
       technicalDetailsOpen: snapshot.technicalDetailsOpen === true,
+      supportingFactsOpen: snapshot.supportingFactsOpen === true,
       openToolCards: [...new Set((snapshot.openToolCards || []).map(String))]
     }
   }
