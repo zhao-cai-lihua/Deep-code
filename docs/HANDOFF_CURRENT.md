@@ -1,14 +1,18 @@
 # Deep Code current handoff
 
 Updated: 2026-09-10
-Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.6` (published prerelease; all bounded human checks accepted)
-Current source version: `0.6.3` (stable release preparation; no runtime change from accepted rc.6)
+Branch: `main`
+Current packaged stable release: `0.6.3`
+Current source version: `0.6.3`
 
 ## Release delivery
 
+- v0.6.3 was merged through non-draft PR #7 at commit `4f39c49b4473b4cdafa0e36a72adbabe6def3645` and published as a non-draft, non-prerelease stable release on 2026-09-10: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3. PR workflow run `34448582136`, main workflow run `34448711490`, and Windows release workflow run `34448811058` all completed successfully. The release run repeated 259 tests, tag/version validation, compressed Windows packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3.exe`: 100,565,316 bytes; GitHub SHA-256 `7e72d02a09a0fdd72217a5cb992a57cd0dd0dfcba2ccff58b20eaea73bf774ee`.
+- `Deep.code.Setup.0.6.3.exe`: 100,788,726 bytes; GitHub SHA-256 `287f0959323dd15373ae0dae01782d203350ee99ba3116ffe1b0668668c7ca3a`.
+- `SHA256SUMS.txt`: 180 bytes; GitHub SHA-256 `5949c476b03c038138cffc0c8f7ba9607747ecd335dd6df730b516149c7b0e08`.
+- Stable v0.6.3 contains no `src/` or `test/` change after the manually accepted rc.6 tag. The version-only release preparation and merge commit are the only later source-history steps.
 - 砚星 completed the final zero-token rc.6 acceptance on 2026-09-10. Task A and Task B retained separate unsent drafts, and returning to a task restored only that task's draft. This closes the last manual release gate without a Provider call or token cost.
-- The v0.6.3 stable preparation changes only package/release documentation. Runtime source remains the accepted rc.6 implementation until the stable tag is built and published.
 - v0.6.3-rc.6 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.6. Release workflow run `34357772354` completed successfully after 259 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.6.exe`: 100,565,188 bytes; GitHub SHA-256 `58a0fa73ad48b95f7008157ecf4936aef0a246a032a3ab59df0f750cde6fdfc8`.
 - `Deep.code.Setup.0.6.3-rc.6.exe`: 100,788,623 bytes; GitHub SHA-256 `d71360ed75b874ec7948d5bb3630890e88f9dd5edc4c157bfa709ccdfee18f47`.
@@ -157,9 +161,9 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Merge the reviewed branch and publish v0.6.3 stable without broad UI, Provider, routing, or runtime changes.
-2. After stable publication, record the immutable tag, workflow result, asset sizes, and GitHub-provided SHA-256 digests here.
-3. Begin the next Evidence Gate iteration only for gaps observed against real upstream events. Extract Model Services UI state and task conversation rendering behind existing IPC/Harness authority seams before adding new product surface.
+1. v0.6.3 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, or task-draft checks unless the corresponding implementation changes.
+2. Begin the next Evidence Gate iteration only for gaps observed against real upstream events. First extract Model Services UI state and task conversation rendering behind existing IPC/Harness authority seams; keep behavior identical during decomposition.
+3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
 ## Human acceptance for v0.6.3-rc.6
