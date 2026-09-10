@@ -3,10 +3,18 @@ const assert = require('node:assert/strict')
 
 const { projectTaskOutcome } = require('../src/task-outcome-projection.cjs')
 
+function completedSnapshot(changes = []) {
+  return { turn: { state: 'completed' }, terminal: { state: 'completed', reason: 'completed', seq: 9 }, confirmedChanges: changes }
+}
+
 test('summarizes confirmed changes and explicit verification without guessing from answer text', () => {
   const outcome = projectTaskOutcome({
     engineState: 'ready',
     agent: {
+      taskRunSnapshot: completedSnapshot([
+        { path: 'src/app.js', operation: '修改', confirmed: true },
+        { path: 'test/app.test.js', operation: '写入', confirmed: true }
+      ]),
       messages: [{ role: 'assistant', text: 'Everything is probably perfect.' }],
       runDetails: {
         changedFiles: [
@@ -14,7 +22,7 @@ test('summarizes confirmed changes and explicit verification without guessing fr
           { path: 'test/app.test.js', operation: '写入' }
         ],
         toolCards: [
-          { id: '1', type: 'terminal', state: 'done', command: 'npm test', title: 'npm test', exitCode: 0 },
+          { id: '1', type: 'terminal', state: 'done', command: 'npm test', title: 'npm test', exitCode: 0, verificationIntent: true },
           { id: '2', type: 'read', state: 'done', title: '读取配置' }
         ]
       }
@@ -39,7 +47,10 @@ test('projects task-bound workspace attribution into the visual receipt', () => 
     engineState: 'ready',
     workspacePath: 'C:\\projects\\friendly-app',
     baseline: { state: 'clean', dirtyPaths: [], capturedAt: '2026-09-02T00:00:00.000Z' },
-    agent: { runDetails: { changedFiles: [{ path: 'src/app.js', operation: '修改' }], toolCards: [] } }
+    agent: {
+      taskRunSnapshot: completedSnapshot([{ path: 'src/app.js', operation: '修改', confirmed: true }]),
+      runDetails: { changedFiles: [{ path: 'src/app.js', operation: '修改' }], toolCards: [] }
+    }
   })
 
   assert.equal(outcome.workspace.label, 'friendly-app')
@@ -57,7 +68,7 @@ test('gives an attributable dedicated model test its own receipt language', () =
       version: 1, state: 'passed', provider: 'deepseek', model: 'deepseek-v4-flash', modelName: 'DeepSeek-V4-Flash',
       reasoningEffort: 'low', routeEvidence: 'request/header', terminalReason: 'completed', recordedAt: '2026-09-05T00:00:00.000Z'
     },
-    agent: { runDetails: { terminal: { state: 'completed' }, changedFiles: [], toolCards: [] } }
+    agent: { taskRunSnapshot: completedSnapshot(), runDetails: { terminal: { state: 'completed' }, changedFiles: [], toolCards: [] } }
   })
   assert.equal(outcome.title, '模型连接验证通过')
   assert.match(outcome.summary, /可归属的真实模型请求/)
@@ -70,7 +81,10 @@ test('gives an attributable dedicated model test its own receipt language', () =
 test('makes missing verification visible when files changed', () => {
   const outcome = projectTaskOutcome({
     engineState: 'ready',
-    agent: { runDetails: { changedFiles: [{ path: 'src/app.js', operation: '修改' }], toolCards: [] } }
+    agent: {
+      taskRunSnapshot: completedSnapshot([{ path: 'src/app.js', operation: '修改', confirmed: true }]),
+      runDetails: { changedFiles: [{ path: 'src/app.js', operation: '修改' }], toolCards: [] }
+    }
   })
 
   assert.deepEqual(outcome.verifications, [])
@@ -83,9 +97,10 @@ test('reports failed verification and task failure as recorded facts', () => {
     engineState: 'error',
     engineError: 'Engine 返回退出代码 1。',
     agent: {
+      taskRunSnapshot: { turn: { state: 'failed' }, terminal: { state: 'failed', reason: 'error', seq: 3 }, confirmedChanges: [] },
       runDetails: {
         changedFiles: [],
-        toolCards: [{ id: '1', type: 'terminal', state: 'error', command: 'pnpm lint', title: 'pnpm lint', exitCode: 1 }]
+        toolCards: [{ id: '1', type: 'terminal', state: 'error', command: 'pnpm lint', title: 'pnpm lint', exitCode: 1, verificationIntent: true }]
       }
     }
   })
@@ -105,7 +120,10 @@ test('never reports a failed or interrupted Harness terminal reason as success',
   for (const state of ['failed', 'interrupted']) {
     const outcome = projectTaskOutcome({
       engineState: 'ready',
-      agent: { runDetails: { terminal: { state, reason: state }, toolCards: [], changedFiles: [] } }
+      agent: {
+        taskRunSnapshot: { turn: { state }, terminal: { state, reason: state, seq: 4 }, confirmedChanges: [] },
+        runDetails: { terminal: { state, reason: state }, toolCards: [], changedFiles: [] }
+      }
     })
     assert.equal(outcome.state, 'error')
     assert.match(outcome.title, /没有完成|已停止/)
@@ -115,7 +133,10 @@ test('never reports a failed or interrupted Harness terminal reason as success',
 test('a verification without an explicit successful exit code stays unknown', () => {
   const outcome = projectTaskOutcome({
     engineState: 'ready',
-    agent: { runDetails: { toolCards: [{ type: 'terminal', state: 'done', command: 'npm test', exitCode: null }], changedFiles: [] } }
+    agent: {
+      taskRunSnapshot: completedSnapshot(),
+      runDetails: { toolCards: [{ type: 'terminal', state: 'done', command: 'npm test', exitCode: null, verificationIntent: true }], changedFiles: [] }
+    }
   })
   assert.equal(outcome.verifications[0].state, 'unknown')
   assert.match(outcome.warnings.join(' '), /没有提供足以确认通过的终态/)
@@ -123,8 +144,8 @@ test('a verification without an explicit successful exit code stays unknown', ()
 
 test('turns a user-wait timeout into an honest recovery path', () => {
   const outcome = projectTaskOutcome({
-    engineState: 'error',
-    engineError: '这一轮因等待你的回答超过 5 分钟而停止。',
+    engineState: 'unknown',
+    engineError: '停止请求已发送，但 Harness 尚未确认这一轮已停止。',
     recovery: {
       kind: 'waiting-timeout',
       cause: 'Harness 正在等待你的回答；5 分钟内没有收到回答。',
@@ -133,25 +154,81 @@ test('turns a user-wait timeout into an honest recovery path', () => {
     },
     agent: { runDetails: { toolCards: [], changedFiles: [] } }
   })
+  assert.equal(outcome.state, 'pending')
+  assert.equal(outcome.title, '停止仍待 Harness 确认')
+  assert.equal(outcome.map.nodes.find((node) => node.id === 'result').state, 'warning')
   assert.equal(outcome.recovery.kind, 'waiting-timeout')
   assert.match(outcome.impact, /没有替你选择/)
   assert.equal(outcome.nextAction, '重新连接任务后再回答。')
   assert.equal(outcome.recoveryAssessment.state, 'available')
 })
 
+test('a later Harness terminal supersedes stale unconfirmed timeout wording', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'error',
+    engineError: '停止请求已发送，但 Harness 尚未确认这一轮已停止。',
+    recovery: {
+      kind: 'waiting-timeout',
+      cause: 'Harness 等待回答超过 5 分钟。',
+      safety: '停止请求已发送，但 Harness 尚未确认停止。',
+      nextAction: '重新连接任务。'
+    },
+    agent: {
+      taskRunSnapshot: {
+        turn: { id: 'turn-7', state: 'interrupted' },
+        terminal: { state: 'interrupted', reason: 'aborted', seq: 8 },
+        confirmedChanges: []
+      },
+      runDetails: { terminal: { state: 'interrupted', reason: 'aborted' }, toolCards: [], changedFiles: [] }
+    }
+  })
+
+  assert.equal(outcome.terminalConfirmed, true)
+  assert.equal(outcome.title, '这一轮已停止')
+  assert.match(outcome.summary, /Harness 已确认.*停止/)
+  assert.doesNotMatch(outcome.summary, /尚未确认/)
+  assert.match(outcome.recovery.safety, /Harness 已确认.*停止/)
+})
+
 test('makes high-impact files visible even when ordinary tests pass', () => {
   const outcome = projectTaskOutcome({
     engineState: 'ready',
     agent: {
+      taskRunSnapshot: completedSnapshot([
+        { path: 'package.json', operation: '修改', confirmed: true },
+        { path: '.github/workflows/release.yml', operation: '修改', confirmed: true }
+      ]),
       runDetails: {
         changedFiles: [
           { path: 'package.json', operation: '修改' },
           { path: '.github/workflows/release.yml', operation: '修改' }
         ],
-        toolCards: [{ type: 'terminal', state: 'done', command: 'npm test', exitCode: 0 }]
+        toolCards: [{ type: 'terminal', state: 'done', command: 'npm test', exitCode: 0, verificationIntent: true }]
       }
     }
   })
   assert.deepEqual(outcome.risks.map((risk) => risk.id), ['dependencies', 'automation'])
   assert.match(outcome.warnings.join(' '), /许可证/)
+})
+
+test('does not treat command words or a successful exit as declared verification intent', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'ready',
+    agent: {
+      taskRunSnapshot: completedSnapshot(),
+      runDetails: { changedFiles: [], toolCards: [
+        { type: 'terminal', state: 'done', command: 'echo npm test', exitCode: 0 },
+        { type: 'terminal', state: 'done', command: 'Get-Content test/app.test.js', exitCode: 0 }
+      ] }
+    }
+  })
+  assert.deepEqual(outcome.verifications, [])
+})
+
+test('keeps the completion receipt hidden when there is no matching terminal evidence', () => {
+  const outcome = projectTaskOutcome({
+    engineState: 'ready',
+    agent: { taskRunSnapshot: { turn: { state: 'unknown' }, confirmedChanges: [] }, runDetails: {} }
+  })
+  assert.equal(outcome.visible, false)
 })

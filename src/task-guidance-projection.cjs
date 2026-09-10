@@ -30,7 +30,7 @@ function projectTaskGuidance(thread = {}) {
 
   const kind = failureKind(thread, outcome)
   const recoveryKind = outcome.recovery?.kind || ''
-  let title = outcome.state === 'success' ? '这一轮已经收好' : '先把这一轮恢复好'
+  let title = outcome.state === 'success' ? '这一轮已经收好' : outcome.state === 'pending' ? '先确认这一轮的实际状态' : '先把这一轮恢复好'
   let summary = outcome.nextAction || '查看证据后再决定是否继续。'
   let ids = []
 
@@ -48,7 +48,7 @@ function projectTaskGuidance(thread = {}) {
     title = kind === 'rate-limit' ? '模型服务正在限流' : '模型服务连接中断'
     ids = ['retry-task', 'open-model-services', 'open-trace']
   } else if (recoveryKind === 'waiting-timeout') {
-    title = '这轮因等待回答而停止'
+    title = outcome.terminalConfirmed ? '这一轮已经确认停止' : '停止仍待 Harness 确认'
     ids = ['retry-task', 'open-trace']
   } else if (recoveryKind === 'launch-failed') {
     title = '任务没有完成启动'

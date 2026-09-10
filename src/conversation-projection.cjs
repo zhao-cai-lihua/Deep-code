@@ -30,18 +30,6 @@ function safeJson(value) {
 
 function contextSummary(text, source = {}) {
   const normalized = String(text || '')
-  if (/Current DSH file policy:\s*danger-full-access/i.test(normalized)) {
-    return { kind: 'permission', key: 'file-policy', label: '文件权限：完全访问', detail: '本轮任务可读写当前电脑上的文件。' }
-  }
-  if (/Current DSH file policy:\s*workspace-write/i.test(normalized)) {
-    return { kind: 'permission', key: 'file-policy', label: '文件权限：仅工作区可写', detail: '本轮任务只能在允许的工作区内写入文件。' }
-  }
-  if (/Current DSH file policy:\s*read-only/i.test(normalized)) {
-    return { kind: 'permission', key: 'file-policy', label: '文件权限：只读', detail: '本轮任务不能修改文件。' }
-  }
-  if (/Approval prompts are disabled/i.test(normalized)) {
-    return { kind: 'permission', key: 'approval-policy', label: '操作审批：已关闭', detail: '需要额外批准的操作会被自动拒绝。' }
-  }
   if (/<available_skills>/i.test(normalized)) {
     const count = (normalized.match(/<skill>/gi) || []).length
     return { kind: 'capability', label: `技能目录已载入${count ? `（${count} 项）` : ''}`, detail: '完整目录已收进运行详情，不占用对话正文。' }
@@ -115,6 +103,20 @@ function humanFileOperation(name) {
   return '文件变更'
 }
 
+function structuredPermissionFact(event) {
+  const data = event?.data || {}
+  if (event?.type === 'permission/preset' && typeof data.preset === 'string') {
+    return { key: 'permission-preset', label: `权限预设：${data.preset}`, detail: '来自 Harness 结构化事件。', seq: event.seq }
+  }
+  if (event?.type === 'sandbox/mode' && typeof data.mode === 'string') {
+    return { key: 'sandbox-mode', label: `文件沙箱：${data.mode}`, detail: '来自 Harness 结构化事件。', seq: event.seq }
+  }
+  if (event?.type === 'approval/policy' && typeof data.policy === 'string') {
+    return { key: 'approval-policy', label: `操作审批：${data.policy}`, detail: '来自 Harness 结构化事件。', seq: event.seq }
+  }
+  return null
+}
+
 function latestTurnDuration(events) {
   const starts = new Map()
   let latest = null
@@ -140,8 +142,8 @@ function terminalFailure(reason) {
     return {
       kind: 'authentication',
       title: '模型服务拒绝了 API Key',
-      detail: '当前模型服务认为保存的 API Key 无效、过期或不属于这个服务。',
-      nextAction: '打开“模型服务”，为当前 Provider 替换有效的 API Key，再重新验证。',
+      detail: '这一轮请求被模型服务拒绝了；当时使用的 API Key 可能无效、已过期或不属于这个服务。这只说明这次请求，不代表当前保存的凭据仍然失败。',
+      nextAction: '打开“模型服务”查看这个 Provider 最近一次真实验证；若没有更晚的通过记录，再替换 API Key 后重新验证。',
       ...facts
     }
   }
@@ -304,6 +306,7 @@ function projectConversation(page) {
   const runtimeContext = []
   const activities = []
   const changedFiles = []
+  const unconfirmedChanges = []
   const permissionFacts = []
   const calls = new Map()
 
@@ -312,6 +315,13 @@ function projectConversation(page) {
     eventIndex += 1
     const event = entry?.event || {}
     const data = event.data || {}
+    const permissionFact = structuredPermissionFact(event)
+    if (permissionFact) {
+      const previous = permissionFacts.findIndex((item) => item.key === permissionFact.key)
+      if (previous >= 0) permissionFacts.splice(previous, 1, permissionFact)
+      else permissionFacts.push(permissionFact)
+      continue
+    }
     if (event.type === 'user/message') {
       const message = data.message || data
       const text = textBlocks(message.content)
@@ -322,11 +332,6 @@ function projectConversation(page) {
       else if (text) {
         const summary = contextSummary(text, source)
         runtimeContext.push({ seq: event.seq, time: event.time, source, raw: text, ...summary })
-        if (summary.kind === 'permission') {
-          const previous = permissionFacts.findIndex((item) => item.key === summary.key)
-          if (previous >= 0) permissionFacts.splice(previous, 1, summary)
-          else permissionFacts.push(summary)
-        }
       }
       continue
     }
@@ -371,10 +376,15 @@ function projectConversation(page) {
         if (call.kind === 'file-change' && call.state === 'done') {
           const presenterPaths = (presenter?.diffs || call.presenter?.diffs || [])
             .map((diff) => diff?.path).filter((path) => typeof path === 'string' && path.trim())
-          const paths = presenterPaths.length ? presenterPaths : [filePathFrom(call.args)].filter(Boolean)
-          for (const path of paths) {
+          for (const path of presenterPaths) {
             if (!changedFiles.some((item) => item.path === path)) {
-              changedFiles.push({ path, operation: humanFileOperation(call.name), seq: event.seq })
+              changedFiles.push({ path, operation: humanFileOperation(call.name), seq: event.seq, confirmed: true })
+            }
+          }
+          if (!presenterPaths.length) {
+            const path = filePathFrom(call.args)
+            if (path && !unconfirmedChanges.some((item) => item.path === path)) {
+              unconfirmedChanges.push({ path, operation: humanFileOperation(call.name), seq: event.seq, confirmed: false })
             }
           }
         }
@@ -390,6 +400,7 @@ function projectConversation(page) {
       terminal: latestTurnTerminal(latestTurnEvents),
       permissionFacts,
       changedFiles,
+      unconfirmedChanges,
       activities,
       toolCards: activities.map(toolCardFromActivity),
       runtimeContext
@@ -399,4 +410,4 @@ function projectConversation(page) {
   }
 }
 
-module.exports = { projectConversation, textBlocks, imageBlocks, contextSummary, toolKind, presenterKind, presenterDetail, humanFileOperation, toolCardFromActivity, latestTurnTerminal, terminalFailure }
+module.exports = { projectConversation, textBlocks, imageBlocks, contextSummary, toolKind, presenterKind, presenterDetail, humanFileOperation, structuredPermissionFact, toolCardFromActivity, latestTurnTerminal, terminalFailure }

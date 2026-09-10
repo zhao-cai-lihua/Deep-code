@@ -11,6 +11,8 @@ test('third-party child environments keep runtime essentials and remove secrets'
     DEEPSEEK_API_KEY: 'secret-one',
     npm_config_authToken: 'secret-two',
     CUSTOM_PASSWORD: 'secret-three',
+    CLOUD_REGION: 'should-not-be-inherited',
+    NPM_CONFIG_REGISTRY: 'https://unrelated.example',
     NODE_OPTIONS: '--require dangerous.js',
     HTTPS_PROXY: 'http://127.0.0.1:7890'
   })
@@ -21,5 +23,7 @@ test('third-party child environments keep runtime essentials and remove secrets'
   assert.equal(result.npm_config_authToken, undefined)
   assert.equal(result.CUSTOM_PASSWORD, undefined)
   assert.equal(result.NODE_OPTIONS, undefined)
+  assert.equal(result.CLOUD_REGION, undefined)
+  assert.equal(result.NPM_CONFIG_REGISTRY, undefined)
   assert.doesNotMatch(JSON.stringify(result), /secret-/)
 })

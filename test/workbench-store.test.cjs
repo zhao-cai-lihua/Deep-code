@@ -1,4 +1,4 @@
-const { mkdtempSync } = require('node:fs')
+const { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 const { tmpdir } = require('node:os')
 const test = require('node:test')
@@ -52,6 +52,17 @@ test('binds one Deep code task to one hidden Engine session', () => {
   const bound = store.snapshot().threads[0]
   assert.equal(bound.sessionId, 'session-1')
   assert.equal(bound.engineState, 'running')
+})
+
+test('persists only a bounded prompt admission receipt and can clear it', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '排队执行' })
+  store.setAdmission(task.id, { accepted: true, messageId: 'message-7', rpcId: 'deep-code-rpc-7', acceptedAt: '2026-09-07T12:00:00.000Z' })
+  assert.deepEqual(store.snapshot().threads[0].admission, {
+    accepted: true, messageId: 'message-7', rpcId: 'deep-code-rpc-7', acceptedAt: '2026-09-07T12:00:00.000Z'
+  })
+  store.clearAdmission(task.id)
+  assert.equal(store.snapshot().threads[0].admission, null)
 })
 
 test('persists a bounded model verification purpose and receipt', () => {
@@ -116,4 +127,67 @@ test('binds a task to its workspace and persists a bounded Git baseline', () => 
   assert.equal(saved.workspacePath, 'C:\\projects\\one')
   assert.equal(saved.baseline.state, 'dirty')
   assert.deepEqual(saved.baseline.dirtyPaths, ['src/existing.cjs'])
+})
+
+test('freezes a completion baseline and clears it when a later turn captures a new start baseline', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '修改项目' })
+  const baseline = (dirtyPaths, capturedAt) => ({
+    version: 1, state: dirtyPaths.length ? 'dirty' : 'clean', workspacePath: 'C:\\repo', repoRoot: 'C:\\repo',
+    head: 'abc', dirtyPaths, capturedAt, message: ''
+  })
+  store.setWorkspaceBaseline(task.id, { workspacePath: 'C:\\repo', baseline: baseline([], 'start') })
+  store.setCompletionBaseline(task.id, baseline(['src/app.js'], 'end'))
+  assert.deepEqual(store.snapshot().threads[0].completionBaseline.dirtyPaths, ['src/app.js'])
+  store.setWorkspaceBaseline(task.id, { workspacePath: 'C:\\repo', baseline: baseline([], 'next') })
+  assert.equal(store.snapshot().threads[0].completionBaseline, null)
+})
+
+test('persists generations and falls back when the newest generation is corrupted', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'deep-code-workbench-'))
+  const legacy = join(directory, 'local-tasks.json')
+  const store = new WorkbenchStore(legacy)
+  const first = store.create({ title: '可恢复任务', prompt: 'A' })
+  store.create({ title: '较新任务', prompt: 'B' })
+  const generations = readdirSync(directory).filter((name) => /^local-tasks\.\d+\.json$/.test(name)).sort()
+  assert.ok(generations.length >= 2)
+  writeFileSync(join(directory, generations.at(-1)), '{broken', 'utf8')
+
+  const recovered = new WorkbenchStore(legacy).snapshot()
+
+  assert.equal(recovered.threads.some((thread) => thread.id === first.id), true)
+  assert.equal(recovered.storageRecovery?.kind, 'generation-fallback')
+  assert.doesNotMatch(recovered.storageRecovery?.message || '', /SyntaxError|JSON/)
+})
+
+test('migrates a legacy task file without deleting it before a valid generation exists', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'deep-code-workbench-'))
+  const legacy = join(directory, 'local-tasks.json')
+  writeFileSync(legacy, JSON.stringify({ version: 4, threads: [], activeThreadId: '' }), 'utf8')
+
+  const snapshot = new WorkbenchStore(legacy).snapshot()
+
+  assert.equal(snapshot.threads.length, 0)
+  assert.equal(existsSync(legacy), true)
+  assert.equal(readdirSync(directory).some((name) => /^local-tasks\.\d+\.json$/.test(name)), true)
+})
+
+test('keeps at least the three newest valid generations after repeated writes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'deep-code-workbench-'))
+  const store = new WorkbenchStore(join(directory, 'local-tasks.json'))
+  for (let index = 0; index < 7; index += 1) store.create({ title: `任务 ${index}`, prompt: `P${index}` })
+  const generations = readdirSync(directory).filter((name) => /^local-tasks\.\d+\.json$/.test(name))
+  assert.equal(generations.length, 3)
+  assert.equal(JSON.parse(readFileSync(join(directory, generations.sort().at(-1)), 'utf8')).threads.length, 7)
+})
+
+test('a stale temp file from a crash cannot permanently block later task writes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'deep-code-workbench-'))
+  const storagePath = join(directory, 'local-tasks.json')
+  writeFileSync(join(directory, 'local-tasks.00000001.json.tmp'), '{"partial":', 'utf8')
+  const store = new WorkbenchStore(storagePath)
+  const task = store.create({ prompt: '继续保存' })
+  assert.equal(store.snapshot().threads[0].id, task.id)
+  assert.equal(existsSync(join(directory, 'local-tasks.00000002.json')), true)
+  assert.equal(existsSync(join(directory, 'local-tasks.00000001.json.tmp')), true)
 })

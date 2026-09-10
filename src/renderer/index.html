@@ -154,9 +154,9 @@
         </section>
 
         <section id="page-ecosystem" class="page" aria-labelledby="ecosystem-heading">
-          <header class="topbar"><div><p class="eyebrow">OPT-IN · CHECK BEFORE INSTALL</p><h1 id="ecosystem-heading" tabindex="-1">生态发现</h1><p class="topbar-copy">发现带有 GitHub <code>dsh-plugin</code> topic 的公开项目。热度不是信任评分；安装前会固定源码版本、检查官方 Bundle 声明并再次征求你的确认。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
+          <header class="topbar"><div><p class="eyebrow">OPT-IN · READ ONLY</p><h1 id="ecosystem-heading" tabindex="-1">生态发现</h1><p class="topbar-copy">发现带有 GitHub <code>dsh-plugin</code> topic 的公开项目。热度不是信任评分；当前版本只读，不会安装或执行社区代码。</p></div><button class="quiet-button" type="button" data-page="workbench">返回工作台</button></header>
           <section class="ecosystem-controls settings-card">
-            <div><h2>允许查看社区生态</h2><p>默认关闭。浏览不会启动 Engine 或调用模型；只有逐项点击安装、看完固定版本与风险提示并确认后，才会修改官方 web profile。</p></div>
+            <div><h2>允许查看社区生态</h2><p>默认关闭。浏览不会启动 Engine、调用模型或修改官方 web profile。安装暂时暂停，等待安全底座完成。</p></div>
             <label class="toggle-row"><input id="ecosystem-enabled" type="checkbox" /><span>开启生态发现</span></label>
             <button id="refresh-ecosystem" class="quiet-button" type="button">更新公开项目</button>
           </section>
@@ -213,7 +213,8 @@
               <p>由官方 DeepSeek Harness 提供执行能力。启动只会运行本机 Engine，不会调用模型，也不消耗模型 token；发送任务或创建真实验证任务才会调用模型。</p>
               <label>Engine 文件夹<div class="path-row"><input id="runtime-path" type="text" readonly placeholder="尚未找到本机 Engine" /><button id="select-runtime" type="button" class="quiet-button">手动定位</button></div></label>
               <div class="runtime-status"><span id="status-dot" class="status-dot stopped"></span><div><strong id="status-label">尚未启动</strong><p id="status-message">Harness 未运行。</p></div></div>
-              <div class="button-row"><button id="start" type="button" class="primary-button">启动 Engine</button><button id="stop" type="button" class="danger-button">停止</button></div>
+              <div class="button-row"><button id="start" type="button" class="primary-button">启动 Engine</button><button id="confirm-shared-engine" type="button" class="primary-button hidden">确认连接共享 Engine</button><button id="start-managed-engine" type="button" class="quiet-button hidden">改用 Deep Code 托管 Engine</button><button id="stop" type="button" class="danger-button">停止</button></div>
+              <p id="engine-trust-note" class="credential-note">托管 Engine 会使用净化后的环境变量；桌面环境中的 API Key 不会被自动继承。</p>
             </section>
             <section class="settings-card model-card">
               <h2>模型连接</h2>
@@ -291,7 +292,10 @@
     <script src="./markdown-runtime.js"></script>
     <script src="./reading-runtime.js"></script>
     <script src="./task-view-state.cjs"></script>
+    <script src="./composer-draft-state.cjs"></script>
+    <script src="./workbench-refresh-gate.cjs"></script>
     <script src="./provider-provisioning-flow.cjs"></script>
+    <script src="./model-connection-view.cjs"></script>
     <script src="./shell.js"></script>
   </body>
 </html>

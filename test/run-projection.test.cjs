@@ -6,6 +6,11 @@ test('projects only current active work and verified model/evidence facts', () =
   const result = projectTaskRun({
     engineState: 'running',
     agent: {
+      taskRunSnapshot: {
+        turn: { state: 'running' },
+        route: { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'max', seq: 7 },
+        confirmedChanges: [{ path: 'README.md', operation: '修改', confirmed: true }]
+      },
       model: { available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash-vision-exp', name: 'DeepSeek Vision', reasoningEffort: 'high' },
       effectiveModel: { available: true, provider: 'deepseek-official', id: 'deepseek-v4-pro', name: 'DeepSeek Pro', reasoningEffort: 'max' },
       live: {
@@ -34,8 +39,20 @@ test('projects only current active work and verified model/evidence facts', () =
 test('durable idle state never leaves live working items visible', () => {
   const result = projectTaskRun({
     engineState: 'ready',
-    agent: { live: { activities: [{ id: 'stale', state: 'working', label: '正在整理' }] }, runDetails: {} }
+    agent: {
+      taskRunSnapshot: { turn: { state: 'completed' }, terminal: { state: 'completed' }, confirmedChanges: [] },
+      live: { activities: [{ id: 'stale', state: 'working', label: '正在整理' }] }, runDetails: {}
+    }
   })
   assert.equal(result.state, 'completed')
   assert.deepEqual(result.activeItems, [])
+})
+
+test('does not turn an idle Session into a completed task without a matching turn end', () => {
+  const result = projectTaskRun({
+    engineState: 'ready',
+    agent: { taskRunSnapshot: { turn: { state: 'unknown' }, confirmedChanges: [] }, runDetails: {} }
+  })
+  assert.equal(result.state, 'unknown')
+  assert.equal(result.model.available, false)
 })

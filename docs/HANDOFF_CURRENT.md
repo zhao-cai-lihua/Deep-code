@@ -1,19 +1,76 @@
 # Deep Code current handoff
 
-Updated: 2026-09-06
-Branch: `codex/release-line-endings`
-Current packaged release candidate: `0.6.1-rc.3`
-Current source version: `0.6.2` (published; rc.3 product behavior unchanged)
+Updated: 2026-09-10
+Branch: `codex/v0.6.3-evidence-safety`
+Current packaged release candidate: `0.6.3-rc.6` (published prerelease; all bounded human checks accepted)
+Current source version: `0.6.3` (stable release preparation; no runtime change from accepted rc.6)
 
 ## Release delivery
 
-- v0.6.2 published as a non-draft, non-prerelease on 2026-09-06: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.2
+- 砚星 completed the final zero-token rc.6 acceptance on 2026-09-10. Task A and Task B retained separate unsent drafts, and returning to a task restored only that task's draft. This closes the last manual release gate without a Provider call or token cost.
+- The v0.6.3 stable preparation changes only package/release documentation. Runtime source remains the accepted rc.6 implementation until the stable tag is built and published.
+- v0.6.3-rc.6 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.6. Release workflow run `34357772354` completed successfully after 259 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.6.exe`: 100,565,188 bytes; GitHub SHA-256 `58a0fa73ad48b95f7008157ecf4936aef0a246a032a3ab59df0f750cde6fdfc8`.
+- `Deep.code.Setup.0.6.3-rc.6.exe`: 100,788,623 bytes; GitHub SHA-256 `d71360ed75b874ec7948d5bb3630890e88f9dd5edc4c157bfa709ccdfee18f47`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `3c6c59a5cf75afcd99642a0155b2ab299660863c27b0ce13ec96ab49b209279e`.
+- rc.6 is the narrow acceptance correction after rc.5. It gives each task and the blank new-task surface an isolated in-memory composer draft, clears only the successfully submitted scope, and separates a yellow “stop still awaiting Harness confirmation” state from a terminally confirmed interruption. It does not change Engine, Provider, credential, model-route, Session, permission, or file-operation behavior.
+- v0.6.3-rc.5 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.5. Release workflow run `34321559334` completed successfully after 251 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.5.exe`: 100,564,496 bytes; GitHub SHA-256 `17b21e20d26c02da9adf403038c8b90b21861665f4f4d6bfe90e138cda9b22b7`.
+- `Deep.code.Setup.0.6.3-rc.5.exe`: 100,787,900 bytes; GitHub SHA-256 `6fee638d3f5b889f6f58665a6b8376a31c3738f82c80f5ad0d122a342ba33e46`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `b457a3a8a64685d05d01fcd42314f1f478fa84dcf1726fac5c8bbede1987c47a`.
+- rc.5 closes four final evidence and interaction races found by a cumulative `v0.6.2...rc.4` Spec/Standards review: exact prompt-admission correlation, direct task-selection refresh ordering, a second send-target check immediately before `session.prompt`, and truthful timeout cancellation wording. It does not change Provider credentials, model routing, Harness permissions, or execution authority.
+- v0.6.3-rc.4 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.4. Release workflow run `34230071185` completed successfully after 246 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.4.exe`: 100,563,534 bytes; GitHub SHA-256 `da5faebc2f8e5c4046e82d903d014df5510c7a494af0b475853452633e935146`.
+- `Deep.code.Setup.0.6.3-rc.4.exe`: 100,786,939 bytes; GitHub SHA-256 `3d6daf6ae69780942ba673bb7af6d02add8f97404f38443f507759a00ba3ede8`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `416de26cfc2cd317b97fbcf05680e5cafdef1b2ae36f2d6f7931096b6a9a62a3`.
+- v0.6.3-rc.4 invalidates a shared Engine candidate when its confirmation-time runtime or Host recheck fails. Instead of leaving the UI in a stale `awaiting-user` state, Runtime Supervisor clears the candidate, enters `incompatible`, preserves null URL/trust, and requires a fresh Engine check. It also moves model-connection display lines into a browser/Node-compatible projection with a real behavior test for saved credential plus historical verification.
+- Zero-token local protocol acceptance on 2026-09-08 used the pinned official checkout. A real shared Harness remained unusable before confirmation, then bound exact `user-confirmed-shared` facts and was not stopped by Deep Code. A fake HTTP-200 service on 3080 was not adopted; Deep Code started an owned managed Engine on random port `1527`, reached `managed-process / ready`, and stopped it cleanly. Port 3080 was free after both checks.
+- Packaged rc.3 single-instance acceptance used an isolated user-data directory. The second launcher exited within six seconds and exactly one main `Deep code.exe` remained. The first instance was then stopped. No real task store, Session, Provider, credential, or workspace was touched.
+- v0.6.3-rc.3 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.3. Release workflow run `34223988024` completed successfully after 245 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.3.exe`: 100,563,236 bytes; GitHub SHA-256 `c2ed757bc03d544c3f362ee2d261a608bbffe977e25323441cd68541f6c4b94a`.
+- `Deep.code.Setup.0.6.3-rc.3.exe`: 100,786,644 bytes; GitHub SHA-256 `2c4f8c2b4e0d2a700902b18ae798c07c1e17c0840f49c6b5307b4b55c59d6a0f`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `36f41b6768b4fdb75a6dde756c702316ef0b1174496651256cdefe64306fb364`.
+- v0.6.3-rc.3 fixes temporal model-state projection without changing Harness credential storage or making a Provider request. A saved credential and a real-call verification receipt are rendered as separate facts; an older failed Turn no longer claims the currently saved credential is invalid when a newer attributable pass exists.
+- 砚星 confirmed rc.2 now admits the correct pinned Engine and displays runtime release `0.1.1-rc.2`. During model-service acceptance, the same API Key passed after being entered again, while an older task failure and the settings connection panel still presented stale or incomplete status. Read-only source/runtime inspection found no evidence of an Engine credential cache: both current credentials were reported by Harness as file-backed, and the pinned upstream adapters resolve credentials per request. rc.3 therefore repairs evidence projection instead of adding an unproven Engine restart or automatic credential rewrite.
+
+- v0.6.3-rc.2 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.2. Release workflow run `34200311540` completed successfully after 244 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.2.exe`: 100,562,944 bytes; GitHub SHA-256 `2efa08ace30dfe1e538c75286f0a925d0b24c794bb8b0c894981ba12540c399a`.
+- `Deep.code.Setup.0.6.3-rc.2.exe`: 100,786,359 bytes; GitHub SHA-256 `f8c85b89a35e7b75b913ebfccdff0e420128f1272c97be65f7225025bc976053`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `78448d65d2130a9f6aa030d3b6cc0f3bfb970527302f98a2fde68b032044cd31`.
+- v0.6.3-rc.1 is blocked from acceptance. Both its local test portable and published installer correctly inspected the pinned runtime release and Git SHA, but then incorrectly compared upstream's hard-coded `host.describe.version: "0.0.1"` placeholder with root release version `0.1.1-rc.2`. This failed closed before Session creation; it did not modify a task, workspace, Provider, or credential. Use rc.2 or later.
+- The rc.1 GitHub release remains reproducible but its title and release body now explicitly direct testers to rc.2. Its tag and assets were not deleted or rewritten.
+- v0.6.3-rc.1 was published as a non-draft prerelease on 2026-09-08: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.1. Release workflow run `34188241039` passed dependency installation, 243 tests, tag/version validation, installer/portable packaging, checksum generation, and asset publication.
+- `Deep.code.0.6.3-rc.1.exe`: 100,562,861 bytes; GitHub SHA-256 `2520f53514b1a5f3145882e153418e13027064341049fd26b2472034f00eb927`.
+- `Deep.code.Setup.0.6.3-rc.1.exe`: 100,786,276 bytes; GitHub SHA-256 `5260beaf914d7ec2fad7e1af9add2d53c3c97df6d649df1c13eb487f1388c8ba`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `86bbaa330ceff819e3b4f837341c757af586b07ae31bca62e00566973119e482`.
+- v0.6.2 remains reproducible at https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.2, but on 2026-09-08 it was marked **prerelease/test-only** and given a safety warning. Its tag and assets were not deleted or rewritten.
 - Tag source: `889a57981d7478f24f9e52a02b63eb6625bd8a98`; PRs #4 and #5 merged. Runtime `src/` is unchanged from accepted rc.3.
 - Clean Windows release run `34036307913`: 197 tests passed, Setup and portable built and published. Both asset URLs resolve. No new real-provider calls were made during release preparation.
 - `Deep.code.Setup.0.6.2.exe`: 100,779,810 bytes; GitHub SHA-256 `12b4163f0d547395e7169a9ea8e6bf84f3b430ffeb6b621f936f6e8206d6045e`.
 - `Deep.code.0.6.2.exe`: 100,556,397 bytes; GitHub SHA-256 `a21c6c0a4a300ef4aaf66bde6dfe6f173a5499a49fece1b6e808491e4dac91c0`.
 - Checksums above are GitHub asset digests, not a claimed local download verification. Packaged rc.3 was manually accepted; published v0.6.2 was not separately installed over the user's application. No commercial signing certificate is configured.
 - The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
+- `docs/FEI_REVIEW_PACKET_2026-09-06.md` is the bounded external review entry for v0.6.2. It points to the fixed release commit, trust boundaries, high-risk files, reproducible commands, known debt, and evidence requirements without copying private conversations or duplicating the whole repository into Markdown.
+
+## v0.6.3 accepted safety baseline
+
+This candidate implements the security and evidence plan without adding a second Agent Loop:
+
+- Engine admission is represented by one managed/shared trust state. Managed Harness uses `--no-open --port 0`, must be the child process Deep Code owns, and becomes ready only after the pinned checkout identity and the pinned checkout's actual `host.describe` marker agree with the normalized working directory. A compatible Harness already listening on 3080 remains `awaiting-user`; it cannot receive prompts or credentials until explicitly confirmed. Confirmation repeats both checkout and host checks so a changed `baseUrl + host marker + cwd + HEAD` cannot reuse an older decision.
+- The compatible runtime allowlist currently contains only tag `dsh-v0.1.1-rc.2`, root package version `0.1.1-rc.2`, Git SHA `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`, and that commit's `host.describe.version` marker `0.0.1`. The upstream implementation explicitly labels `0.0.1` as a placeholder to be replaced by the CLI package version; it is neither treated nor displayed as the release version. Local inspection of that exact checkout confirmed the schema and CLI `--port 0` support. `0.1.2-rc.1` remains unapproved.
+- Managed child processes receive only a small runtime/proxy environment allowlist. Unknown names containing Key, Token, Secret, Password, or Credential, `NODE_OPTIONS`, and unrelated application/cloud credentials are excluded; values are never diagnosed.
+- Automatic runtime preparation clones the exact official tag into a revision-named directory and verifies repository identity, package identity, version, and exact HEAD both before executing repository scripts and after the build.
+- Ecosystem discovery remains opt-in and read-only. Product Renderer, Preload, and Main expose no executable installation IPC; popularity is never treated as plugin compatibility.
+- Memory IDs and resolved paths are revalidated on read/migration. Folder location is status truth, malformed or duplicate records are quarantined, reviewed state moves atomically, and high-confidence secret material is refused without echoing it. Memory remains outside Agent prompts.
+- Local tasks use immutable numbered snapshots, retain the three latest schema-valid generations, migrate the legacy file without deleting it, and fall back from a corrupt newest generation. A stale crash `.tmp` cannot block future writes. A second Electron instance only focuses the first writer.
+- `TaskRunSnapshot` is the sole task evidence projection. Admission means accepted/queued only; current-turn `turn/start`/matching `turn/end` decide lifecycle; the last in-window `request/header` decides model route; only structured permission events become permission facts; official diff presenter or independent same-worktree baseline evidence is required for confirmed file changes.
+- The pinned Harness version returns `{ accepted: true }` from `session.prompt`, while its durable `user/message.source.rpcId` records the exact JSON-RPC request id. Deep Code now retains that locally generated request id as admission evidence and opens a Turn window only when the same id appears in durable history. Until then the request remains queued; it cannot inherit an older Turn's route, tools, file changes, or terminal state.
+- Session-scoped mux frames without the exact non-empty Session ID are dropped and counted anonymously. A terminal state is never inferred from idle/ready state, old model headers do not cross into a newer Turn, and permission-like text remains ordinary runtime context.
+- Running tasks use stop-and-delete: cancel first, wait up to ten seconds for a same-task terminal snapshot, and keep the record with recovery guidance when stop is unconfirmed. Renderer refresh responses are gated by generation, visible task ID, and Session ID.
+
+The rc.5 source changes no credential storage, Provider routing, Session authority, or Harness execution behavior. Direct task selection now uses the same monotonic generation and `{taskId, sessionId}` guard as background refreshes. Sending checks that identity once before asynchronous route preparation and again immediately before `session.prompt`. A five-minute Decision Gate timeout may prove that Harness accepted a cancellation request, but only matching terminal evidence may claim the Turn stopped. The cumulative review is recorded in `docs/V0.6.3_FINAL_REVIEW_2026-09-09.md`.
+
+The rc.6 acceptance patch adds a Renderer-only `ComposerDraftState`: typing in Task A is saved only for A, Task B starts with B's own draft, returning to A restores A, and a successful send clears only the submitted scope. Drafts remain in memory and never become Harness input before submission. The timeout receipt now has a third `pending` presentation state. Without terminal evidence it says “停止仍待 Harness 确认”; with a later matching terminal it replaces stale unconfirmed copy with the proven terminal result.
 
 ## Product truth
 
@@ -43,7 +100,20 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- `npm test`: 197 passed, 0 failed for v0.6.2, including LF and CRLF removal-handler contracts. The unmodified contract failed under CRLF in a focused local reproduction, matching the v0.6.1 Windows release job (196 passed, 1 failed). Only the test extraction was faulty; no runtime change was needed. PR and main-branch Windows tests now run before release.
+- Stable preparation `npm test`: **259 passed, 0 failed** on 2026-09-10. `git diff --name-only v0.6.3-rc.6 -- src test` is empty, confirming that the stable preparation adds no runtime or test change after the accepted candidate.
+- Stable preparation `npm run package:test:win` passed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,771,132 bytes, local SHA-256 `f8374d34d4263c898f425cba5607dbbc6acf415e36dae8e6803911d69000a5cc`. Packaged `app.asar` reports version `0.6.3` and contains Composer Draft State, TaskRunSnapshot, Outcome, Guidance, and Workbench projection modules. This local uncompressed test artifact is not a release asset.
+- `npm test`: **259 passed, 0 failed** for the current v0.6.3-rc.6 source on 2026-09-09. New behavior tests prove task/new-task text-draft isolation, successful-send clearing, stale-selection capture, pending timeout presentation, later terminal supersession, terminal-aware guidance, and structured-terminal precedence over temporary recovery state.
+- `npm run package:test:win` passed for rc.6 and produced `dist/Deep-code-Test-0.6.3-rc.6.exe`, 368,771,147 bytes, SHA-256 `8ff274bcee420733026c7a239193f50a8ccb129a6ae610587650f329faca6e77`. Packaged `app.asar` contains Composer Draft State plus the updated outcome, guidance, and online Engine-state projections.
+- Model-state and conversation-projection focus suite: **80 passed, 0 failed**. The suite proves an authentication failure is phrased as a historical Turn fact and the settings connection snapshot can display a newer passed receipt.
+- `npm run package:test:win` passed for rc.5 and produced `dist/Deep-code-Test-0.6.3-rc.5.exe`, 368,766,528 bytes, SHA-256 `020fc87f7d10b33f667b30c0c4c60ff2a3ebd8e077b233e691c893876ec3702c`. Packaged `app.asar` inspection found the new admission, refresh, target, and timeout-projection modules. No user process was stopped. This does not substitute for final UI acceptance or a Provider call.
+- GitHub Windows release run `34223988024`: passed 245 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and prerelease asset publication.
+- GitHub Windows release run `34230071185`: passed 246 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.4 prerelease asset publication.
+- GitHub Windows release run `34321559334`: passed 251 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.5 prerelease asset publication.
+- GitHub Windows release run `34357772354`: passed 259 tests, tag/version validation, compressed Setup and portable packaging, checksum generation, and rc.6 prerelease asset publication.
+- `pnpm audit --prod --audit-level high`: no known production dependency vulnerabilities on 2026-09-08.
+- `git diff --check`: passed. Line-ending notices are Git's configured LF-to-CRLF conversion warning, not whitespace errors.
+- Release workflow now requires the Git tag to equal `v` plus the package version, marks hyphenated versions such as `-rc.1` as prerelease, and publishes a generated `SHA256SUMS.txt` beside installer and portable assets.
+- Historical v0.6.2 baseline: 197 tests passed, including LF and CRLF removal-handler contracts. The unmodified contract failed under CRLF in a focused local reproduction, matching the v0.6.1 Windows release job (196 passed, 1 failed). Only the test extraction was faulty; no runtime change was needed.
 - Provider selection preserves the exact Harness route and verifies the same route after writing.
 - Provider removal clears its CredentialRef, unsets only its exact Profile, and verifies it is no longer active.
 - Provider removal confirmation no longer nests native `window.confirm` inside an HTML modal; it uses a ten-second in-dialog second click.
@@ -64,7 +134,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - Terminal Provider failures are projected into safe beginner-facing categories (authentication, quota, rate limit, unavailable model, network, or unknown) without exposing credential fragments. Runtime-context summaries remain readable by default; verbatim system and Skill payloads require a second explicit disclosure.
 - Terminal tasks now receive one derived next-action projection. Its Renderer accepts only allowlisted action IDs; it cannot submit a prompt or invent execution state. Authentication routes to Model Services, network/wait failures may offer explicit retry, risky completed work opens the receipt first, and successful model verification can continue to a new task.
 - The rc.1 portable artifact was launched in the real Windows desktop. A completed model-verification task displayed the next-action panel and `查看完整回执` navigated to the Harness-backed receipt without starting Engine or making a model request.
-- Credential presence is now consistently labeled `已保存，尚未验证`, never `模型已准备好`. Saving a new Provider requires a second in-dialog click naming the exact Provider; changing the Provider or Key invalidates that confirmation. Deep Code still does not infer provider identity from secret text.
+- Credential presence is labeled `凭据已保存` and displayed separately from `最近一次真实验证`; neither is called `模型已准备好`. Saving a new Provider requires a second in-dialog click naming the exact Provider; changing the Provider or Key invalidates that confirmation. Deep Code still does not infer provider identity from secret text.
 - The add-Provider confirmation is now owned by a tested Renderer state module instead of ad-hoc variables in `shell.js`. It accepts only Provider identity, never the API Key; changing Provider, editing the Key, expiry, and explicit reset all invalidate the pending confirmation.
 - The rc.2 portable artifact was inspected in the real Windows desktop. It projected an existing authentication failure to Model Services without retry, displayed all four active Provider credentials as saved-but-unverified, named the selected dormant Provider in the add dialog, and was closed after restoring Engine to stopped. No credential was written and no model request was made.
 - The rc.3 uncompressed test portable was built in an isolated candidate directory. Its packaged `app.asar` contains the new Provider provisioning state module and the updated Renderer files, and the unpacked packaged app remained running through an eight-second isolated-profile startup smoke test. No Engine or model task was started.
@@ -81,16 +151,25 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Code health
 
 - The execution boundary is reasonably clean: DSH Adapter, task outcome, work-receipt policy, model-service projection, task guidance, stores, and live-session handling are separate CommonJS modules with focused tests.
-- The regression suite is fast and broad, and `pnpm audit --prod --audit-level high` currently reports no known production dependency vulnerabilities.
-- The Renderer orchestration file is not clean enough for long-term growth: `src/renderer/shell.js` is about 2,304 lines and owns too many unrelated dialogs, pages, renderers, and event handlers. The first post-rc extraction moved Provider provisioning confirmation into `provider-provisioning-flow.cjs`; this improves ownership and testing but intentionally does not chase a smaller total line count. `src/main.cjs` is about 851 lines and should also continue losing domain logic to tested modules.
-- Do not perform a broad refactor during v0.6.1 release hardening. After release, extract Model Services UI state and task conversation rendering first, preserving the existing IPC and Harness authority seams.
+- The regression suite is fast and broad, and the current production dependency audit reports no known vulnerabilities.
+- The Renderer orchestration file remains too broad: `src/renderer/shell.js` is about 2,316 lines and owns unrelated dialogs, pages, renderers, and event handlers. `src/main.cjs` is about 956 lines. New high-risk semantics were extracted into tested modules (`engine-trust`, `task-run-snapshot`, `task-lifecycle`, `workbench-refresh-gate`, `single-instance`, and baseline projection) instead of being added as more ad-hoc Renderer state.
+- Do not perform a broad refactor before v0.6.3 acceptance. After stable release, extract Model Services UI state and task conversation rendering while preserving IPC and Harness authority seams.
 
 ## Next bounded work
 
-1. Release delivery is complete. Next: extract Model Services UI state behind a focused Renderer module, preserving displayed states, IPC, and Harness routing. Do not expand model routing or provider inference during this refactor.
-2. Add no retroactive receipt for pre-beta.17 verification tasks: they did not persist the structured requested route, so title or prompt inference would create false evidence.
-3. Keep automatic memory extraction, automatic memory injection, automatic model routing, and companion-card prompt injection out of scope until the core task loop is stable.
-4. Do not repeat rc.3 acceptance for the unchanged product behavior. Future manual checks should target only new user-visible changes or a specifically reproduced regression.
+1. Merge the reviewed branch and publish v0.6.3 stable without broad UI, Provider, routing, or runtime changes.
+2. After stable publication, record the immutable tag, workflow result, asset sizes, and GitHub-provided SHA-256 digests here.
+3. Begin the next Evidence Gate iteration only for gaps observed against real upstream events. Extract Model Services UI state and task conversation rendering behind existing IPC/Harness authority seams before adding new product surface.
+4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
+
+## Human acceptance for v0.6.3-rc.6
+
+1. **Accepted 2026-09-10:** the zero-token draft-isolation check passed. Task A's unsent sentence did not appear in Task B; B retained its own sentence; returning to A restored only A's draft.
+2. Non-blocking future observation: if an unanswered Decision Gate naturally reaches five minutes, the receipt must be yellow and say “停止仍待 Harness 确认” until terminal evidence arrives. After a confirmed interruption it may turn red and say “这一轮已停止”, but the old “尚未确认” sentence must disappear. Do not create a paid task only for this check.
+
+The stop-and-delete lifecycle does not need another dedicated manual reproduction for rc.6. Its same-Turn terminal deletion, wrong-Turn refusal, ten-second unconfirmed retention, and cancel-rejection paths remain covered by behavior tests and were not changed.
+
+Managed Engine version, hostile 3080 refusal, real shared Engine protocol behavior, and packaged single-instance behavior now have direct local runtime evidence. Repeat them only after the corresponding Engine/single-instance code changes.
 
 ## Known uncertainty
 

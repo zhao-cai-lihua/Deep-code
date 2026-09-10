@@ -29,7 +29,7 @@ function projectOutcomeMap(outcome = {}) {
   const attribution = outcome.recoveryAssessment || null
   const nodes = [
     {
-      id: 'result', kind: 'result', state: outcome.state === 'success' ? 'success' : 'error', eyebrow: '结果',
+      id: 'result', kind: 'result', state: outcome.state === 'success' ? 'success' : outcome.state === 'pending' ? 'warning' : 'error', eyebrow: '结果',
       title: outcome.title || '本轮已结束', summary: outcome.summary || 'Harness 没有提供结果摘要。', evidenceTarget: 'technical'
     },
     {

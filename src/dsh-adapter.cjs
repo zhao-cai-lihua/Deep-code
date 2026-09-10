@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto')
 const { projectConversation, textBlocks } = require('./conversation-projection.cjs')
+const { projectTaskRunSnapshot } = require('./task-run-snapshot.cjs')
 
 const OFFICIAL_VISION_MODEL = Object.freeze({
   provider: 'deepseek-official',
@@ -51,28 +52,12 @@ function credentialRefForProvider(provider, settingsResult) {
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(ref) ? ref : ''
 }
 
-function latestRequestRoute(page) {
-  const events = Array.isArray(page?.events) ? page.events : []
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index]?.event || events[index]
-    if (event?.type !== 'request/header') continue
-    const config = event?.data?.header?.config
-    if (!config?.provider || !config?.model) continue
-    return {
-      provider: String(config.provider),
-      model: String(config.model),
-      reasoningEffort: String(config.reasoningEffort || '')
-    }
-  }
-  return null
-}
-
 function connectionCopy(state, { providerNames = [], modelCount = 0 } = {}) {
   const names = providerNames.join('、') || '本机模型服务'
   return ({
     ready: {
       title: '模型服务已载入',
-      message: `${names} 已启用，共发现 ${modelCount} 个目录模型。凭据槽已有值时也尚未真实验证；请以该 Provider 的最近一次真实验证为准。`
+      message: `${names} 已启用，共发现 ${modelCount} 个目录模型。凭据槽已有值只证明已经保存；真实调用状态请以该 Provider 的最近一次真实验证为准。`
     },
     'needs-credential': {
       title: '还需要配置 API Key',
@@ -95,16 +80,17 @@ class DshAdapter {
     this.fetchImpl = fetchImpl
   }
 
-  async rpc(baseUrl, method, payload = {}) {
+  async request(baseUrl, method, payload = {}) {
     if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(String(baseUrl || ''))) {
       throw new Error('Deep code 只连接本机 127.0.0.1 Engine。')
     }
+    const rpcId = `deep-code-${randomUUID()}`
     const response = await this.fetchImpl(`${baseUrl}/api/${method}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         type: 'client-request',
-        rpcId: `deep-code-${randomUUID()}`,
+        rpcId,
         method,
         payload
       })
@@ -121,7 +107,11 @@ class DshAdapter {
       failure.code = error.code || ''
       throw failure
     }
-    return body.result.value
+    return { value: body.result.value, rpcId }
+  }
+
+  async rpc(baseUrl, method, payload = {}) {
+    return (await this.request(baseUrl, method, payload)).value
   }
 
   async createSession({ baseUrl, cwd, sessionId }) {
@@ -129,7 +119,7 @@ class DshAdapter {
     return this.rpc(baseUrl, 'session.create', { cwd, ...(sessionId ? { sessionId } : {}) })
   }
 
-  prompt({ baseUrl, sessionId, text, images = [] }) {
+  async prompt({ baseUrl, sessionId, text, images = [] }) {
     const message = String(text || '').trim()
     const imageParts = images.filter((item) => item?.type === 'image' && typeof item.data === 'string' && typeof item.mediaType === 'string')
       .map((item) => ({
@@ -139,11 +129,12 @@ class DshAdapter {
         ...(typeof item.name === 'string' && item.name ? { name: item.name } : {})
       }))
     if (!message && !imageParts.length) throw new Error('任务内容不能为空。')
-    return this.rpc(baseUrl, 'session.prompt', {
+    const result = await this.request(baseUrl, 'session.prompt', {
       sessionId,
       mode: 'queue',
       content: [...(message ? [{ type: 'text', text: message }] : []), ...imageParts]
     })
+    return { ...result.value, rpcId: result.rpcId }
   }
 
   async selectOfficialVisionModel({ baseUrl, sessionId }) {
@@ -194,7 +185,7 @@ class DshAdapter {
     return this.rpc(baseUrl, 'skill.list', { sessionId })
   }
 
-  async snapshot({ baseUrl, sessionId }) {
+  async snapshot({ baseUrl, sessionId, engine = {}, admission = null }) {
     const [page, list, modelDirectory] = await Promise.all([
       this.rpc(baseUrl, 'session.history', { sessionId, maxMessages: 80 }),
       this.rpc(baseUrl, 'session.list', {}),
@@ -216,7 +207,9 @@ class DshAdapter {
           available: false,
           ...(modelDirectory?.error ? { error: String(modelDirectory.error) } : {})
         }
-    const effectiveRoute = latestRequestRoute(page)
+    const conversation = humanizeHistory(page)
+    const taskRunSnapshot = projectTaskRunSnapshot({ sessionId, engine, page, admission, conversation })
+    const effectiveRoute = taskRunSnapshot.route || null
     const effectiveGroup = (modelDirectory?.groups || []).find((item) => item?.id === effectiveRoute?.provider)
     const effectiveCatalogModel = (effectiveGroup?.models || []).find((item) => item?.id === effectiveRoute?.model)
     const effectiveModel = effectiveRoute
@@ -229,7 +222,7 @@ class DshAdapter {
           evidence: 'request/header'
         }
       : { available: false, label: 'Harness 历史尚未记录本轮请求路线。' }
-    return { ...humanizeHistory(page), running: Boolean(summary?.running), model, effectiveModel }
+    return { ...conversation, running: Boolean(summary?.running), model, effectiveModel, taskRunSnapshot }
   }
 
   async connectionSnapshot({ baseUrl }) {
@@ -422,4 +415,4 @@ class DshAdapter {
   }
 }
 
-module.exports = { DshAdapter, humanizeHistory, latestRequestRoute, textBlocks, connectionCopy, safeCredentialError, credentialRefForProvider, deriveCredentialRef, SIMPLE_CATALOG_PROVIDERS, OFFICIAL_VISION_MODEL }
+module.exports = { DshAdapter, humanizeHistory, textBlocks, connectionCopy, safeCredentialError, credentialRefForProvider, deriveCredentialRef, SIMPLE_CATALOG_PROVIDERS, OFFICIAL_VISION_MODEL }

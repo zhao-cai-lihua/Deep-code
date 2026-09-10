@@ -13,4 +13,8 @@ test('tagged builds publish both installer and portable executables to GitHub Re
   assert.match(workflow, /electron-builder --win nsis portable/)
   assert.match(workflow, /gh release create/)
   assert.match(workflow, /dist\/\*\.exe/)
+  assert.match(workflow, /package\.json/)
+  assert.match(workflow, /github\.ref_name/)
+  assert.match(workflow, /--prerelease/)
+  assert.match(workflow, /SHA256SUMS\.txt/)
 })

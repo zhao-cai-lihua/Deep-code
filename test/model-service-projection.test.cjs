@@ -1,6 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { projectModelServices } = require('../src/model-service-projection.cjs')
+const { projectModelConnectionWithHistory, projectModelServices } = require('../src/model-service-projection.cjs')
 
 test('separates catalog, credential, verification, and current-task facts', () => {
   const result = projectModelServices({ state: 'ready', activeProviders: [{ id: 'zai-coding-cn', name: 'GLM', modelCount: 2, models: [{ id: 'glm-5', name: 'GLM-5' }], credential: { configured: true } }], failures: [] }, { requested: { provider: 'zai-coding-cn' }, confirmed: false, label: 'GLM-5 · max' })
@@ -29,4 +29,28 @@ test('shows the latest persisted real-call receipt as historical evidence', () =
   assert.equal(service.verification.state, 'passed')
   assert.equal(service.verification.label, '最近一次真实验证通过')
   assert.match(service.verification.detail, /只证明当时/)
+})
+
+test('adds the latest attributable verification to the settings connection snapshot without changing credential facts', () => {
+  const connection = {
+    state: 'ready',
+    title: '模型服务已载入',
+    message: '凭据槽已有值只证明已保存。',
+    activeProviders: [{
+      id: 'deepseek-official', name: 'DeepSeek', modelCount: 1, models: [],
+      credential: { ref: 'DEEPSEEK_API_KEY', configured: true, source: 'file', writable: true }
+    }],
+    failures: []
+  }
+  const receipts = [{
+    provider: 'deepseek-official', model: 'deepseek-v4-flash', modelName: 'DeepSeek-V4-Flash',
+    reasoningEffort: 'low', state: 'passed', recordedAt: '2026-09-08T11:30:36.924Z'
+  }]
+
+  const result = projectModelConnectionWithHistory(connection, receipts)
+
+  assert.deepEqual(result.activeProviders[0].credential, connection.activeProviders[0].credential)
+  assert.equal(result.activeProviders[0].verification.state, 'passed')
+  assert.match(result.activeProviders[0].verification.label, /最近一次真实验证通过/)
+  assert.match(result.message, /最近一次真实验证通过/)
 })

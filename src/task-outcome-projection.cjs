@@ -1,4 +1,3 @@
-const VERIFICATION_COMMAND = /(?:^|\s|[\\/])(test|tests|testing|check|checks|lint|typecheck|type-check|build|verify|verification|pytest|vitest|jest|mocha|eslint|tsc|cargo test|go test|dotnet test)(?:\s|$|[:./-])/i
 const { projectOutcomeMap } = require('./outcome-map-projection.cjs')
 const { assessWorkReceipt } = require('./work-receipt-policy.cjs')
 
@@ -19,9 +18,8 @@ function workspaceProjection(thread) {
 }
 
 function verificationFrom(card) {
-  if (card?.type !== 'terminal') return null
+  if (card?.type !== 'terminal' || card.verificationIntent !== true) return null
   const label = text(card.command, text(card.title, '验证命令'))
-  if (!VERIFICATION_COMMAND.test(label)) return null
   const exitCode = Number.isInteger(card.exitCode) ? card.exitCode : null
   const failed = card.state === 'error' || (exitCode !== null && exitCode !== 0)
   const passed = card.state === 'done' && exitCode === 0
@@ -32,21 +30,34 @@ function verificationFrom(card) {
   }
 }
 
+function recoveryWithTerminalEvidence(recovery, terminalState) {
+  if (recovery?.kind !== 'waiting-timeout' || !terminalState) return recovery
+  const safety = terminalState === 'interrupted'
+    ? 'Harness 已确认这一轮停止；Deep code 没有替你选择或填写任何答案。'
+    : terminalState === 'failed'
+      ? 'Harness 已确认这一轮以失败结束；Deep code 没有替你选择或填写任何答案。'
+      : 'Harness 已确认这一轮完成；Deep code 没有替你选择或填写任何答案。'
+  return { ...recovery, safety }
+}
+
 function projectTaskOutcome(thread = {}) {
-  const terminal = thread.engineState === 'ready' || thread.engineState === 'error'
+  const snapshot = thread.agent?.taskRunSnapshot || {}
+  const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
+  const terminal = Boolean(snapshot.terminal || recovery || thread.engineState === 'error')
   if (!terminal) return { visible: false }
 
   const details = thread.agent?.runDetails || {}
-  const changes = (details.changedFiles || [])
+  const changes = (snapshot.confirmedChanges || [])
     .filter((item) => item && text(item.path))
     .map((item) => ({ path: text(item.path), operation: text(item.operation, '文件变更') }))
   const tools = Array.isArray(details.toolCards) ? details.toolCards : []
   const verifications = tools.map(verificationFrom).filter(Boolean)
   const failedTools = tools.filter((card) => card?.state === 'error').length
   const warnings = []
-  const terminalState = details.terminal?.state
-  const recovery = thread.recovery && typeof thread.recovery === 'object' ? thread.recovery : null
-  const assessment = assessWorkReceipt({ changes, verifications, recovery, baseline: thread.baseline || null })
+  const terminalState = snapshot.terminal?.state
+  const terminalConfirmed = Boolean(snapshot.terminal)
+  const projectedRecovery = recoveryWithTerminalEvidence(recovery, terminalState)
+  const assessment = assessWorkReceipt({ changes, verifications, recovery: projectedRecovery, baseline: thread.baseline || null })
   const workspace = workspaceProjection(thread)
   const modelVerification = thread.verificationReceipt || null
 
@@ -57,29 +68,54 @@ function projectTaskOutcome(thread = {}) {
   if (verifications.some((item) => item.state === 'unknown')) warnings.push('检测到验证命令，但 Harness 没有提供足以确认通过的终态。')
   warnings.push(...assessment.warnings)
 
-  if (thread.engineState === 'error' || terminalState === 'failed' || terminalState === 'interrupted') {
+  if (recovery?.kind === 'waiting-timeout' && !terminalConfirmed) {
+    const outcome = {
+      visible: true,
+      state: 'pending',
+      title: '停止仍待 Harness 确认',
+      summary: text(thread.engineError, '等待回答已经超时，但 Harness 尚未提供能证明这一轮停止的终态事件。'),
+      changes,
+      verifications,
+      warnings,
+      risks: assessment.risks,
+      impact: recovery.safety,
+      nextAction: recovery.nextAction,
+      recovery,
+      recoveryAssessment: assessment.recoveryAssessment,
+      workspace,
+      modelVerification,
+      terminalConfirmed: false
+    }
+    return { ...outcome, map: projectOutcomeMap(outcome) }
+  }
+
+  if ((!terminalConfirmed && thread.engineState === 'error') || terminalState === 'failed' || terminalState === 'interrupted') {
     const interrupted = terminalState === 'interrupted'
+    const terminalSummary = interrupted
+      ? `Harness 已确认这一轮停止（${text(snapshot.terminal?.reason, '原因未知')}）。`
+      : `Harness 已确认这一轮失败（${text(snapshot.terminal?.reason, '原因未知')}）。`
     const outcome = {
       visible: true,
       state: 'error',
       title: modelVerification
         ? (interrupted ? '模型连接验证已停止' : '模型连接验证未通过')
         : (interrupted ? '这一轮已停止' : '这轮没有完成'),
-      summary: modelVerification?.failure?.detail || text(thread.engineError, interrupted
-        ? `Harness 报告这一轮已停止（${text(details.terminal?.reason, '原因未知')}）。`
-        : `Harness 报告这一轮失败（${text(details.terminal?.reason, '原因未知')}）。`),
+      summary: modelVerification?.failure?.detail || (terminalConfirmed && recovery?.kind === 'waiting-timeout'
+        ? terminalSummary
+        : text(thread.engineError, terminalSummary)),
       changes,
       verifications,
       warnings,
       risks: assessment.risks,
-      impact: recovery?.safety || (changes.length
+      impact: projectedRecovery?.safety || (changes.length
         ? '本轮已经停止，但上面列出的已确认文件改动仍保留在工作区。'
         : '本轮已经停止；Harness 没有确认到文件改动。'),
-      nextAction: modelVerification?.failure?.nextAction || recovery?.nextAction || '先查看轨迹中的失败证据，再决定重试还是修改任务说明。',
-      recovery,
+      nextAction: modelVerification?.failure?.nextAction || projectedRecovery?.nextAction || '先查看轨迹中的失败证据，再决定重试还是修改任务说明。',
+      recovery: projectedRecovery,
       recoveryAssessment: assessment.recoveryAssessment,
       workspace,
-      modelVerification
+      modelVerification,
+      terminalConfirmed
     }
     return { ...outcome, map: projectOutcomeMap(outcome) }
   }

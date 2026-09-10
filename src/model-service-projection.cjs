@@ -43,4 +43,22 @@ function projectModelServices(connection, currentRoute = null, verificationRecei
   }
 }
 
-module.exports = { projectModelServices }
+function projectModelConnectionWithHistory(connection, verificationReceipts = []) {
+  const projected = projectModelServices(connection, null, verificationReceipts)
+  const stages = new Map(projected.providers.map((provider) => [provider.id, provider.verification]))
+  const activeProviders = (connection?.activeProviders || []).map((provider) => ({
+    ...provider,
+    verification: stages.get(provider.id) || {
+      state: 'unverified',
+      label: '尚无可归属的真实验证',
+      detail: '凭据状态和真实调用是两回事。'
+    }
+  }))
+  const passed = projected.providers.filter((provider) => provider.verification.state === 'passed')
+  const history = passed.length
+    ? ` ${passed.map((provider) => provider.name).join('、')} 有最近一次真实验证通过记录；模型、时间和历史边界见下方。`
+    : ''
+  return { ...connection, message: `${connection?.message || ''}${history}`.trim(), activeProviders }
+}
+
+module.exports = { projectModelConnectionWithHistory, projectModelServices }

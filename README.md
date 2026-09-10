@@ -6,10 +6,17 @@ It is an independent community client, **not** an official DeepSeek product. It 
 
 ## Download for Windows
 
-Normal users do **not** need to clone the repository or run pnpm. Open [GitHub Releases](https://github.com/zhao-cai-lihua/Deep-code/releases/latest), then download one of these files:
+The current stable release is **v0.6.3**. Normal users do **not** need to clone the repository or run pnpm:
 
-- `Deep.code.Setup.x.y.z.exe` — recommended installer; GitHub normalizes spaces in the built filename to dots.
-- `Deep.code.x.y.z.exe` — portable app; no installation required.
+- [Download the recommended Setup installer](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.6.3/Deep.code.Setup.0.6.3.exe)
+- [Download the portable app](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.6.3/Deep.code.0.6.3.exe)
+- [View release notes and SHA-256 checksums](https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3)
+
+`Deep.code.Setup.0.6.3.exe` is the recommended installer. `Deep.code.0.6.3.exe` is portable and requires no installation. GitHub normalizes spaces in the built filenames to dots.
+
+> **Compatibility boundary:** v0.6.3 supports the pinned official Harness release `dsh-v0.1.1-rc.2` at commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`. Developer Preview updates are not silently trusted or installed until their protocol and packaged behavior have been verified.
+
+> **Historical safety notice:** v0.6.2 remains test-only. Do not enter high-value API keys or use that old build with private data or important unbacked-up files. Its tag and assets remain available only for reproducibility. The v0.6.3 release candidates likewise remain historical prereleases; do not use rc.1, whose strict compatibility check rejected the correct pinned Harness because upstream reports a hard-coded Host marker.
 
 The GitHub web page cannot browse arbitrary local folders. Run the downloaded Deep code desktop app; its first-run guide opens the native Windows folder picker, can detect an existing official Harness, or can prepare one under `Documents/Deep code Runtime`.
 
@@ -36,7 +43,7 @@ The GitHub web page cannot browse arbitrary local folders. Run the downloaded De
 - Safe, structured Markdown for final answers, including headings, lists, quotes, code blocks, and tables. Model-authored HTML stays inert, remote images become visible placeholders instead of loading silently, and only explicit `http`/`https` links can leave the app.
 - Expandable Tool Cards for the official Harness diff, terminal, file-read, search, and web presenters. Every presenter is normalized once by the DSH Adapter, so the interface can explain what happened without teaching the Renderer the Harness wire format.
 - Runtime inspection and redacted diagnostic export.
-- Opt-in ecosystem discovery with real, guarded installation: Deep code statically verifies a root `dsh.bundle.patch`, pins the exact Git commit, explains that Git preparation code may run outside the Agent sandbox, asks again, and then delegates installation to the official DSH CLI in the official `web` profile used by the managed Engine.
+- Opt-in, read-only ecosystem discovery with Chinese summaries, popularity signals, and source links. Executable installation is temporarily paused while the trust boundary is being completed; a popular GitHub project is never presented as an installable Harness plugin merely because it has stars.
 - Preview an exact task-only handoff note without changing Harness permissions. The earlier unapplied Companion Card experiment has been removed from the product and runtime bridge; upgrades do not delete existing local card JSON, so no user-authored draft is destroyed.
 
 ## Developer setup
@@ -61,7 +68,7 @@ pnpm package:win
 
 ## Product boundary
 
-Deep code deliberately does **not** rewrite Harness tool permissions, approval rules, or the Agent Loop. Its optional plugin installer delegates to the official profile mechanism and never treats catalog text as a command. See [the architecture](docs/ARCHITECTURE.md), [the primary-workbench decision](docs/adr/0001-deep-code-is-the-primary-workbench.md), [the beginner-protection roadmap](docs/BEGINNER_PROTECTION_ROADMAP.md), [the official Harness plugin boundary research](docs/research/official-harness-plugin-development.md), [the DSH Desktop UI and ecosystem audit](docs/research/dsh-desktop-ui-ecosystem-audit-2026-08-27.md), and [the community usability audit](docs/research/dsh-community-usability-audit.md). The archived [Companion Card policy](docs/COMPANION_CARDS_POLICY.md) remains as design history, not a current feature promise.
+Deep code deliberately does **not** rewrite Harness tool permissions, approval rules, or the Agent Loop. Ecosystem discovery is currently read-only, and the packaged Renderer/Preload/Main path cannot invoke the retained internal installer experiment. See [the architecture](docs/ARCHITECTURE.md), [the primary-workbench decision](docs/adr/0001-deep-code-is-the-primary-workbench.md), [the beginner-protection roadmap](docs/BEGINNER_PROTECTION_ROADMAP.md), [the official Harness plugin boundary research](docs/research/official-harness-plugin-development.md), [the DSH Desktop UI and ecosystem audit](docs/research/dsh-desktop-ui-ecosystem-audit-2026-08-27.md), and [the community usability audit](docs/research/dsh-community-usability-audit.md). The archived [Companion Card policy](docs/COMPANION_CARDS_POLICY.md) remains as design history, not a current feature promise.
 
 ## Project status
 
