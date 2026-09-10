@@ -210,6 +210,23 @@ let forceFollowNextRender = true
 const taskViewState = window.DeepCodeTaskViewState.createTaskViewState()
 const providerProvisioningFlow = window.DeepCodeProviderProvisioningFlow.createProviderProvisioningFlow()
 const { modelConnectionLines } = window.DeepCodeModelConnectionView
+const modelServicesView = window.DeepCodeModelServicesView.createModelServicesView({
+  document,
+  elements: {
+    title: modelServicesTitle,
+    message: modelServicesMessage,
+    status: modelServicesStatus,
+    list: modelServicesList,
+    verifyAllButton: verifyModelServiceButton
+  },
+  onVerifyProvider: openProviderVerification
+})
+const conversationMessageView = window.DeepCodeConversationMessageView.createConversationMessageView({
+  document,
+  renderMarkdown: (container, source) => window.deepCodeMarkdown.renderInto(container, source),
+  copyText: (value) => window.desktopHost.copyText(value),
+  formatImageBytes: imageBytes
+})
 let imageDrafts = []
 let workspaceDialogTrigger = workspaceButton
 let modelCatalog = { current: null, groups: [] }
@@ -734,60 +751,9 @@ async function refreshModelConnection() {
   return snapshot
 }
 
-function renderModelServices(snapshot) {
-  modelServicesTitle.textContent = snapshot.title
-  modelServicesMessage.textContent = snapshot.message
-  modelServicesList.replaceChildren()
-  for (const provider of snapshot.providers) {
-    const card = document.createElement('article')
-    card.className = 'model-service-card'
-    const heading = document.createElement('div')
-    heading.className = 'ecosystem-card-heading'
-    const title = document.createElement('h3')
-    title.textContent = provider.name
-    const badge = document.createElement('span')
-    badge.textContent = provider.id
-    heading.append(title, badge)
-    const stages = document.createElement('div')
-    stages.className = 'model-service-stages'
-    for (const [name, stage] of [['Provider', provider.profile], ['模型目录', provider.catalog], ['凭据', provider.credential], ['真实验证', provider.verification], ['当前任务', provider.current]]) {
-      const item = document.createElement('section')
-      item.dataset.state = stage.state
-      const label = document.createElement('small')
-      label.textContent = name
-      const value = document.createElement('strong')
-      value.textContent = stage.label
-      const detail = document.createElement('p')
-      detail.textContent = stage.detail
-      item.append(label, value, detail)
-      stages.append(item)
-    }
-    const models = document.createElement('details')
-    const summary = document.createElement('summary')
-    summary.textContent = `查看 ${provider.models.length} 个目录模型`
-    const list = document.createElement('p')
-    list.textContent = provider.models.map((model) => model.name).join('、') || 'Harness 没有返回模型。'
-    models.append(summary, list)
-    const actions = document.createElement('div')
-    actions.className = 'button-row'
-    const verify = document.createElement('button')
-    verify.type = 'button'
-    verify.className = 'primary-button'
-    verify.textContent = '验证这个服务…'
-    verify.disabled = !provider.models.length || provider.credential.state === 'missing'
-    verify.addEventListener('click', () => openProviderVerification(provider.id, verify))
-    actions.append(verify)
-    card.append(heading, stages, models, actions)
-    modelServicesList.append(card)
-  }
-  if (!snapshot.providers.length) modelServicesList.textContent = '尚未发现已启用的 Provider。请先启动 Engine 或到设置中添加模型服务。'
-  modelServicesStatus.textContent = `Harness 报告 ${snapshot.providers.length} 个已启用服务，另有 ${snapshot.dormantProviderCount} 个未启用 Provider。读取这些状态不会调用模型。`
-  verifyModelServiceButton.disabled = snapshot.state === 'engine-offline' || !snapshot.providers.length
-}
-
 async function refreshModelServices() {
   const snapshot = await window.desktopHost.modelServicesSnapshot()
-  renderModelServices(snapshot)
+  modelServicesView.render(snapshot)
   return snapshot
 }
 
@@ -858,89 +824,6 @@ function displayTime(value) {
 
 function displayDuration(value) {
   return window.deepCodeReading.formatDuration(value)
-}
-
-async function copyWithFeedback(value, button) {
-  const original = button.textContent
-  button.disabled = true
-  try {
-    await window.desktopHost.copyText(value)
-    button.textContent = '已复制'
-  } catch {
-    button.textContent = '复制失败'
-  } finally {
-    setTimeout(() => {
-      if (!button.isConnected) return
-      button.disabled = false
-      button.textContent = original
-    }, 1400)
-  }
-}
-
-function copyButton(value, label = '复制') {
-  const button = document.createElement('button')
-  button.type = 'button'
-  button.className = 'copy-button'
-  button.textContent = label
-  button.addEventListener('click', () => copyWithFeedback(value, button))
-  return button
-}
-
-function appendResponseText(container, source, { copyCode = true } = {}) {
-  window.deepCodeMarkdown.renderInto(container, source)
-  if (!copyCode) return
-  for (const code of [...container.querySelectorAll('pre > code')]) {
-    const pre = code.parentElement
-    const wrapper = document.createElement('div')
-    wrapper.className = 'code-block'
-    const button = copyButton(code.textContent, '复制代码')
-    button.setAttribute('aria-label', '复制这段代码')
-    pre.replaceWith(wrapper)
-    wrapper.append(pre, button)
-  }
-}
-
-function renderMessageBubble({ role: messageRole, text: source, images = [], draft = false, truncated = false }) {
-  const bubble = document.createElement('article')
-  bubble.className = `message-bubble ${messageRole}${draft ? ' live-draft' : ''}`
-  const heading = document.createElement('div')
-  heading.className = 'message-heading'
-  const role = document.createElement('strong')
-  role.textContent = messageRole === 'assistant'
-    ? draft
-      ? (truncated ? 'Deep code · 生成中（预览已截短）' : 'Deep code · 生成中')
-      : 'Deep code'
-    : '你'
-  heading.append(role)
-  if (messageRole === 'assistant' && !draft && source) heading.append(copyButton(source, '复制回答'))
-  bubble.append(heading)
-  if (source) {
-    const text = document.createElement('div')
-    text.className = 'message-content'
-    appendResponseText(text, source, { copyCode: !draft })
-    bubble.append(text)
-  }
-  if (images.length) {
-    const gallery = document.createElement('ul')
-    gallery.className = 'message-attachments'
-    for (const image of images) {
-      const item = document.createElement('li')
-      const dimensions = image.width && image.height ? ` · ${image.width} × ${image.height}` : ''
-      const size = Number.isFinite(image.bytes) ? ` · ${imageBytes(image.bytes)}` : ''
-      item.textContent = `图片 · ${image.name}${dimensions}${size}`
-      gallery.append(item)
-    }
-    bubble.append(gallery)
-  }
-  if (draft) {
-    bubble.setAttribute('aria-live', 'polite')
-    bubble.setAttribute('aria-label', 'Deep code 正在生成尚未定稿的回复')
-    const notice = document.createElement('small')
-    notice.className = 'live-draft-notice'
-    notice.textContent = '尚未定稿；Harness 提交后会由正式任务记录替换。'
-    bubble.append(notice)
-  }
-  return bubble
 }
 
 function updateJumpLatest() {
@@ -1693,11 +1576,11 @@ function renderWorkbench() {
       : (['queued', 'running'].includes(thread.engineState) ? '正在处理' : '已连接，无需重试')
     conversationFeed.replaceChildren()
     for (const item of agentMessages) {
-      conversationFeed.append(renderMessageBubble({ role: item.role, text: item.text, images: item.images || [] }))
+      conversationFeed.append(conversationMessageView.render({ role: item.role, text: item.text, images: item.images || [] }))
     }
     const draft = thread.agent?.live?.draft
     if (draft?.text) {
-      conversationFeed.append(renderMessageBubble({ role: 'assistant', text: draft.text, draft: true, truncated: draft.truncated }))
+      conversationFeed.append(conversationMessageView.render({ role: 'assistant', text: draft.text, draft: true, truncated: draft.truncated }))
     }
     renderRunDetails(thread)
     renderTaskOutcome(thread)
