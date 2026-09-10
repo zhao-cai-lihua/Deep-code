@@ -5,9 +5,9 @@ Branch: `main`
 Current packaged stable release: `0.6.3`
 Current source version: `0.6.3`
 
-Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f` and PR #9 merged at `1258c5138b1b2b88070ce04b702ca6208320b053`. Model Services, conversation, and task evidence/receipt presentation seams are on `main`; this is not a v0.7.0 release.
+Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 merged at `1258c5138b1b2b88070ce04b702ca6208320b053`, and PR #10 merged at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`. Model Services, conversation, and compact task evidence/receipt presentation are on `main`; this is not a v0.7.0 release.
 
-Current verified candidate branch: `codex/v0.7.0-compact-evidence`. It applies the zero-token task-state fixture verdict to the existing Evidence view without changing Engine, Session, Provider, model routing, permission, or file-change truth.
+The current `main` applies the zero-token task-state fixture verdict to the existing Evidence view without changing Engine, Session, Provider, model routing, permission, or file-change truth.
 
 ## Release delivery
 
@@ -108,10 +108,11 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
-- Compact Evidence candidate `npm test`: **270 passed, 0 failed** on 2026-09-10. A permanent zero-token matrix renders ten states through the real Evidence view: completed with change, completed without change, changed but unverified, verification failed, waiting for the user, cancellation not yet terminal, confirmed interruption, credential failure, network failure, and non-Git workspace.
-- The candidate keeps every tool card collapsed by default, hides an empty file-change section, and gives success, active, warning/unknown, and failure states distinct summary tones. Interface tests also prove that the new supporting-evidence disclosure belongs to one task rather than leaking across task switches.
+- Compact Evidence `npm test`: **270 passed, 0 failed** on 2026-09-10. A permanent zero-token matrix renders ten states through the real Evidence view: completed with change, completed without change, changed but unverified, verification failed, waiting for the user, cancellation not yet terminal, confirmed interruption, credential failure, network failure, and non-Git workspace.
+- The merged view keeps every tool card collapsed by default, hides an empty file-change section, and gives success, active, warning/unknown, and failure states distinct summary tones. Interface tests also prove that the new supporting-evidence disclosure belongs to one task rather than leaking across task switches.
+- PR #10 regression workflow run `34477492520` completed successfully with the same 270-test suite before merge at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`.
 - `npm run package:test:win` completed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,792,439 bytes, local SHA-256 `383ad7de18b0819a57402e7877345baaf686a86ce17e213f75f8f44dc21d0adf`. An isolated packaged-app CDP check reached a complete `Deep code` page, found the compact trace and supporting-evidence anchors, confirmed the repeated body task title is hidden, and verified the tool hint. Engine, Session, Provider, credential, and model calls were not used.
-- The throwaway comparison is preserved outside `main` at branch `codex/prototype-task-evidence-density`, commit `0afaa1e`. Its three variants established the product verdict: conversation keeps a continuous one-line rhythm, Receipt remains conclusion-first, and Trace becomes a layered evidence ledger. Prototype code is not included in the candidate or stable package.
+- The throwaway comparison is preserved outside `main` at branch `codex/prototype-task-evidence-density`, commit `0afaa1e`. Its three variants established the product verdict: conversation keeps a continuous one-line rhythm, Receipt remains conclusion-first, and Trace becomes a layered evidence ledger. Prototype code is not included in `main` or the stable package.
 - Task evidence view focus suite plus Renderer contract: **47 passed, 0 failed** on 2026-09-10. Four new interface-level behavior tests cover all supported tool cards, structured permission and file facts, baseline/context disclosure, receipt sections, evidence-map delegation, allowlisted guidance delegation, stale-content clearing, and distinct pending/error labels.
 - Current branch `npm test`: **269 passed, 0 failed**. The new view receives already-projected `runDetails`, `outcome`, and `guidance`; the tests do not manufacture execution truth from Assistant text.
 - PR #9 regression workflow run `34470348278` completed successfully with the same 269-test suite before merge.
