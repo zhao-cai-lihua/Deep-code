@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-10
-Branch: `codex/v0.7.0-renderer-seams`
+Branch: `main`
 Current packaged stable release: `0.6.3`
 Current source version: `0.6.3`
 
-Post-stable development baseline: behavior-preserving Renderer seam extraction; not a v0.7.0 release.
+Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`; behavior-preserving Renderer seam extraction, not a v0.7.0 release.
 
 ## Release delivery
 
@@ -107,6 +107,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Automated baseline
 
 - Post-stable Renderer seam baseline `npm test`: **265 passed, 0 failed** on 2026-09-10. Six new behavior tests cover Model Services projection rendering, credential/catalog gating, offline truthfulness, final and live conversation rendering, copy feedback, image metadata, and user/assistant distinction.
+- PR #8 regression workflow run `34451299886` completed successfully with the same 265-test suite before merge.
 - Post-stable `npm run package:test:win` passed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,782,040 bytes, local SHA-256 `816e52892711eb775d705f40d1651825f7dbe20c3ba1f338463fabebca56ccce`. Packaged `app.asar` contains both new Renderer modules.
 - An isolated packaged-app CDP smoke probe reached `document.readyState === "complete"`, title `Deep code`, loaded `DeepCodeModelServicesView` and `DeepCodeConversationMessageView`, and found both the model list and conversation feed DOM anchors. All isolated smoke processes were stopped. This probe did not start Engine, create a Session, read a Provider credential, or make a model call.
 - Stable preparation `npm test`: **259 passed, 0 failed** on 2026-09-10. `git diff --name-only v0.6.3-rc.6 -- src test` is empty, confirming that the stable preparation adds no runtime or test change after the accepted candidate.
