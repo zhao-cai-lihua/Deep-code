@@ -1,12 +1,14 @@
 # Deep Code current handoff
 
-Updated: 2026-09-09
+Updated: 2026-09-10
 Branch: `codex/v0.6.3-evidence-safety`
-Current packaged release candidate: `0.6.3-rc.6` (published prerelease; awaiting one zero-token draft-isolation check)
-Current source version: `0.6.3-rc.6`
+Current packaged release candidate: `0.6.3-rc.6` (published prerelease; all bounded human checks accepted)
+Current source version: `0.6.3` (stable release preparation; no runtime change from accepted rc.6)
 
 ## Release delivery
 
+- 砚星 completed the final zero-token rc.6 acceptance on 2026-09-10. Task A and Task B retained separate unsent drafts, and returning to a task restored only that task's draft. This closes the last manual release gate without a Provider call or token cost.
+- The v0.6.3 stable preparation changes only package/release documentation. Runtime source remains the accepted rc.6 implementation until the stable tag is built and published.
 - v0.6.3-rc.6 was published as a non-draft prerelease on 2026-09-09: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3-rc.6. Release workflow run `34357772354` completed successfully after 259 tests, tag/version validation, Windows installer/portable packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3-rc.6.exe`: 100,565,188 bytes; GitHub SHA-256 `58a0fa73ad48b95f7008157ecf4936aef0a246a032a3ab59df0f750cde6fdfc8`.
 - `Deep.code.Setup.0.6.3-rc.6.exe`: 100,788,623 bytes; GitHub SHA-256 `d71360ed75b874ec7948d5bb3630890e88f9dd5edc4c157bfa709ccdfee18f47`.
@@ -50,7 +52,7 @@ Current source version: `0.6.3-rc.6`
 - The unsuccessful v0.6.1 tag remains intact. Its release was blocked by a test's LF-only source extractor; the fix and LF/CRLF regression are included in v0.6.2.
 - `docs/FEI_REVIEW_PACKET_2026-09-06.md` is the bounded external review entry for v0.6.2. It points to the fixed release commit, trust boundaries, high-risk files, reproducible commands, known debt, and evidence requirements without copying private conversations or duplicating the whole repository into Markdown.
 
-## v0.6.3-rc.6 safety candidate
+## v0.6.3 accepted safety baseline
 
 This candidate implements the security and evidence plan without adding a second Agent Loop:
 
@@ -98,6 +100,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
+- Stable preparation `npm test`: **259 passed, 0 failed** on 2026-09-10. `git diff --name-only v0.6.3-rc.6 -- src test` is empty, confirming that the stable preparation adds no runtime or test change after the accepted candidate.
+- Stable preparation `npm run package:test:win` passed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,771,132 bytes, local SHA-256 `f8374d34d4263c898f425cba5607dbbc6acf415e36dae8e6803911d69000a5cc`. Packaged `app.asar` reports version `0.6.3` and contains Composer Draft State, TaskRunSnapshot, Outcome, Guidance, and Workbench projection modules. This local uncompressed test artifact is not a release asset.
 - `npm test`: **259 passed, 0 failed** for the current v0.6.3-rc.6 source on 2026-09-09. New behavior tests prove task/new-task text-draft isolation, successful-send clearing, stale-selection capture, pending timeout presentation, later terminal supersession, terminal-aware guidance, and structured-terminal precedence over temporary recovery state.
 - `npm run package:test:win` passed for rc.6 and produced `dist/Deep-code-Test-0.6.3-rc.6.exe`, 368,771,147 bytes, SHA-256 `8ff274bcee420733026c7a239193f50a8ccb129a6ae610587650f329faca6e77`. Packaged `app.asar` contains Composer Draft State plus the updated outcome, guidance, and online Engine-state projections.
 - Model-state and conversation-projection focus suite: **80 passed, 0 failed**. The suite proves an authentication failure is phrased as a historical Turn fact and the settings connection snapshot can display a newer passed receipt.
@@ -153,14 +157,14 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Perform only the zero-token draft-isolation check below. The timeout display may be observed naturally later and does not block immediate draft acceptance.
-2. The feature branch and earlier RC releases remain reproducible. Do not tag or publish `v0.6.3` stable until rc.6 passes those checks.
-3. After RC acceptance, merge the reviewed branch and publish v0.6.3 stable without broad UI, Provider, or routing changes. Then begin the next Evidence Gate iteration only for gaps observed against real upstream events.
+1. Merge the reviewed branch and publish v0.6.3 stable without broad UI, Provider, routing, or runtime changes.
+2. After stable publication, record the immutable tag, workflow result, asset sizes, and GitHub-provided SHA-256 digests here.
+3. Begin the next Evidence Gate iteration only for gaps observed against real upstream events. Extract Model Services UI state and task conversation rendering behind existing IPC/Harness authority seams before adding new product surface.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
 ## Human acceptance for v0.6.3-rc.6
 
-1. Immediate zero-token check: type an unsent sentence in Task A, switch to Task B, and confirm B does not show A's sentence. Type a different sentence in B and switch back; A should restore only A's sentence. No send or model call is needed.
+1. **Accepted 2026-09-10:** the zero-token draft-isolation check passed. Task A's unsent sentence did not appear in Task B; B retained its own sentence; returning to A restored only A's draft.
 2. Non-blocking future observation: if an unanswered Decision Gate naturally reaches five minutes, the receipt must be yellow and say “停止仍待 Harness 确认” until terminal evidence arrives. After a confirmed interruption it may turn red and say “这一轮已停止”, but the old “尚未确认” sentence must disappear. Do not create a paid task only for this check.
 
 The stop-and-delete lifecycle does not need another dedicated manual reproduction for rc.6. Its same-Turn terminal deletion, wrong-Turn refusal, ten-second unconfirmed retention, and cancel-rejection paths remain covered by behavior tests and were not changed.

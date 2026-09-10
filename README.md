@@ -6,14 +6,17 @@ It is an independent community client, **not** an official DeepSeek product. It 
 
 ## Download for Windows
 
-> **Safety notice for v0.6.2:** the existing v0.6.2 build is now test-only. Do not enter high-value API keys or use it with private data or important unbacked-up files. Its ecosystem installer is not part of the current safe product boundary. Keep its tag and assets only for reproducibility while v0.6.3 is being verified.
+The current stable release is **v0.6.3**. Normal users do **not** need to clone the repository or run pnpm:
 
-> **Do not use v0.6.3-rc.1 for acceptance:** it rejects the correct pinned Harness because upstream `host.describe.version` is a hard-coded `0.0.1` placeholder, not the `0.1.1-rc.2` release version. Use rc.2 or later. No user runtime, task, workspace, or credential was damaged by this fail-closed error.
+- [Download the recommended Setup installer](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.6.3/Deep.code.Setup.0.6.3.exe)
+- [Download the portable app](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.6.3/Deep.code.0.6.3.exe)
+- [View release notes and SHA-256 checksums](https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3)
 
-Normal users do **not** need to clone the repository or run pnpm. During the v0.6.3 verification period, use [GitHub Releases](https://github.com/zhao-cai-lihua/Deep-code/releases) only if you understand the release label and warning; do not treat v0.6.2 as the stable download recommendation.
+`Deep.code.Setup.0.6.3.exe` is the recommended installer. `Deep.code.0.6.3.exe` is portable and requires no installation. GitHub normalizes spaces in the built filenames to dots.
 
-- `Deep.code.Setup.x.y.z.exe` — recommended installer; GitHub normalizes spaces in the built filename to dots.
-- `Deep.code.x.y.z.exe` — portable app; no installation required.
+> **Compatibility boundary:** v0.6.3 supports the pinned official Harness release `dsh-v0.1.1-rc.2` at commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`. Developer Preview updates are not silently trusted or installed until their protocol and packaged behavior have been verified.
+
+> **Historical safety notice:** v0.6.2 remains test-only. Do not enter high-value API keys or use that old build with private data or important unbacked-up files. Its tag and assets remain available only for reproducibility. The v0.6.3 release candidates likewise remain historical prereleases; do not use rc.1, whose strict compatibility check rejected the correct pinned Harness because upstream reports a hard-coded Host marker.
 
 The GitHub web page cannot browse arbitrary local folders. Run the downloaded Deep code desktop app; its first-run guide opens the native Windows folder picker, can detect an existing official Harness, or can prepare one under `Documents/Deep code Runtime`.
 
