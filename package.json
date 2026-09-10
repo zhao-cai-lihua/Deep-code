@@ -8,6 +8,7 @@
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
+    "prototype:evidence": "electron scripts/task-evidence-prototype.cjs",
     "test": "node --test",
     "package:win": "electron-builder --win nsis portable",
     "package:test:win": "electron-builder --win portable --config.artifactName=\"Deep-code-Test-${version}.${ext}\" --config.compression=store"

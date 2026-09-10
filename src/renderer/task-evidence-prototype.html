@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep code · Evidence prototype</title>
+    <link rel="stylesheet" href="./shell.css" />
+    <link rel="stylesheet" href="./task-evidence-prototype.css" />
+  </head>
+  <body>
+    <!-- PROTOTYPE ONLY: Three task evidence hierarchies, switchable via ?variant=, on a read-only copy of the existing task page. -->
+    <div class="prototype-shell">
+      <aside class="prototype-sidebar">
+        <div class="brand"><img class="brand-mark" src="./assets/deep-code-whale.png" alt="" /><span>Deep code</span></div>
+        <button class="new-task" type="button" disabled><span>＋</span> 新任务</button>
+        <p class="prototype-warning">PROTOTYPE · 零调用<br />不连接 Engine，不读取任务。</p>
+        <label class="prototype-field">状态样本
+          <select id="fixture-choice"></select>
+        </label>
+        <div id="fixture-list" class="prototype-fixture-list" aria-label="状态样本列表"></div>
+      </aside>
+      <main class="prototype-main">
+        <header class="prototype-header">
+          <div><p class="eyebrow">LOCAL WORKBENCH · READ ONLY</p><h1 id="fixture-title"></h1></div>
+          <div class="prototype-tabs"><button class="is-active" type="button">对话</button><button type="button">回执</button><button type="button">轨迹</button></div>
+        </header>
+        <p id="fixture-subtitle" class="prototype-subtitle"></p>
+        <section id="variant-root" class="prototype-variant" aria-live="polite"></section>
+        <details class="prototype-state"><summary>查看这份样本的完整投影状态</summary><pre id="fixture-state"></pre></details>
+      </main>
+    </div>
+    <nav class="prototype-switcher" aria-label="原型变体">
+      <button id="previous-variant" type="button" aria-label="上一个变体">←</button>
+      <span id="variant-label"></span>
+      <button id="next-variant" type="button" aria-label="下一个变体">→</button>
+    </nav>
+    <script src="./task-evidence-prototype.js"></script>
+  </body>
+</html>
