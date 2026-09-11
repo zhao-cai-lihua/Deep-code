@@ -4,6 +4,7 @@ const { tmpdir } = require('node:os')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { WorkbenchStore } = require('../src/workbench-store.cjs')
+const { createTaskContract } = require('../src/task-contract.cjs')
 
 function makeStore() {
   return new WorkbenchStore(join(mkdtempSync(join(tmpdir(), 'deep-code-workbench-')), 'tasks.json'))
@@ -14,6 +15,16 @@ test('creates a private local task and derives a readable title', () => {
   const task = store.create({ prompt: '把 Deep code 的侧栏重构成可长期使用的任务空间。' })
   assert.match(task.title, /Deep code/)
   assert.equal(store.snapshot().activeThreadId, task.id)
+})
+
+test('persists only the supported first-prompt task contract', () => {
+  const store = makeStore()
+  const task = store.create({ prompt: '完成并验证', taskContract: createTaskContract() })
+  assert.deepEqual(task.taskContract, { version: 1, kind: 'evidence-first', attachedTo: 'initial-prompt' })
+  assert.deepEqual(store.snapshot().threads[0].taskContract, task.taskContract)
+
+  const legacy = store.create({ prompt: '保持原样', taskContract: { version: 99, kind: 'unknown' } })
+  assert.equal(legacy.taskContract, null)
 })
 
 test('selects and deletes task metadata through one store seam', () => {

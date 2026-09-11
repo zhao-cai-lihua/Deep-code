@@ -7,6 +7,7 @@ const { HostCare } = require('./host-care.cjs')
 const { WorkbenchStore } = require('./workbench-store.cjs')
 const { SetupAssistant } = require('./setup-assistant.cjs')
 const { buildHandoffPreview } = require('./handoff-preview.cjs')
+const { createTaskContract, buildTaskPrompt } = require('./task-contract.cjs')
 const { DshAdapter } = require('./dsh-adapter.cjs')
 const { DshLiveSession } = require('./dsh-live-session.cjs')
 const { buildProjectBriefPrompt } = require('./project-explainer.cjs')
@@ -133,7 +134,8 @@ async function launchTask(thread, { images = [], routing = null } = {}) {
     await prepareModelRoute({ runtime, sessionId, threadId: thread.id, routing })
     assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId })
     workbench.clearAdmission(thread.id)
-    const admission = await dshAdapter.prompt({ baseUrl: runtime.url, sessionId, text: thread.prompt, images })
+    const taskPrompt = buildTaskPrompt({ request: thread.prompt, contract: thread.taskContract })
+    const admission = await dshAdapter.prompt({ baseUrl: runtime.url, sessionId, text: taskPrompt.text, images })
     if (admission?.accepted === true || (typeof admission?.messageId === 'string' && admission.messageId)) {
       workbench.setAdmission(thread.id, {
         accepted: true,
@@ -728,7 +730,9 @@ ipcMain.handle('memory:compose-preview', (_event, input) => composeMemoryContext
 ipcMain.handle('workbench:remove-image', (_event, scopeId, id) => imageDrafts.remove(imageDraftScope(scopeId), id))
 ipcMain.handle('workbench:create-task', async (_event, draft) => {
   const attachmentIds = Array.isArray(draft?.attachmentIds) ? draft.attachmentIds.map(String) : []
-  const thread = workbench.create({ title: String(draft?.title || ''), prompt: String(draft?.prompt || ''), hasAttachments: attachmentIds.length > 0 })
+  const prompt = String(draft?.prompt || '')
+  const taskContract = prompt.trim() && draft?.useTaskContract !== false ? createTaskContract() : null
+  const thread = workbench.create({ title: String(draft?.title || ''), prompt, hasAttachments: attachmentIds.length > 0, taskContract })
   const sourceScope = imageDraftScope(draft?.attachmentScope || 'new-task')
   imageDrafts.moveScope(sourceScope, thread.id)
   const sent = await launchTask(thread, {

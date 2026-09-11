@@ -14,6 +14,7 @@ const addImagesButton = document.querySelector('#add-images')
 const imageDraftRail = document.querySelector('#image-draft-rail')
 const imageDraftStatus = document.querySelector('#image-draft-status')
 const composerHint = document.querySelector('#composer-hint')
+const taskContractButton = document.querySelector('#task-contract-button')
 const modelRouteButton = document.querySelector('#model-route-button')
 const modelRouteDialog = document.querySelector('#model-route-dialog')
 const modelRouteForm = document.querySelector('#model-route-form')
@@ -277,6 +278,17 @@ let imageDrafts = []
 let workspaceDialogTrigger = workspaceButton
 let modelCatalog = { current: null, groups: [] }
 let manualModelSelection = null
+let newTaskContractEnabled = true
+
+function renderTaskContractChoice() {
+  const continuing = Boolean(activeThread())
+  taskContractButton.classList.toggle('hidden', continuing)
+  taskContractButton.setAttribute('aria-pressed', String(newTaskContractEnabled))
+  taskContractButton.textContent = newTaskContractEnabled ? '协作：可核验' : '协作：原样发送'
+  taskContractButton.title = newTaskContractEnabled
+    ? '新任务首条消息会附带公开的协作约定；点击可改为原样发送。'
+    : '新任务将原样发送；点击可恢复可核验协作约定。'
+}
 let modelConnectionState = { activeProviders: [] }
 let selectedMemoryIds = new Set()
 let lastMemoryPreviewQuery = ''
@@ -961,7 +973,11 @@ function renderImageDrafts() {
   imageDraftRail.classList.toggle('hidden', !imageDrafts.length)
   composerHint.textContent = imageDrafts.length
     ? `${imageDrafts.length} 张图片只在本机预览；发送后才交给当前模型。`
-    : 'Deep code 工作台'
+    : activeThread()
+      ? '继续消息会直接发送；新手协作约定只附在新任务首条消息。'
+      : newTaskContractEnabled
+        ? '新任务会附带一次公开的可核验协作约定，不会额外调用模型。'
+        : '新任务将原样发送，不附加协作约定。'
   for (const draft of imageDrafts) {
     const card = document.createElement('figure')
     card.className = 'image-draft'
@@ -1203,6 +1219,7 @@ function renderRunContext(thread) {
 
 function renderWorkbench() {
   const selectedThreadId = workbench.activeThreadId || ''
+  renderTaskContractChoice()
   if (lastRenderedThreadId) captureTaskViewState(lastRenderedThreadId)
   if (selectedThreadId !== lastRenderedThreadId && handoffDialog.open) handoffDialog.close()
   const scrollPlan = workbenchPage.classList.contains('is-active')
@@ -1295,7 +1312,7 @@ function renderWorkbench() {
       : (['queued', 'running'].includes(thread.engineState) ? '正在处理' : '已连接，无需重试')
     conversationFeed.replaceChildren()
     for (const item of agentMessages) {
-      conversationFeed.append(conversationMessageView.render({ role: item.role, text: item.text, images: item.images || [] }))
+      conversationFeed.append(conversationMessageView.render({ role: item.role, text: item.text, images: item.images || [], taskContract: item.taskContract || null }))
     }
     const draft = thread.agent?.live?.draft
     if (draft?.text) {
@@ -1347,7 +1364,7 @@ async function createTask() {
     const routing = { manualSelection: manualModelSelection }
     const nextWorkbench = thread?.sessionId
       ? await window.desktopHost.sendMessage(thread.id, prompt, attachmentIds, routing)
-      : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds, routing })
+      : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds, routing, useTaskContract: newTaskContractEnabled })
     replaceWorkbench(nextWorkbench)
     composerDraftState.clear(sourceComposerScope)
     composerDraftState.clear(composerTextScope())
@@ -1414,6 +1431,11 @@ newTaskButton.addEventListener('click', () => startNewTask().catch((error) => {
   showPage('settings')
 }))
 createTaskButton.addEventListener('click', createTask)
+taskContractButton.addEventListener('click', () => {
+  newTaskContractEnabled = !newTaskContractEnabled
+  renderTaskContractChoice()
+  renderImageDrafts()
+})
 addImagesButton.addEventListener('click', async () => {
   addImagesButton.disabled = true
   try {

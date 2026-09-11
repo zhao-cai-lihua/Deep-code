@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto')
 const { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } = require('node:fs')
 const { basename, dirname, extname, join } = require('node:path')
+const { normalizeTaskContract } = require('./task-contract.cjs')
 
 const MAX_TITLE = 120
 const MAX_PROMPT = 12000
@@ -25,12 +26,12 @@ function titleFromPrompt(prompt) {
 }
 
 function defaultState() {
-  return { version: 5, threads: [], activeThreadId: '' }
+  return { version: 6, threads: [], activeThreadId: '' }
 }
 
 function validateState(raw) {
-  if (![1, 2, 3, 4, 5].includes(raw?.version) || !Array.isArray(raw.threads)) throw new Error('版本或列表格式不兼容')
-  return { version: 5, threads: raw.threads.map(validateThread), activeThreadId: typeof raw.activeThreadId === 'string' ? raw.activeThreadId : '' }
+  if (![1, 2, 3, 4, 5, 6].includes(raw?.version) || !Array.isArray(raw.threads)) throw new Error('版本或列表格式不兼容')
+  return { version: 6, threads: raw.threads.map(validateThread), activeThreadId: typeof raw.activeThreadId === 'string' ? raw.activeThreadId : '' }
 }
 
 function validateAdmission(raw) {
@@ -131,6 +132,7 @@ function validateThread(raw) {
     engineError: typeof raw.engineError === 'string' ? raw.engineError.slice(0, 1200) : '',
     engineNotice: typeof raw.engineNotice === 'string' ? raw.engineNotice.slice(0, 1200) : '',
     recovery: validateRecovery(raw.recovery),
+    taskContract: normalizeTaskContract(raw.taskContract),
     purpose: validatePurpose(raw.purpose),
     verificationReceipt: validateVerificationReceipt(raw.verificationReceipt),
     createdAt: cleanText(raw.createdAt, '创建时间', 80),
@@ -216,7 +218,7 @@ class WorkbenchStore {
     return copy({ threads, activeThreadId, ...(this.lastRecovery ? { storageRecovery: this.lastRecovery } : {}) })
   }
 
-  create({ title, prompt, hasAttachments = false, purpose = null }) {
+  create({ title, prompt, hasAttachments = false, taskContract = null, purpose = null }) {
     const body = cleanText(prompt, '任务内容', MAX_PROMPT, { required: !hasAttachments })
     const now = new Date().toISOString()
     const thread = {
@@ -232,13 +234,14 @@ class WorkbenchStore {
       engineError: '',
       engineNotice: '',
       recovery: null,
+      taskContract: normalizeTaskContract(taskContract),
       purpose: validatePurpose(purpose),
       verificationReceipt: null,
       createdAt: now,
       updatedAt: now
     }
     const state = this.load()
-    this.persist({ version: 5, threads: [...state.threads, thread], activeThreadId: thread.id })
+    this.persist({ version: 6, threads: [...state.threads, thread], activeThreadId: thread.id })
     return copy(thread)
   }
 
@@ -254,7 +257,7 @@ class WorkbenchStore {
     const threads = state.threads.filter((thread) => thread.id !== id)
     if (threads.length === state.threads.length) throw new Error('找不到要删除的任务。')
     const activeThreadId = state.activeThreadId === id ? (threads[0]?.id || '') : state.activeThreadId
-    this.persist({ version: 5, threads, activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId })
     return this.snapshot()
   }
 
@@ -275,7 +278,7 @@ class WorkbenchStore {
       }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -290,7 +293,7 @@ class WorkbenchStore {
       return { ...thread, admission: normalized, updatedAt: normalized.acceptedAt || thread.updatedAt }
     })
     if (!found) throw new Error('找不到要保存接纳回执的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -303,7 +306,7 @@ class WorkbenchStore {
       return { ...thread, admission: null }
     })
     if (!found) throw new Error('找不到要清除接纳回执的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -318,7 +321,7 @@ class WorkbenchStore {
       return { ...thread, recovery: normalized, updatedAt: normalized.occurredAt }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -331,7 +334,7 @@ class WorkbenchStore {
       return { ...thread, recovery: null }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -353,7 +356,7 @@ class WorkbenchStore {
       }
     })
     if (!found) throw new Error('找不到要更新的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -368,7 +371,7 @@ class WorkbenchStore {
       return { ...thread, completionBaseline: normalized }
     })
     if (!found) throw new Error('找不到要保存结束基线的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -383,7 +386,7 @@ class WorkbenchStore {
       return { ...thread, verificationReceipt: normalized, updatedAt: normalized.recordedAt || thread.updatedAt }
     })
     if (!found) throw new Error('找不到要保存回执的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 
@@ -396,7 +399,7 @@ class WorkbenchStore {
       return { ...thread, verificationReceipt: null }
     })
     if (!found) throw new Error('找不到要更新回执的任务。')
-    this.persist({ version: 5, threads, activeThreadId: current.activeThreadId })
+    this.persist({ version: 6, threads, activeThreadId: current.activeThreadId })
     return this.snapshot()
   }
 }

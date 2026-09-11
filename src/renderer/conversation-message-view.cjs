@@ -83,6 +83,28 @@
         bubble.append(gallery)
       }
 
+      const taskContract = messageRole === 'user' && message.taskContract?.kind === 'evidence-first'
+        ? message.taskContract
+        : null
+      if (taskContract) {
+        const details = document.createElement('details')
+        details.className = 'message-task-contract'
+        const summary = document.createElement('summary')
+        summary.textContent = `协作约定 · ${String(taskContract.label || '可核验推进')}`
+        const explanation = document.createElement('p')
+        explanation.textContent = String(taskContract.summary || '')
+        const rules = document.createElement('ul')
+        for (const rule of Array.isArray(taskContract.rules) ? taskContract.rules : []) {
+          const item = document.createElement('li')
+          item.textContent = String(rule)
+          rules.append(item)
+        }
+        const footprint = document.createElement('small')
+        footprint.textContent = `仅首条消息增加 ${Number(taskContract.addedCharacters) || 0} 个字符；不额外调用模型，也不改变 Harness 权限。`
+        details.append(summary, explanation, rules, footprint)
+        bubble.append(details)
+      }
+
       if (draft) {
         bubble.setAttribute('aria-live', 'polite')
         bubble.setAttribute('aria-label', 'Deep code 正在生成尚未定稿的回复')
