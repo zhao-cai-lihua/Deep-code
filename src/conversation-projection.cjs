@@ -1,3 +1,5 @@
+const { parseTaskPrompt } = require('./task-contract.cjs')
+
 function textBlocks(content) {
   if (!Array.isArray(content)) return ''
   return content
@@ -325,10 +327,15 @@ function projectConversation(page) {
     if (event.type === 'user/message') {
       const message = data.message || data
       const text = textBlocks(message.content)
+      const taskPrompt = parseTaskPrompt(text)
       const images = imageBlocks(message.content)
       const source = message.source || {}
       const isHuman = source.kind === 'user' || (!source.kind && !/^\s*<system-reminder>/i.test(text))
-      if ((text || images.length) && isHuman) messages.push({ role: 'user', text, seq: event.seq, time: event.time, ...(images.length ? { images } : {}) })
+      if ((text || images.length) && isHuman) messages.push({
+        role: 'user', text: taskPrompt.request, seq: event.seq, time: event.time,
+        ...(images.length ? { images } : {}),
+        ...(taskPrompt.attached ? { taskContract: { ...taskPrompt.contract, addedCharacters: taskPrompt.addedCharacters } } : {})
+      })
       else if (text) {
         const summary = contextSummary(text, source)
         runtimeContext.push({ seq: event.seq, time: event.time, source, raw: text, ...summary })

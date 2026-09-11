@@ -83,3 +83,24 @@ test('keeps user messages distinct and reports clipboard failure without throwin
   schedules[0].callback()
   assert.equal(copy.textContent, '复制回答')
 })
+
+test('renders the one-time task contract as a compact user-visible disclosure', () => {
+  const { view } = createFixture()
+  const user = view.render({
+    role: 'user',
+    text: '修复问题。',
+    taskContract: {
+      kind: 'evidence-first',
+      label: '可核验推进',
+      summary: '关键歧义才暂停询问；能安全推进就直接行动。',
+      rules: ['保留已有工作。', '区分已确认与未确认。'],
+      addedCharacters: 218
+    }
+  })
+
+  const details = findAll(user, (node) => node.tagName === 'DETAILS')
+  assert.equal(details.length, 1)
+  assert.match(details[0].textContent, /协作约定 · 可核验推进/)
+  assert.match(details[0].textContent, /仅首条消息增加 218 个字符/)
+  assert.match(details[0].textContent, /保留已有工作/)
+})

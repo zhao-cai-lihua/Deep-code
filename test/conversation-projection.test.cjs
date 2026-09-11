@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { projectConversation, terminalFailure } = require('../src/conversation-projection.cjs')
+const { createTaskContract, buildTaskPrompt } = require('../src/task-contract.cjs')
 
 test('keeps human prompts in chat and moves Harness context into run details', () => {
   const page = { events: [
@@ -16,6 +17,22 @@ test('keeps human prompts in chat and moves Harness context into run details', (
   assert.deepEqual(result.runDetails.permissionFacts, [])
   assert.equal(result.runDetails.runtimeContext[1].label, '技能目录已载入（1 项）')
   assert.equal(result.runDetails.durationMs, 1200)
+})
+
+test('keeps the human request readable and exposes an attached contract separately', () => {
+  const outbound = buildTaskPrompt({ request: '请把报错修好。', contract: createTaskContract() })
+  const result = projectConversation({ events: [{
+    event: {
+      seq: 7,
+      type: 'user/message',
+      data: { content: [{ type: 'text', text: outbound.text }], source: { kind: 'user' } }
+    }
+  }] })
+
+  assert.equal(result.messages[0].text, '请把报错修好。')
+  assert.equal(result.messages[0].taskContract.kind, 'evidence-first')
+  assert.equal(result.messages[0].taskContract.addedCharacters, outbound.addedCharacters)
+  assert.doesNotMatch(result.messages[0].text, /deep-code-task-contract/)
 })
 
 test('keeps durable image attachment facts on the human message without exposing bytes', () => {

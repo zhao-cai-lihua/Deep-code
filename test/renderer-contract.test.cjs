@@ -339,6 +339,16 @@ test('the composer exposes explicit model selection while Harness remains select
   assert.doesNotMatch(shell, /gpt-5\.6-sol|gpt-5\.6-luna|deepseek-v4-pro/)
 })
 
+test('new tasks expose one optional evidence-first contract without adding another model call', () => {
+  assert.match(html, /id="task-contract-button"/)
+  assert.match(html, /协作：可核验/)
+  assert.match(shell, /useTaskContract: newTaskContractEnabled/)
+  assert.match(shell, /newTaskContractEnabled = !newTaskContractEnabled/)
+  assert.match(main, /createTaskContract\(\)/)
+  assert.match(main, /buildTaskPrompt\(\{ request: thread\.prompt, contract: thread\.taskContract \}\)/)
+  assert.doesNotMatch(main, /taskContract[\s\S]{0,500}(?:createSession|selectModel)\([^)]*taskContract/)
+})
+
 test('image drafts stay task-scoped and send only through the desktop host', () => {
   assert.match(html, /id="image-draft-rail"/)
   assert.match(html, /id="add-images"/)

@@ -70,6 +70,11 @@ dialog label { display: grid; gap: 8px; margin-top: 18px; color: #c8cad2; font-s
 .message-bubble { width: min(100%, 760px); min-width: 0; max-width: 100%; overflow: hidden; padding: 15px 17px; }
 .message-bubble.user { width: auto; max-width: 86%; }
 .message-heading { display: flex; min-height: 24px; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+.message-task-contract { margin-top: 11px; border-top: 1px solid var(--line); padding-top: 8px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.message-task-contract > summary { cursor: pointer; color: var(--accent); }
+.message-task-contract p { margin: 8px 0 0; color: var(--muted); font-size: 10px; }
+.message-task-contract ul { margin: 7px 0; padding-left: 18px; }
+.message-task-contract small { color: var(--muted); }
 .copy-button { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; background: transparent; color: var(--muted); font-size: 10px; line-height: 1.2; }
 .copy-button:hover:not(:disabled) { border-color: var(--line-strong); background: var(--accent-soft); color: var(--text); }
 .copy-button:disabled { opacity: .72; }
