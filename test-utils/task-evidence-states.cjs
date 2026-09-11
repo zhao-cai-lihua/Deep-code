@@ -1,3 +1,5 @@
+const { projectTaskRun } = require('../src/run-projection.cjs')
+
 function details({ terminal, cards = [], changes = [] } = {}) {
   return {
     terminal: terminal ? { state: terminal, reason: terminal } : undefined,
@@ -10,16 +12,22 @@ function details({ terminal, cards = [], changes = [] } = {}) {
 }
 
 function thread({ engineState = 'ready', terminal, cards, changes, outcome, baseline } = {}) {
-  return {
+  const result = {
     engineState,
     workspacePath: 'C:\\work\\fixture',
     baseline,
     outcome,
     agent: {
-      taskRunSnapshot: terminal ? { terminal: { state: terminal } } : {},
+      taskRunSnapshot: {
+        turn: { state: terminal || (['queued', 'running'].includes(engineState) ? engineState : 'unknown') },
+        ...(terminal ? { terminal: { state: terminal } } : {}),
+        confirmedChanges: changes || []
+      },
       runDetails: details({ terminal, cards, changes })
     }
   }
+  result.run = projectTaskRun(result)
+  return result
 }
 
 const doneCard = { id: 'read-1', type: 'read', state: 'done', title: '读取文件', path: 'README.md', lines: [] }
@@ -69,5 +77,3 @@ const taskEvidenceStates = [
 ]
 
 module.exports = { taskEvidenceStates }
-
-

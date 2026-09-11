@@ -205,8 +205,8 @@ async function workbenchSnapshot() {
     closeLiveSession()
     const offline = reconcileOfflineWorkbench(snapshot)
     if (thread) {
-      thread.run = projectTaskRun(thread)
       thread.outcome = projectTaskOutcome(thread)
+      thread.run = projectTaskRun(thread)
       thread.guidance = projectTaskGuidance(thread)
     }
     return offline
@@ -277,8 +277,8 @@ async function workbenchSnapshot() {
     thread.engineState = 'error'
     thread.engineError = error.message
   }
-  thread.run = projectTaskRun(thread)
   thread.outcome = projectTaskOutcome(thread)
+  thread.run = projectTaskRun(thread)
   thread.guidance = projectTaskGuidance(thread)
   return snapshot
 }

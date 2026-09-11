@@ -243,6 +243,7 @@ const taskEvidenceView = window.DeepCodeTaskEvidenceView.createTaskEvidenceView(
       overviewSummary: traceOverviewSummary,
       supportingFacts: traceSupportingFacts,
       supportingSummary: traceSupportingSummary,
+      technicalDetails,
       permissionFacts,
       changesSection: traceChanges,
       changedFiles,
@@ -906,9 +907,7 @@ function runGuidanceAction(id) {
 
 function openTaskEvidenceTarget(evidenceTarget) {
   setTaskView('trace')
-  const selector = { changes: '#trace-changes', tools: '#trace-tools', technical: '.technical-details' }[evidenceTarget] || '#run-details'
-  const target = document.querySelector(selector)
-  if (target?.tagName === 'DETAILS') target.open = true
+  const target = taskEvidenceView.revealEvidenceTarget(evidenceTarget)
   target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 

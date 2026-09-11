@@ -1,13 +1,15 @@
 # Deep Code current handoff
 
-Updated: 2026-09-10
-Branch: `main`
+Updated: 2026-09-11
+Branch: `codex/v0.7.0-projection-integrity`
 Current packaged stable release: `0.6.3`
 Current source version: `0.6.3`
 
 Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 merged at `1258c5138b1b2b88070ce04b702ca6208320b053`, and PR #10 merged at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`. Model Services, conversation, and compact task evidence/receipt presentation are on `main`; this is not a v0.7.0 release.
 
 The current `main` applies the zero-token task-state fixture verdict to the existing Evidence view without changing Engine, Session, Provider, model routing, permission, or file-change truth.
+
+Current verified correction branch: `codex/v0.7.0-projection-integrity`. A fixed-point `v0.6.3...main` Standards/Spec review found two P1 presentation-boundary defects after PR #10: technical Evidence Map links opened only the hidden inner disclosure, and the Renderer recomputed a second Trace state from several projections. The branch fixes both without changing execution truth.
 
 ## Release delivery
 
@@ -108,15 +110,18 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
+- Projection-integrity focused suite: **59 passed, 0 failed** on 2026-09-11. Behavior tests prove that a technical Evidence Map link opens both disclosure layers, a completed Turn with a failed tool receives one non-contradictory Run Projection summary, the View cannot override a supplied `run.trace` with conflicting raw fields, an unconfirmed stop remains unknown, and later matching terminal evidence supersedes a stale recovery marker.
+- Projection-integrity full `npm test`: **275 passed, 0 failed** on 2026-09-11. Both follow-up review axes confirmed their P1 findings closed and found no new scope or standards defect in the narrow correction.
+- Projection-integrity `npm run package:test:win` completed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,793,483 bytes, local SHA-256 `436056f1772c4ee940d477cb7af044061c40e74785e7d491c5e762b3d6212d03`. This is an uncompressed local test artifact, not a v0.7.0 release asset.
 - Compact Evidence `npm test`: **270 passed, 0 failed** on 2026-09-10. A permanent zero-token matrix renders ten states through the real Evidence view: completed with change, completed without change, changed but unverified, verification failed, waiting for the user, cancellation not yet terminal, confirmed interruption, credential failure, network failure, and non-Git workspace.
 - The merged view keeps every tool card collapsed by default, hides an empty file-change section, and gives success, active, warning/unknown, and failure states distinct summary tones. Interface tests also prove that the new supporting-evidence disclosure belongs to one task rather than leaking across task switches.
 - PR #10 regression workflow run `34477492520` completed successfully with the same 270-test suite before merge at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`.
 - `npm run package:test:win` completed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,792,439 bytes, local SHA-256 `383ad7de18b0819a57402e7877345baaf686a86ce17e213f75f8f44dc21d0adf`. An isolated packaged-app CDP check reached a complete `Deep code` page, found the compact trace and supporting-evidence anchors, confirmed the repeated body task title is hidden, and verified the tool hint. Engine, Session, Provider, credential, and model calls were not used.
 - The throwaway comparison is preserved outside `main` at branch `codex/prototype-task-evidence-density`, commit `0afaa1e`. Its three variants established the product verdict: conversation keeps a continuous one-line rhythm, Receipt remains conclusion-first, and Trace becomes a layered evidence ledger. Prototype code is not included in `main` or the stable package.
-- Task evidence view focus suite plus Renderer contract: **47 passed, 0 failed** on 2026-09-10. Four new interface-level behavior tests cover all supported tool cards, structured permission and file facts, baseline/context disclosure, receipt sections, evidence-map delegation, allowlisted guidance delegation, stale-content clearing, and distinct pending/error labels.
-- Current branch `npm test`: **269 passed, 0 failed**. The new view receives already-projected `runDetails`, `outcome`, and `guidance`; the tests do not manufacture execution truth from Assistant text.
+- PR #9 task evidence view focus suite plus Renderer contract: **47 passed, 0 failed** on 2026-09-10. Four new interface-level behavior tests cover all supported tool cards, structured permission and file facts, baseline/context disclosure, receipt sections, evidence-map delegation, allowlisted guidance delegation, stale-content clearing, and distinct pending/error labels.
+- PR #9 full `npm test`: **269 passed, 0 failed**. The new view receives already-projected `runDetails`, `outcome`, and `guidance`; the tests do not manufacture execution truth from Assistant text.
 - PR #9 regression workflow run `34470348278` completed successfully with the same 269-test suite before merge.
-- Current branch `npm run package:test:win` completed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,785,785 bytes, local SHA-256 `88d26ea51023d6e46ded5d20e71ad5b82accdf2e910c5680e554f4dfc7368091`. An isolated packaged-app CDP probe reached a complete `Deep code` page, loaded `DeepCodeTaskEvidenceView`, and found the trace, receipt, and guidance anchors. All four isolated packaged processes were stopped; Engine and Provider were not used.
+- PR #9 `npm run package:test:win` completed and produced an earlier `dist/Deep-code-Test-0.6.3.exe`, 368,785,785 bytes, local SHA-256 `88d26ea51023d6e46ded5d20e71ad5b82accdf2e910c5680e554f4dfc7368091`. An isolated packaged-app CDP probe reached a complete `Deep code` page, loaded `DeepCodeTaskEvidenceView`, and found the trace, receipt, and guidance anchors. All four isolated packaged processes were stopped; Engine and Provider were not used.
 - Post-stable Renderer seam baseline `npm test`: **265 passed, 0 failed** on 2026-09-10. Six new behavior tests cover Model Services projection rendering, credential/catalog gating, offline truthfulness, final and live conversation rendering, copy feedback, image metadata, and user/assistant distinction.
 - PR #8 regression workflow run `34451299886` completed successfully with the same 265-test suite before merge.
 - Post-stable `npm run package:test:win` passed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,782,040 bytes, local SHA-256 `816e52892711eb775d705f40d1651825f7dbe20c3ba1f338463fabebca56ccce`. Packaged `app.asar` contains both new Renderer modules.
@@ -176,13 +181,14 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - The first post-stable Renderer decomposition is complete. `model-services-view.cjs` exposes one `render(snapshot)` interface and only displays already-projected Provider/catalog/credential/verification/current-route facts. `conversation-message-view.cjs` exposes one `render(message)` interface and owns message DOM, Markdown, copy feedback, attachment metadata, and live-draft presentation without deciding Session or terminal state.
 - The second decomposition adds `task-evidence-view.cjs` with one `render(thread)` interface. It owns trace cards, structured fact lists, technical disclosure, visual receipt, and next-action presentation. Evidence-map and guidance buttons only delegate inert IDs back to the workbench; the module cannot retry, select a model, start Engine, or alter a task.
 - Compact Evidence now makes Trace a three-level surface: a truthful state/count summary, visible confirmed file changes plus collapsed operation rows, then one supporting disclosure for permissions, Git baseline, runtime context, and raw evidence. Failed tool output is no longer expanded merely because it failed; the red summary and row remain visible while exact output stays one click away. The task title is shown only in the sticky Workbench header, while its project path and explicit project-switch action remain below.
-- `src/renderer/shell.js` is now 1,910 lines, down from 2,230 in the v0.6.3 source. The line count is secondary evidence; the meaningful change is that Model Services, conversation, and task evidence presentation now have behavior-tested interfaces. `src/main.cjs` remains about 956 lines.
+- `src/renderer/shell.js` is now 1,924 newline-delimited lines, down from 2,323 in the v0.6.3 source. The line count is secondary evidence; the meaningful change is that Model Services, conversation, and task evidence presentation now have behavior-tested interfaces. `src/main.cjs` remains about 956 lines.
+- A post-merge fixed-point review caught and closed two projection-boundary defects before any v0.7.0 candidate release. `task-evidence-view.cjs` now renders the single `run.trace` projection and owns disclosure reveal behavior; `run-projection.cjs` owns the Trace state, counts, and supporting-evidence label. Outcome Map navigation can no longer scroll to evidence that remains hidden. While tightening that seam, a pre-existing inconsistency was also closed: an unconfirmed cancellation no longer appears as a failed Turn, and a later matching terminal supersedes stale recovery state.
 - Main, Preload, DSH Adapter, `TaskRunSnapshot`, IPC contracts, Provider storage, model routing, and Harness authority were not changed by this decomposition.
 
 ## Next bounded work
 
 1. v0.6.3 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, or task-draft checks unless the corresponding implementation changes.
-2. The zero-token fixture step is complete on the current candidate. Do not add another parallel status surface: conversation already provides the continuous task narrative, Receipt provides conclusions, and Trace provides exact evidence. After merge, the next product step should start from a concrete acceptance defect or a bounded v0.7.0 release decision rather than another speculative Renderer decomposition.
+2. The zero-token fixture step and projection-integrity correction are complete on the current branch. Do not add another parallel status surface: conversation already provides the continuous task narrative, Receipt provides conclusions, and Trace provides exact evidence. After correction review and merge, make one bounded v0.7.0 release-candidate decision rather than another speculative Renderer decomposition.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
