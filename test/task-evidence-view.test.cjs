@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { createTaskEvidenceView } = require('../src/renderer/task-evidence-view.cjs')
+const { projectTaskRun } = require('../src/run-projection.cjs')
 const { FakeDocument, FakeElement, findAll } = require('../test-utils/fake-dom.cjs')
 const { taskEvidenceStates } = require('../test-utils/task-evidence-states.cjs')
 
@@ -18,6 +19,7 @@ function createFixture() {
       overviewSummary: element('p'),
       supportingFacts: element('details'),
       supportingSummary: element('summary'),
+      technicalDetails: element('details'),
       permissionFacts: element('ul'),
       changesSection: element('section'),
       changedFiles: element('ul'),
@@ -55,9 +57,45 @@ function createFixture() {
   return { view, elements, guidanceActions, evidenceTargets }
 }
 
+test('reveals both supporting layers when a receipt links to technical evidence', () => {
+  const { view, elements } = createFixture()
+
+  const target = view.revealEvidenceTarget('technical')
+
+  assert.equal(elements.trace.supportingFacts.open, true)
+  assert.equal(elements.trace.technicalDetails.open, true)
+  assert.equal(target, elements.trace.technicalDetails)
+})
+
+test('renders the Run Projection Trace summary without re-deciding lifecycle in the View', () => {
+  const { view, elements } = createFixture()
+
+  view.render({
+    run: {
+      trace: {
+        tone: 'warning',
+        title: '投影要求核查',
+        summary: '1 项操作 · 没有确认到文件改动 · 1 项工具失败。',
+        hasChanges: false,
+        supportingSummary: '权限、Git 基线与技术证据 · 权限未确认 · 没有任务前基线'
+      }
+    },
+    outcome: { state: 'error', title: '不应由 View 重新裁决' },
+    engineState: 'error',
+    agent: {
+      taskRunSnapshot: { terminal: { state: 'failed' } },
+      runDetails: { toolCards: [{ id: 'tool-1', state: 'error', type: 'generic', title: '失败工具' }] }
+    }
+  })
+
+  assert.equal(elements.trace.overview.dataset.tone, 'warning')
+  assert.equal(elements.trace.overviewTitle.textContent, '投影要求核查')
+  assert.equal(elements.trace.overviewSummary.textContent, '1 项操作 · 没有确认到文件改动 · 1 项工具失败。')
+})
+
 test('renders projected trace facts and every supported tool card without inferring new evidence', () => {
   const { view, elements } = createFixture()
-  view.render({
+  const thread = {
     workspacePath: 'C:\\work\\demo',
     baseline: {
       state: 'clean', message: '工作区基线已记录。', head: '1234567890abcdef',
@@ -81,11 +119,13 @@ test('renders projected trace facts and every supported tool card without inferr
         ]
       }
     }
-  })
+  }
+  thread.run = projectTaskRun(thread)
+  view.render(thread)
 
   assert.equal(elements.trace.label.textContent, '运行详情 · 用时 2 秒 · 改动 1 个文件')
-  assert.equal(elements.trace.overview.dataset.tone, 'error')
-  assert.equal(elements.trace.overviewTitle.textContent, '这一轮需要处理')
+  assert.equal(elements.trace.overview.dataset.tone, 'unknown')
+  assert.equal(elements.trace.overviewTitle.textContent, '终态尚未确认')
   assert.equal(elements.trace.overviewSummary.textContent, '6 项操作 · 1 个确认文件改动 · 1 项工具失败。')
   assert.equal(elements.trace.changesSection.classList.contains('hidden'), false)
   assert.equal(elements.trace.supportingSummary.textContent, '权限、Git 基线与技术证据 · 1 项权限事实 · 已记录任务前基线')
