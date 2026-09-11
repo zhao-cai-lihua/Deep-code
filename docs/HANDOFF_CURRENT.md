@@ -4,6 +4,7 @@ Updated: 2026-09-11
 Branch: `main`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
+Current test prerelease: `0.7.1-beta.1` (awaiting human acceptance)
 Current source version: `0.7.1-beta.1`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
@@ -16,6 +17,9 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 
 - v0.7.1-beta.1 preparation introduces the first executable Soft Harness experiment: an optional, visible, one-time evidence-first collaboration contract on a new task's initial text prompt. It adds exactly 380 characters once, makes no second model request, can be disabled before creation, and is separated from the human request again in the conversation projection. Existing tasks, image-only tasks, follow-up messages, model verification, and Project Brief prompts remain unchanged. PR #14 regression run `34614417058` passed in a clean GitHub runner.
 - The v0.7.1-beta.1 focused Task Contract/store/projection/view/Renderer suite passed 83 tests; full `npm test` passed 283 tests; JavaScript syntax checks passed; and the production dependency audit reported no known vulnerabilities. The correctly versioned uncompressed Windows test portable `Deep-code-Test-0.7.1-beta.1.exe` built successfully at 368,801,676 bytes with local SHA-256 `7eecc4fb5bffb2073a97cf2e5f58ccea900e1ca4fca34f60725a8e2fe685bcae`; its `app.asar` contains `task-contract.cjs`, `conversation-message-view.cjs`, and the updated `shell.js`.
+- Test prerelease v0.7.1-beta.1 was tagged at `27544e80453f8e74bbc356ae3142ded0904ad6ce` and published as a non-draft prerelease on 2026-09-11: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.1-beta.1. Tag regression run `34614587143` and Windows release run `34614619019` both succeeded with all 283 tests.
+- `Deep.code.0.7.1-beta.1.exe`: 100,569,656 bytes; GitHub SHA-256 `9a2130cd568e0f70f1db050942ebfef84deb89305c4c4c3def29bfc86184bc40`.
+- `Deep.code.Setup.0.7.1-beta.1.exe`: 100,793,061 bytes; GitHub SHA-256 `5aea5321dfc062cd6c3f01a3cf117a430eabf149ed9c3277a9d5a46949c9d605`.
 - Stable v0.7.0 was tagged at `b9db685d84653e3cc7b13f737e079c8d936b63de` and published as a non-draft, non-prerelease release on 2026-09-11: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.0. Tag regression run `34609554689` and Windows release run `34609564911` both succeeded with all 275 tests.
 - `Deep.code.0.7.0.exe`: 100,567,734 bytes; GitHub SHA-256 `28fd80b44f3514283012f50e794d13bf7f845412a61b7d387f077343ee9995c9`.
 - `Deep.code.Setup.0.7.0.exe`: 100,791,128 bytes; GitHub SHA-256 `b49cb64abb18d3587644dda0a25d7ccc709d93173b08ac718ef0762c9ac0c157`.
@@ -206,7 +210,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Next bounded work
 
 1. v0.7.0 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, task-draft, or Evidence UI checks unless the corresponding implementation changes.
-2. v0.7.1-beta.1 is the bounded Task Contract experiment. Publish it only after PR CI and tag-release verification, then use the four low-cost checks in its release notes. Do not expand it into automatic planning, model routing, hidden memory injection, permission changes, or a second completion state.
+2. v0.7.1-beta.1 is the published bounded Task Contract experiment. Use the four low-cost checks in its release notes before considering promotion or iteration. Do not expand it into automatic planning, model routing, hidden memory injection, permission changes, or a second completion state.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
