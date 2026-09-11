@@ -3,6 +3,7 @@
 Updated: 2026-09-11
 Branch: `main`
 Current packaged stable release: `0.6.3`
+Current packaged prerelease: `0.7.0-rc.1`
 Current source version: `0.7.0-rc.1`
 
 Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 merged at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 merged at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, and PR #11 merged at `8ad48f3698e5569732dfb062511cbda990b7ca07`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are on `main`; this is not yet a stable v0.7.0 release.
@@ -13,7 +14,10 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 
 ## Release delivery
 
-- v0.7.0-rc.1 preparation promotes the merged Evidence Gate presentation milestone to a prerelease for bounded, zero-token manual acceptance. PR #12 merged at `901563870722e323bac14221d27f05be74584acf`; regression workflow run `34572725323` passed all 275 tests. Its release notes are `docs/releases/v0.7.0-rc.1.md`; it is not stable until the listed UI checks pass.
+- v0.7.0-rc.1 promotes the merged Evidence Gate presentation milestone to a prerelease for bounded, zero-token manual acceptance: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.0-rc.1. PR #12 merged at `901563870722e323bac14221d27f05be74584acf`; PR regression run `34572725323`, main regression run `34572856103`, and Windows release run `34572876143` all passed 275 tests. It is not stable until the four UI checks in `docs/releases/v0.7.0-rc.1.md` pass.
+- `Deep.code.0.7.0-rc.1.exe`: 100,567,775 bytes; GitHub SHA-256 `68809b199a32251d9a7b829ebff3afa25380b8dd5da2d7fde8939d45e276d9a8`.
+- `Deep.code.Setup.0.7.0-rc.1.exe`: 100,791,174 bytes; GitHub SHA-256 `5bc8c88adaa23dc68f4696a6b580defcdafc00273fec63c8212331bbe9b4f8c5`.
+- `SHA256SUMS.txt`: 190 bytes; GitHub SHA-256 `57a1c793dea8942dc260aae27e22aaf29d2fa7e7d4908a92c20430295b05835e`.
 - v0.7.0-rc.1 preparation `npm test` passed all 275 tests and `npm run package:test:win` produced `dist/Deep-code-Test-0.7.0-rc.1.exe`, 368,793,608 bytes, local SHA-256 `e340ed94021340b3a16a2c61cbf25f867daa7e50401f615cc0f8f413aee1baf9`. The tag release must rebuild compressed installer and portable assets from the merged preparation commit.
 - v0.6.3 was merged through non-draft PR #7 at commit `4f39c49b4473b4cdafa0e36a72adbabe6def3645` and published as a non-draft, non-prerelease stable release on 2026-09-10: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3. PR workflow run `34448582136`, main workflow run `34448711490`, and Windows release workflow run `34448811058` all completed successfully. The release run repeated 259 tests, tag/version validation, compressed Windows packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3.exe`: 100,565,316 bytes; GitHub SHA-256 `7e72d02a09a0fdd72217a5cb992a57cd0dd0dfcba2ccff58b20eaea73bf774ee`.
