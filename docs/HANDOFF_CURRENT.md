@@ -2,11 +2,11 @@
 
 Updated: 2026-09-11
 Branch: `main`
-Current packaged stable release: `0.6.3`
-Current packaged prerelease: `0.7.0-rc.1`
+Current packaged stable release: `0.7.0`
+Previous accepted prerelease: `0.7.0-rc.1`
 Current source version: `0.7.0`
 
-Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 merged at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 merged at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, and PR #11 merged at `8ad48f3698e5569732dfb062511cbda990b7ca07`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are on `main`; this is not yet a stable v0.7.0 release.
+The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
 The current stable-preparation branch promotes the manually accepted v0.7.0-rc.1 source without changing Engine, Session, Provider, model routing, permission, file-change truth, or any `src/`/`test/` file after the candidate tag.
 
@@ -14,6 +14,10 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 
 ## Release delivery
 
+- Stable v0.7.0 was tagged at `b9db685d84653e3cc7b13f737e079c8d936b63de` and published as a non-draft, non-prerelease release on 2026-09-11: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.0. Tag regression run `34609554689` and Windows release run `34609564911` both succeeded with all 275 tests.
+- `Deep.code.0.7.0.exe`: 100,567,734 bytes; GitHub SHA-256 `28fd80b44f3514283012f50e794d13bf7f845412a61b7d387f077343ee9995c9`.
+- `Deep.code.Setup.0.7.0.exe`: 100,791,128 bytes; GitHub SHA-256 `b49cb64abb18d3587644dda0a25d7ccc709d93173b08ac718ef0762c9ac0c157`.
+- `SHA256SUMS.txt`: 180 bytes; GitHub SHA-256 `1195db3a1903acbd0cc95a36f19d3f49400ed9ac0643d29a3ae1a2f8ed0f61ad`.
 - 砚星 completed all four zero-token v0.7.0-rc.1 acceptance checks on 2026-09-11. The compact Trace hierarchy, Receipt-to-Evidence navigation, per-task disclosure isolation, and naturally observed unconfirmed-stop presentation all passed. Stable v0.7.0 preparation changes only the package version and release/handoff documents.
 - Stable preparation PR #13 merged at `791c2f63217b4c6860b5a200efc5f19362e6559d` after regression workflow run `34609250007` passed all 275 tests. The merge contains no `src/` or `test/` change after the accepted v0.7.0-rc.1 tag.
 - Stable v0.7.0 preparation passed the release-contract test, all 275 regression tests, and `pnpm audit --prod --audit-level=high` with no known vulnerabilities. `npm run package:test:win` produced `dist/Deep-code-Test-0.7.0.exe`, 368,793,594 bytes, local SHA-256 `06d7a030be9ac3cc4ac5a1441c9b38c1166eb1d40d949454cb106caea0164c86`. The official tag release must rebuild compressed installer and portable assets from the merged preparation commit.
@@ -197,8 +201,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. v0.6.3 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, or task-draft checks unless the corresponding implementation changes.
-2. The v0.7.0-rc.1 acceptance gate is complete. Prepare stable v0.7.0 through version/tag checks, full tests, packaging, PR CI, and tag-release asset verification without changing the accepted runtime or test source.
+1. v0.7.0 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, task-draft, or Evidence UI checks unless the corresponding implementation changes.
+2. Do not add another parallel status surface: conversation provides the continuous task narrative, Receipt provides conclusions, and Trace provides exact evidence. Begin the next milestone only from a concrete user-observed problem, a bounded product decision, or an independently verified upstream compatibility change.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
