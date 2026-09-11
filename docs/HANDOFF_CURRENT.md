@@ -1,7 +1,7 @@
 # Deep Code current handoff
 
 Updated: 2026-09-11
-Branch: `codex/v0.7.0-stable`
+Branch: `main`
 Current packaged stable release: `0.6.3`
 Current packaged prerelease: `0.7.0-rc.1`
 Current source version: `0.7.0`
@@ -15,6 +15,7 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 ## Release delivery
 
 - 砚星 completed all four zero-token v0.7.0-rc.1 acceptance checks on 2026-09-11. The compact Trace hierarchy, Receipt-to-Evidence navigation, per-task disclosure isolation, and naturally observed unconfirmed-stop presentation all passed. Stable v0.7.0 preparation changes only the package version and release/handoff documents.
+- Stable preparation PR #13 merged at `791c2f63217b4c6860b5a200efc5f19362e6559d` after regression workflow run `34609250007` passed all 275 tests. The merge contains no `src/` or `test/` change after the accepted v0.7.0-rc.1 tag.
 - Stable v0.7.0 preparation passed the release-contract test, all 275 regression tests, and `pnpm audit --prod --audit-level=high` with no known vulnerabilities. `npm run package:test:win` produced `dist/Deep-code-Test-0.7.0.exe`, 368,793,594 bytes, local SHA-256 `06d7a030be9ac3cc4ac5a1441c9b38c1166eb1d40d949454cb106caea0164c86`. The official tag release must rebuild compressed installer and portable assets from the merged preparation commit.
 - v0.7.0-rc.1 promotes the merged Evidence Gate presentation milestone to a prerelease for bounded, zero-token manual acceptance: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.0-rc.1. PR #12 merged at `901563870722e323bac14221d27f05be74584acf`; PR regression run `34572725323`, main regression run `34572856103`, and Windows release run `34572876143` all passed 275 tests. It is not stable until the four UI checks in `docs/releases/v0.7.0-rc.1.md` pass.
 - `Deep.code.0.7.0-rc.1.exe`: 100,567,775 bytes; GitHub SHA-256 `68809b199a32251d9a7b829ebff3afa25380b8dd5da2d7fde8939d45e276d9a8`.
