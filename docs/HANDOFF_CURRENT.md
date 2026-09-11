@@ -1,19 +1,21 @@
 # Deep Code current handoff
 
 Updated: 2026-09-11
-Branch: `main`
+Branch: `codex/v0.7.0-stable`
 Current packaged stable release: `0.6.3`
 Current packaged prerelease: `0.7.0-rc.1`
-Current source version: `0.7.0-rc.1`
+Current source version: `0.7.0`
 
 Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 merged at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 merged at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, and PR #11 merged at `8ad48f3698e5569732dfb062511cbda990b7ca07`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are on `main`; this is not yet a stable v0.7.0 release.
 
-The current `main` applies the zero-token task-state fixture verdict to the existing Evidence view without changing Engine, Session, Provider, model routing, permission, or file-change truth.
+The current stable-preparation branch promotes the manually accepted v0.7.0-rc.1 source without changing Engine, Session, Provider, model routing, permission, file-change truth, or any `src/`/`test/` file after the candidate tag.
 
 PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings without changing execution truth. The v0.7.0-rc.1 source preparation is merged on `main` through PR #12.
 
 ## Release delivery
 
+- 砚星 completed all four zero-token v0.7.0-rc.1 acceptance checks on 2026-09-11. The compact Trace hierarchy, Receipt-to-Evidence navigation, per-task disclosure isolation, and naturally observed unconfirmed-stop presentation all passed. Stable v0.7.0 preparation changes only the package version and release/handoff documents.
+- Stable v0.7.0 preparation passed the release-contract test, all 275 regression tests, and `pnpm audit --prod --audit-level=high` with no known vulnerabilities. `npm run package:test:win` produced `dist/Deep-code-Test-0.7.0.exe`, 368,793,594 bytes, local SHA-256 `06d7a030be9ac3cc4ac5a1441c9b38c1166eb1d40d949454cb106caea0164c86`. The official tag release must rebuild compressed installer and portable assets from the merged preparation commit.
 - v0.7.0-rc.1 promotes the merged Evidence Gate presentation milestone to a prerelease for bounded, zero-token manual acceptance: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.0-rc.1. PR #12 merged at `901563870722e323bac14221d27f05be74584acf`; PR regression run `34572725323`, main regression run `34572856103`, and Windows release run `34572876143` all passed 275 tests. It is not stable until the four UI checks in `docs/releases/v0.7.0-rc.1.md` pass.
 - `Deep.code.0.7.0-rc.1.exe`: 100,567,775 bytes; GitHub SHA-256 `68809b199a32251d9a7b829ebff3afa25380b8dd5da2d7fde8939d45e276d9a8`.
 - `Deep.code.Setup.0.7.0-rc.1.exe`: 100,791,174 bytes; GitHub SHA-256 `5bc8c88adaa23dc68f4696a6b580defcdafc00273fec63c8212331bbe9b4f8c5`.
@@ -111,6 +113,7 @@ Deep Code is the beginner-facing desktop Workbench above the official local Deep
 - 砚星 manually accepted beta.16's focus-switch behavior. The affected native model and effort selects are retired.
 - 砚星 manually accepted beta.17's attributable model-verification receipt: the selected route, terminal result, and persisted Provider history remain aligned.
 - 砚星 confirmed all rc.3 acceptance checks passed, including Provider confirmation reset after selection changes, Key edits, and timeout. Do not ask for those checks again for this unchanged implementation.
+- 砚星 confirmed all four v0.7.0-rc.1 checks passed on 2026-09-11. Stable v0.7.0 uses the same `src/` and `test/` source; do not request another Evidence UI acceptance cycle unless that implementation changes.
 
 Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely to repeat these checks.
 
@@ -194,7 +197,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Next bounded work
 
 1. v0.6.3 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, or task-draft checks unless the corresponding implementation changes.
-2. The zero-token fixture step and projection-integrity correction are merged. Do not add another parallel status surface: conversation already provides the continuous task narrative, Receipt provides conclusions, and Trace provides exact evidence. Publish v0.7.0-rc.1 only after version/tag checks, full tests, packaging, and PR CI; then wait for the four low-cost checks in its release notes before preparing stable v0.7.0.
+2. The v0.7.0-rc.1 acceptance gate is complete. Prepare stable v0.7.0 through version/tag checks, full tests, packaging, PR CI, and tag-release asset verification without changing the accepted runtime or test source.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
