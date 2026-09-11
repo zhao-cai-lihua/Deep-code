@@ -1,7 +1,7 @@
 # Deep Code current handoff
 
 Updated: 2026-09-11
-Branch: `codex/v0.7.0-rc.1`
+Branch: `main`
 Current packaged stable release: `0.6.3`
 Current source version: `0.7.0-rc.1`
 
@@ -9,11 +9,11 @@ Post-stable development baseline: PR #8 merged at `65fb75fcb7b9d4b058e10add30aa1
 
 The current `main` applies the zero-token task-state fixture verdict to the existing Evidence view without changing Engine, Session, Provider, model routing, permission, or file-change truth.
 
-PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings without changing execution truth. Current release-candidate preparation branch: `codex/v0.7.0-rc.1`.
+PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings without changing execution truth. The v0.7.0-rc.1 source preparation is merged on `main` through PR #12.
 
 ## Release delivery
 
-- v0.7.0-rc.1 preparation promotes the merged Evidence Gate presentation milestone to a prerelease for bounded, zero-token manual acceptance. Its release notes are `docs/releases/v0.7.0-rc.1.md`; it is not stable until the listed UI checks pass.
+- v0.7.0-rc.1 preparation promotes the merged Evidence Gate presentation milestone to a prerelease for bounded, zero-token manual acceptance. PR #12 merged at `901563870722e323bac14221d27f05be74584acf`; regression workflow run `34572725323` passed all 275 tests. Its release notes are `docs/releases/v0.7.0-rc.1.md`; it is not stable until the listed UI checks pass.
 - v0.7.0-rc.1 preparation `npm test` passed all 275 tests and `npm run package:test:win` produced `dist/Deep-code-Test-0.7.0-rc.1.exe`, 368,793,608 bytes, local SHA-256 `e340ed94021340b3a16a2c61cbf25f867daa7e50401f615cc0f8f413aee1baf9`. The tag release must rebuild compressed installer and portable assets from the merged preparation commit.
 - v0.6.3 was merged through non-draft PR #7 at commit `4f39c49b4473b4cdafa0e36a72adbabe6def3645` and published as a non-draft, non-prerelease stable release on 2026-09-10: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3. PR workflow run `34448582136`, main workflow run `34448711490`, and Windows release workflow run `34448811058` all completed successfully. The release run repeated 259 tests, tag/version validation, compressed Windows packaging, checksum generation, and asset publication.
 - `Deep.code.0.6.3.exe`: 100,565,316 bytes; GitHub SHA-256 `7e72d02a09a0fdd72217a5cb992a57cd0dd0dfcba2ccff58b20eaea73bf774ee`.
