@@ -1,20 +1,20 @@
 # Deep Code current handoff
 
 Updated: 2026-09-11
-Branch: `codex/v0.7.1-task-contract`
+Branch: `main`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current source version: `0.7.1-beta.1`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
-The current post-stable branch adds one bounded Task Contract seam for v0.7.1-beta.1. It changes only the initial text of newly created, explicitly contract-enabled tasks; Engine, Session, Provider, model routing, permission, file-change truth, and terminal evidence remain owned by Harness.
+PR #14 merged one bounded Task Contract seam for v0.7.1-beta.1 at `393d7b934320de98646dd3f0272713625188bf23`. It changes only the initial text of newly created, explicitly contract-enabled tasks; Engine, Session, Provider, model routing, permission, file-change truth, and terminal evidence remain owned by Harness.
 
 PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings without changing execution truth. The v0.7.0-rc.1 source preparation is merged on `main` through PR #12.
 
 ## Release delivery
 
-- v0.7.1-beta.1 preparation introduces the first executable Soft Harness experiment: an optional, visible, one-time evidence-first collaboration contract on a new task's initial text prompt. It adds exactly 380 characters once, makes no second model request, can be disabled before creation, and is separated from the human request again in the conversation projection. Existing tasks, image-only tasks, follow-up messages, model verification, and Project Brief prompts remain unchanged.
+- v0.7.1-beta.1 preparation introduces the first executable Soft Harness experiment: an optional, visible, one-time evidence-first collaboration contract on a new task's initial text prompt. It adds exactly 380 characters once, makes no second model request, can be disabled before creation, and is separated from the human request again in the conversation projection. Existing tasks, image-only tasks, follow-up messages, model verification, and Project Brief prompts remain unchanged. PR #14 regression run `34614417058` passed in a clean GitHub runner.
 - The v0.7.1-beta.1 focused Task Contract/store/projection/view/Renderer suite passed 83 tests; full `npm test` passed 283 tests; JavaScript syntax checks passed; and the production dependency audit reported no known vulnerabilities. The correctly versioned uncompressed Windows test portable `Deep-code-Test-0.7.1-beta.1.exe` built successfully at 368,801,676 bytes with local SHA-256 `7eecc4fb5bffb2073a97cf2e5f58ccea900e1ca4fca34f60725a8e2fe685bcae`; its `app.asar` contains `task-contract.cjs`, `conversation-message-view.cjs`, and the updated `shell.js`.
 - Stable v0.7.0 was tagged at `b9db685d84653e3cc7b13f737e079c8d936b63de` and published as a non-draft, non-prerelease release on 2026-09-11: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.0. Tag regression run `34609554689` and Windows release run `34609564911` both succeeded with all 275 tests.
 - `Deep.code.0.7.0.exe`: 100,567,734 bytes; GitHub SHA-256 `28fd80b44f3514283012f50e794d13bf7f845412a61b7d387f077343ee9995c9`.
