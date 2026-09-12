@@ -189,7 +189,7 @@ async function launchTask(thread, { images = [], routing = null, collaborationMo
     workbench.setEngineState(thread.id, { sessionId, state: 'running', notice: images.length ? undefined : '' })
     const live = ensureLiveSession(runtime.url, sessionId)
     await prepareModelRoute({ runtime, sessionId, threadId: thread.id, routing })
-    await selectCollaborationMode({ adapter: dshAdapter, live, baseUrl: runtime.url, sessionId, mode: collaborationMode })
+    await selectCollaborationMode({ live, mode: collaborationMode })
     assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId })
     workbench.clearAdmission(thread.id)
     const taskPrompt = buildTaskPrompt({ request: thread.prompt, contract: thread.taskContract })
@@ -884,13 +884,7 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
     routing: routing || null
   })
   if (routing?.collaborationMode === 'plan' || routing?.collaborationMode === 'direct') {
-    await selectCollaborationMode({
-      adapter: dshAdapter,
-      live,
-      baseUrl: runtime.url,
-      sessionId: thread.sessionId,
-      mode: routing.collaborationMode
-    })
+    await selectCollaborationMode({ live, mode: routing.collaborationMode })
   }
   assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId: thread.sessionId })
   workbench.clearAdmission(thread.id)

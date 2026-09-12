@@ -347,8 +347,9 @@ test('the composer exposes explicit model selection while Harness remains select
   assert.doesNotMatch(shell, /gpt-5\.6-sol|gpt-5\.6-luna|deepseek-v4-pro/)
 })
 
-test('guided workbench uses Harness Plan mode and a right-side evidence inspector', () => {
-  assert.match(html, /id="collaboration-mode-button"/)
+test('guided workbench exposes Harness Plan evidence without offering an unverified remote control', () => {
+  assert.match(html, /id="collaboration-mode-button"[^>]+disabled/)
+  assert.match(html, /当前 Engine 仅开放 Direct/)
   assert.match(html, /id="workbench-inspector"/)
   assert.match(html, /id="guided-plan"/)
   assert.match(shell, /effectiveCollaborationMode/)
@@ -358,6 +359,9 @@ test('guided workbench uses Harness Plan mode and a right-side evidence inspecto
   assert.match(html, /id="toggle-inspector"/)
   assert.match(styles, /workbench-inspector\.is-collapsed/)
   assert.match(shell, /visible\?\.agent\?\.liveGeneration !== generation/)
+  assert.doesNotMatch(shell, /collaborationModeSelections/)
+  assert.doesNotMatch(shell, /collaborationModeButton\.addEventListener\('click'/)
+  assert.doesNotMatch(shell, /裸 \/plan 本身不调用模型/)
   assert.doesNotMatch(html + shell + main, /task-journey|projectTaskJourney|DeepCodeTaskJourneyView/)
 })
 

@@ -1,44 +1,25 @@
-function delay(ms, setTimeoutImpl) {
-  return new Promise((resolve) => setTimeoutImpl(resolve, ms))
-}
-
 function projectedPlan(live) {
   return live?.snapshot()?.projections?.values?.plan || null
 }
 
-async function selectCollaborationMode({
-  adapter,
-  live,
-  baseUrl,
-  sessionId,
-  mode,
-  timeoutMs = 3000,
-  pollMs = 50,
-  now = () => Date.now(),
-  setTimeoutImpl = setTimeout
-}) {
+async function selectCollaborationMode({ live, mode }) {
   if (!['direct', 'plan'].includes(mode)) throw new Error('协作模式只能选择 Direct 或 Plan。')
-  const wanted = mode === 'plan'
   const current = projectedPlan(live)
-  if (current?.active === wanted && current.pending === false) {
-    return { mode, changed: false, confirmed: true }
-  }
 
-  const command = wanted ? '/plan' : '/plan off'
-  const admission = await adapter.prompt({ baseUrl, sessionId, text: command })
-  if (admission?.accepted !== true && !admission?.messageId && !admission?.rpcId) {
-    throw new Error(`Harness 没有接收 ${wanted ? 'Plan' : 'Direct'} 模式命令；正式任务尚未发送。`)
-  }
-
-  const deadline = now() + timeoutMs
-  while (now() < deadline) {
-    const projection = projectedPlan(live)
-    if (projection?.active === wanted && projection.pending === false) {
-      return { mode, changed: true, confirmed: true }
+  // The pinned API Proxy does not expose the Harness command plane. Sending
+  // `/plan` through session.prompt creates a real user message, so this bridge
+  // must never manufacture a slash command on the user's behalf.
+  if (mode === 'plan') {
+    if (current?.active === true && current.pending === false) {
+      return { mode: 'plan', changed: false, confirmed: true }
     }
-    await delay(pollMs, setTimeoutImpl)
+    throw new Error('当前 Engine 尚未开放可验证的 Plan 模式控制接口；正式任务没有发送。请先使用 Direct。')
   }
-  throw new Error(`Harness 没有在限时内确认 ${wanted ? 'Plan' : 'Direct'} 模式；正式任务尚未发送。请重新连接后再试。`)
+
+  if (current?.active === true || current?.pending === true) {
+    throw new Error('当前 Session 已由 Harness 置于 Plan 模式，但这个 Engine 没有向 Deep Code 开放可验证的退出接口，因此无法安全切回 Direct；正式任务没有发送。')
+  }
+  return { mode: 'direct', changed: false, confirmed: true }
 }
 
 module.exports = { selectCollaborationMode }

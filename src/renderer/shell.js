@@ -287,10 +287,9 @@ let imageDrafts = []
 let workspaceDialogTrigger
 let modelCatalog = { current: null, groups: [] }
 let manualModelSelection = null
-const collaborationModeSelections = new Map()
 
 function effectiveCollaborationMode() {
-  return collaborationModeSelections.get(composerTextScope()) || activeThread()?.guidedWorkbench?.collaborationMode?.id || 'direct'
+  return activeThread()?.guidedWorkbench?.collaborationMode?.id === 'plan' ? 'plan' : 'direct'
 }
 
 function mergedAgentMessages(thread) {
@@ -309,10 +308,10 @@ function renderCollaborationModeChoice() {
   const mode = effectiveCollaborationMode()
   const pending = activeThread()?.guidedWorkbench?.collaborationMode?.pending
   collaborationModeButton.setAttribute('aria-pressed', String(mode === 'plan'))
-  collaborationModeButton.textContent = `模式：${mode === 'plan' ? 'Plan' : 'Direct'}${pending ? '（确认中）' : ''}`
+  collaborationModeButton.textContent = `模式：${mode === 'plan' ? 'Plan（Harness）' : 'Direct'}${pending ? '（确认中）' : ''}`
   collaborationModeButton.title = mode === 'plan'
-    ? 'Plan：先让 Harness 建立可见计划；再次点击改为 Direct。'
-    : 'Direct：直接执行；点击改为由 Harness 先建立计划。'
+    ? '这个 Session 的结构化证据显示 Harness 已处于 Plan；当前远程接口不支持在 Deep Code 内切换。'
+    : '当前 Engine 只开放可验证的 Direct 模式；Deep Code 不会把 /plan 当作普通消息发送。'
 }
 let modelConnectionState = { activeProviders: [] }
 let selectedMemoryIds = new Set()
@@ -999,8 +998,8 @@ function renderImageDrafts() {
   composerHint.textContent = imageDrafts.length
     ? `${imageDrafts.length} 张图片只在本机预览；发送后才交给当前模型。`
     : effectiveCollaborationMode() === 'plan'
-      ? 'Plan 会先由 Harness 确认模式，再发送你的任务。裸 /plan 本身不调用模型。'
-      : 'Direct 会把消息直接交给 Harness 执行。'
+      ? 'Harness 已投影 Plan 状态；Deep Code 只展示证据，不经普通消息通道切换模式。'
+      : 'Direct 会把你的原话直接交给 Harness，不附加隐藏的模式消息。'
   for (const draft of imageDrafts) {
     const card = document.createElement('figure')
     card.className = 'image-draft'
@@ -1545,11 +1544,6 @@ newTaskButton.addEventListener('click', () => startNewTask().catch((error) => {
   showPage('settings')
 }))
 createTaskButton.addEventListener('click', createTask)
-collaborationModeButton.addEventListener('click', () => {
-  collaborationModeSelections.set(composerTextScope(), effectiveCollaborationMode() === 'plan' ? 'direct' : 'plan')
-  renderCollaborationModeChoice()
-  renderImageDrafts()
-})
 addImagesButton.addEventListener('click', async () => {
   addImagesButton.disabled = true
   try {

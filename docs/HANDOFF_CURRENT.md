@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
-Updated: 2026-09-12
+Updated: 2026-09-13
 Branch: `codex/v0.8.0-guided-workbench`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.7.1-beta.2` (do not promote)
-Current source candidate: `0.8.0-beta.1` (not published; awaiting packaging and human acceptance)
+Current source candidate: `0.8.0-beta.2` (not published; packaged and awaiting human acceptance)
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -15,18 +15,20 @@ PR #15 merged the v0.7.1-beta.2 guided journey at `77a776cd3c60610edd0031f83ccf9
 
 PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings without changing execution truth. The v0.7.0-rc.1 source preparation is merged on `main` through PR #12.
 
-## v0.8.0-beta.1 Guided Workbench candidate
+## v0.8.0-beta.2 Guided Workbench candidate
 
 - This branch removes the local Task Journey experiment and replaces it with one Harness-backed `GuidedWorkbenchSnapshot`. The center conversation is intentionally continuous; Harness Plan/Todos, effective model route, Session token/context projections, live activity, and outcome are placed in a sticky right inspector that can fold on narrow layouts.
-- Direct and Plan are exact Harness collaboration controls. Deep code sends `/plan off` or `/plan`, then requires the corresponding validated `session/projection` value within three seconds. Absence or mismatch fails closed and does not create a local Plan state.
+- Direct now sends no hidden collaboration-mode message before the user's task. The beta.1 selector incorrectly sent `/plan` and `/plan off` through `session.prompt`; direct inspection of the pinned API Proxy proved that it does not expose the Web client's in-process command plane and unconditionally admits those strings as ordinary `user/message` content. Beta.2 removes that path, disables the unavailable Plan toggle, and retains read-only structured Plan/Todos projection.
+- Plan selection from a forged or stale Renderer payload fails before the task prompt. A Session already projected by Harness as Plan remains representable, but Deep code does not claim it can remotely toggle or exit that state. Restoring the selector requires a pinned compatible runtime with a real remote command-plane method and a no-model-message behavior fixture.
 - `SessionProjectionStore` accepts only schema-valid `todos`, `plan`, `tokenUsage`, `contextPressure`, and `sessionStats` values. Same-Session and higher-sequence rules apply to both history baseline and live mux frames. Unknown/invalid bodies are discarded; only anonymous health counters survive.
 - Ordinary live changes are coalesced for at most 120 ms. Decision, terminal, and error transitions bypass the delay. Durable reconciliation is 15 seconds, pauses while a Decision Gate is present, and remains the recovery layer rather than the animation source.
 - History loads 80 messages per page, deduplicates by structured message identity, stops at 800 visible messages, preserves reading position, and rejects results that return after task, Session, or generation changes.
 - Native notifications are on by default but user-disableable. They are transition-based, deduplicated per task Turn, quiet while the app is in front, do not replay historical tasks, and never include prompt text, workspace paths, or model output.
 - Dead-code cleanup removes the unreachable ecosystem installer, superseded Task Journey projection/view, inferred unconfirmed file changes, duplicate Session default-model projection, unused markdown/reading exports, and stale selectors. Ecosystem discovery remains read-only.
-- Final local evidence: full `npm test` passed **301/301**; the focused projection/live/Plan/notification/Adapter/Run/Renderer suite passed **104/104**; JavaScript syntax checks and `git diff --check` passed; `pnpm audit --prod --audit-level high` reported no known vulnerabilities.
-- `npm run package:test:win` produced the final `dist/Deep-code-Test-0.8.0-beta.1.exe`, 368,831,742 bytes, SHA-256 `348d70d063e70333d9eb9d21ad682fe677897a70107206c0d04003c242c4c5c2`. Packaged `app.asar` contains `session-projection-store.cjs`, `guided-workbench-projection.cjs`, `plan-mode-bridge.cjs`, and `notification-transition.cjs`, and contains neither Task Journey nor plugin-installer code.
-- An isolated `E:\Temp\lenovo\deep-code-v080-final-smoke` profile kept the packaged app's four expected Electron processes alive for six seconds. Only candidate processes with the exact unpacked executable path and isolated profile argument were stopped afterward; Engine and Provider were not started.
+- Final local evidence: full `npm test` passed **302/302**; the focused Plan bridge, Guided Workbench projection, and Renderer contract suite passed **51/51**; JavaScript syntax checks and `git diff --check` passed; `pnpm audit --prod --audit-level high` reported no known vulnerabilities.
+- `npm run package:test:win` produced `dist/Deep-code-Test-0.8.0-beta.2.exe`, 368,831,147 bytes, SHA-256 `4f4df462359b2b4fed29847447039eb4119ef1c6e0838bb31139b8b528e37d9d`. Packaged `app.asar` contains the projection modules and corrected Plan bridge, contains neither Task Journey nor plugin-installer code, and contains no `/plan off` prompt literal.
+- An isolated `E:\Temp\lenovo\deep-code-v080-beta2-smoke-20260913-003609` profile kept the portable launcher's five expected Electron processes alive for six seconds. Only processes carrying that exact isolated profile were stopped afterward; Engine and Provider were not started.
+- The beta.1 local artifact is superseded and must not be published or used for acceptance because its Plan selector could create a model-visible slash-command message.
 
 ## Release delivery
 
@@ -217,7 +219,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 4. Memory MVP is local and reviewable: Markdown is canonical, indexes are rebuildable, candidates do not affect replies before confirmation, and raw private transcripts are excluded by default.
 5. Skills describe reusable procedures; they are not a substitute for durable project memory.
 6. Task Contract is a transparent, user-disableable instruction attached only to a new task's initial text prompt. It may shape collaboration, but it never grants permissions or supplies completion evidence.
-7. Guided Workbench is a read-only product projection, not a second task state machine. Collaboration mode, Plan, Todos, usage, activity, and terminal state must remain downstream of structured Harness facts; missing facts stay unavailable.
+7. Guided Workbench is a read-only product projection, not a second task state machine. Plan, Todos, usage, activity, and terminal state must remain downstream of structured Harness facts; missing facts stay unavailable. Collaboration controls may be exposed only through a verified Harness control plane, never by sending hidden text through `session.prompt`.
 
 ## Code health
 
@@ -226,15 +228,15 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - The first post-stable Renderer decomposition is complete. `model-services-view.cjs` exposes one `render(snapshot)` interface and only displays already-projected Provider/catalog/credential/verification/current-route facts. `conversation-message-view.cjs` exposes one `render(message)` interface and owns message DOM, Markdown, copy feedback, attachment metadata, and live-draft presentation without deciding Session or terminal state.
 - The second decomposition adds `task-evidence-view.cjs` with one `render(thread)` interface. It owns trace cards, structured fact lists, technical disclosure, visual receipt, and next-action presentation. Evidence-map and guidance buttons only delegate inert IDs back to the workbench; the module cannot retry, select a model, start Engine, or alter a task.
 - Compact Evidence now makes Trace a three-level surface: a truthful state/count summary, visible confirmed file changes plus collapsed operation rows, then one supporting disclosure for permissions, Git baseline, runtime context, and raw evidence. Failed tool output is no longer expanded merely because it failed; the red summary and row remain visible while exact output stays one click away. The task title is shown only in the sticky Workbench header, while its project path and explicit project-switch action remain below.
-- `src/renderer/shell.js` is 2,079 lines and `src/main.cjs` is 1,028 lines in the v0.8.0-beta.1 candidate. The added projection bridge is behavior-tested, but these two orchestration files remain the next meaningful decomposition targets; raw line-count reduction is not itself an acceptance criterion.
+- `src/renderer/shell.js` is 2,073 lines and `src/main.cjs` is 1,025 lines in the v0.8.0-beta.2 candidate. The projection bridge is behavior-tested, but these two orchestration files remain the next meaningful decomposition targets; raw line-count reduction is not itself an acceptance criterion.
 - A post-merge fixed-point review caught and closed two projection-boundary defects before any v0.7.0 candidate release. `task-evidence-view.cjs` now renders the single `run.trace` projection and owns disclosure reveal behavior; `run-projection.cjs` owns the Trace state, counts, and supporting-evidence label. Outcome Map navigation can no longer scroll to evidence that remains hidden. While tightening that seam, a pre-existing inconsistency was also closed: an unconfirmed cancellation no longer appears as a failed Turn, and a later matching terminal supersedes stale recovery state.
 - Main, Preload, DSH Adapter, `TaskRunSnapshot`, IPC contracts, Provider storage, model routing, and Harness authority were not changed by this decomposition.
 - `task-contract.cjs` is the single interface for creating, validating, attaching, parsing, and presenting the evidence-first Task Contract. Workbench storage persists only `{version, kind, attachedTo}`; Main attaches it only to eligible initial prompts; conversation projection reveals the original request plus a separate disclosure. Exact-body and request-hash checks fail open to visible text rather than hiding a forged or modified suffix.
-- Task Contract v1/v2 parsing remains only for backward-compatible display of stored tasks. New v0.8 tasks do not attach that prompt suffix; Direct/Plan and the visible task route now come from Harness controls and projections instead of a local Task Journey.
+- Task Contract v1/v2 parsing remains only for backward-compatible display of stored tasks. New v0.8 tasks do not attach that prompt suffix; Direct is the ordinary Harness prompt path, while Plan/Todos remain visible only when supplied by structured Harness projections.
 
 ## Next bounded work
 
-1. Give 砚星 the six bounded checks in `docs/releases/v0.8.0-beta.1.md`. Do not publish or promote before those checks are reviewed.
+1. Give 砚星 the five bounded checks in `docs/releases/v0.8.0-beta.2.md`. Do not publish or promote before those checks are reviewed.
 2. v0.7.0 remains stable. Do not promote v0.7.1-beta.1 or beta.2; their prompt-heavy Task Contract/Task Journey direction did not produce enough felt value and the local journey has now been removed.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
