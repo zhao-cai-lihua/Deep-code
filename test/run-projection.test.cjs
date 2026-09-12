@@ -36,6 +36,26 @@ test('projects only current active work and verified model/evidence facts', () =
   assert.deepEqual(result.usage, { available: false, label: 'Harness 未提供本轮 token 或费用。' })
 })
 
+test('shows exact Harness session token buckets without guessing currency cost', () => {
+  const result = projectTaskRun({
+    agent: {
+      taskRunSnapshot: { turn: { state: 'running' } },
+      live: { projections: { values: {
+        tokenUsage: { uncachedInputTokens: 12, outputTokens: 4, cacheReadTokens: 30, cacheWriteTokens: 2 },
+        contextPressure: { projectedTokens: 500, contextWindow: 1000 }
+      } } }
+    }
+  })
+  assert.deepEqual(result.usage, {
+    available: true,
+    scope: 'session',
+    label: 'Session：输入 12 · 输出 4 · 缓存读取 30 · 缓存写入 2 · 合计 48 tokens；上下文约 50%。金额不可核对。',
+    tokens: { uncachedInput: 12, output: 4, cacheRead: 30, cacheWrite: 2, total: 48 },
+    contextPercent: 50,
+    costAvailable: false
+  })
+})
+
 test('durable idle state never leaves live working items visible', () => {
   const result = projectTaskRun({
     engineState: 'ready',

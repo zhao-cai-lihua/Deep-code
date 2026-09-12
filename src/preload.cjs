@@ -2,6 +2,8 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('desktopHost', {
   status: () => ipcRenderer.invoke('host:status'),
+  preferences: () => ipcRenderer.invoke('settings:preferences'),
+  setNotificationsEnabled: (enabled) => ipcRenderer.invoke('settings:set-notifications', enabled),
   openExternal: (url) => ipcRenderer.invoke('host:open-external', url),
   copyText: (value) => ipcRenderer.invoke('host:copy-text', value),
   modelConnection: () => ipcRenderer.invoke('host:model-connection'),
@@ -36,6 +38,7 @@ contextBridge.exposeInMainWorld('desktopHost', {
   previewMemoryRetrieval: (query) => ipcRenderer.invoke('memory:preview', query),
   composeMemoryPreview: (query, selectedIds) => ipcRenderer.invoke('memory:compose-preview', { query, selectedIds }),
   workbenchSnapshot: () => ipcRenderer.invoke('workbench:snapshot'),
+  loadEarlierHistory: (id, beforeSeq) => ipcRenderer.invoke('workbench:history-page', id, beforeSeq),
   modelRoutingCatalog: (id) => ipcRenderer.invoke('workbench:model-catalog', id),
   imageDrafts: (scopeId) => ipcRenderer.invoke('workbench:image-drafts', scopeId),
   pickImages: (scopeId) => ipcRenderer.invoke('workbench:pick-images', scopeId),
@@ -53,5 +56,6 @@ contextBridge.exposeInMainWorld('desktopHost', {
   handoffPreview: (id) => ipcRenderer.invoke('workbench:handoff-preview', id),
   onSetupProgress: (callback) => ipcRenderer.on('setup:progress', (_event, value) => callback(value)),
   onWorkbenchChanged: (callback) => ipcRenderer.on('workbench:changed', () => callback()),
+  onLiveWorkbenchPatch: (callback) => ipcRenderer.on('workbench:live-patch', (_event, value) => callback(value)),
   onStatus: (callback) => ipcRenderer.on('host:status', (_event, value) => callback(value))
 })

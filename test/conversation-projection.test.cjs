@@ -66,7 +66,7 @@ test('keeps a successful mutation tool unconfirmed when Harness provides no diff
   ] }
   const result = projectConversation(page)
   assert.deepEqual(result.runDetails.changedFiles, [])
-  assert.deepEqual(result.runDetails.unconfirmedChanges, [{ path: 'C:\\work\\README.md', operation: '写入', seq: 2, confirmed: false }])
+  assert.equal(Object.hasOwn(result.runDetails, 'unconfirmedChanges'), false)
   assert.equal(result.runDetails.activities[0].state, 'done')
   assert.equal(result.runDetails.activities[1].label, '读取项目配置')
   assert.equal(result.evidence.length, 4)

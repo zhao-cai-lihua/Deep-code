@@ -41,5 +41,5 @@
     return duration ? `用时 ${duration}` : ''
   }
 
-  return { capture, distanceFromBottom, formatDuration, restore, shouldFollow, timingLabel }
+  return { capture, formatDuration, restore, shouldFollow, timingLabel }
 })

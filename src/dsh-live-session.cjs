@@ -1,4 +1,5 @@
 const { randomUUID } = require('node:crypto')
+const { SessionProjectionStore } = require('./session-projection-store.cjs')
 
 const MAX_ACTIVITY = 16
 const MAX_TEXT = 8000
@@ -116,7 +117,7 @@ function isSessionScopedFrame(frame) {
   return [
     'approval/requested', 'approval/resolved',
     'question/requested', 'question/resolved',
-    'session/subscribed', 'session/queue', 'session/event'
+    'session/subscribed', 'session/queue', 'session/event', 'session/projection'
   ].includes(frame?.type)
 }
 
@@ -148,7 +149,8 @@ class DshLiveSession {
     interactionTimeoutMs = 5 * 60 * 1000,
     setTimeoutImpl = setTimeout,
     clearTimeoutImpl = clearTimeout,
-    onInteractionTimeout = () => {}
+    onInteractionTimeout = () => {},
+    onChange = () => {}
   } = {}) {
     if (!sessionId) throw new Error('实时会话缺少 Engine Session 标识。')
     if (typeof fetchImpl !== 'function') throw new Error('当前环境不支持本地 Engine 响应。')
@@ -162,6 +164,7 @@ class DshLiveSession {
     this.setTimeoutImpl = setTimeoutImpl
     this.clearTimeoutImpl = clearTimeoutImpl
     this.onInteractionTimeout = onInteractionTimeout
+    this.onChange = onChange
     this.socket = null
     this.connectionId = 0
     this.closed = false
@@ -174,6 +177,7 @@ class DshLiveSession {
     this.draft = null
     this.queue = queueSummary([])
     this.droppedSessionFrameCount = 0
+    this.projectionStore = new SessionProjectionStore(this.sessionId)
   }
 
   clearInteractionTimer() {
@@ -225,6 +229,7 @@ class DshLiveSession {
         if (connectionId !== this.connectionId || this.closed) return
         this.status = 'connected'
         this.error = ''
+        this.notifyChange('normal')
       })
       socket.addEventListener('message', (event) => {
         if (connectionId !== this.connectionId || this.closed) return
@@ -253,6 +258,7 @@ class DshLiveSession {
     this.clearInteractionTimer()
     this.draft = null
     this.queue = queueSummary([])
+    this.notifyChange('error')
     if (this.retryTimer) return
     this.retryTimer = this.setTimeoutImpl(() => {
       this.retryTimer = null
@@ -274,6 +280,7 @@ class DshLiveSession {
       if (interaction) {
         this.pending.set(interaction.public.id, interaction)
         this.syncInteractionTimer()
+        this.notifyChange('decision')
       }
       return
     }
@@ -282,25 +289,35 @@ class DshLiveSession {
         if (interaction.internal.approvalId === frame.approvalId) this.pending.delete(id)
       }
       this.syncInteractionTimer()
+      this.notifyChange('decision')
       return
     }
     if (frame.type === 'question/resolved') {
       this.pending.delete(`question:${frame.questionRpcId}`)
       this.syncInteractionTimer()
+      this.notifyChange('decision')
       return
     }
     if (frame.type === 'stream/error') {
       this.status = 'error'
       this.error = safeText(frame.error?.message, 'Engine 实时状态返回了未知错误。', 1200)
+      this.notifyChange('error')
       return
     }
     if (frame.type === 'session/subscribed') {
       this.status = 'connected'
       this.error = ''
+      this.notifyChange('normal')
       return
     }
     if (frame.type === 'session/queue') {
       this.queue = queueSummary(frame.items)
+      this.notifyChange('normal')
+      return
+    }
+    if (frame.type === 'session/projection') {
+      this.projectionStore.apply(frame)
+      this.notifyChange('normal')
       return
     }
     if (frame.type === 'session/event' && frame.event?.type === 'assistant/chunk') {
@@ -328,11 +345,18 @@ class DshLiveSession {
         this.activities = [...this.activities.filter((item) => item.id !== activity.id), activity].slice(-MAX_ACTIVITY)
       }
     }
+    if (frame.type === 'session/event') this.notifyChange(frame.event?.type === 'turn/end' ? 'terminal' : 'normal')
+  }
+
+  notifyChange(urgency) {
+    try { this.onChange(urgency) } catch {}
   }
 
   snapshot() {
     const interactions = [...this.pending.values()].map((item) => item.public)
       .sort((a, b) => Number(b.kind === 'question' || b.kind === 'plan-review') - Number(a.kind === 'question' || a.kind === 'plan-review'))
+    const projections = this.projectionStore.snapshot()
+    projections.health.droppedSessionFrames = this.droppedSessionFrameCount
     return copy({
       status: this.status,
       error: this.error,
@@ -340,8 +364,13 @@ class DshLiveSession {
       interactions,
       draft: this.draft,
       queue: this.queue,
-      droppedSessionFrameCount: this.droppedSessionFrameCount
+      droppedSessionFrameCount: this.droppedSessionFrameCount,
+      projections
     })
+  }
+
+  seedProjections(block) {
+    return this.projectionStore.seed(block)
   }
 
   reconcileRunning(running) {

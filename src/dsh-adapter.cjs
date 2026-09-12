@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto')
-const { projectConversation, textBlocks } = require('./conversation-projection.cjs')
+const { projectConversation } = require('./conversation-projection.cjs')
 const { projectTaskRunSnapshot } = require('./task-run-snapshot.cjs')
 
 const OFFICIAL_VISION_MODEL = Object.freeze({
@@ -30,10 +30,6 @@ function safeCredentialError(error, value) {
   const raw = String(error?.message || 'Engine 拒绝了凭据写入。')
   const message = value ? raw.split(value).join('[已隐藏]') : raw
   return new Error(`API Key 没有保存：${message}`)
-}
-
-function humanizeHistory(page) {
-  return projectConversation(page)
 }
 
 function valueAtPath(value, path) {
@@ -185,6 +181,19 @@ class DshAdapter {
     return this.rpc(baseUrl, 'skill.list', { sessionId })
   }
 
+  async historyPage({ baseUrl, sessionId, beforeSeq }) {
+    if (!sessionId) throw new Error('历史分页缺少 Engine Session。')
+    if (!Number.isInteger(beforeSeq) || beforeSeq < 0) throw new Error('历史分页游标无效。')
+    const page = await this.rpc(baseUrl, 'session.history', { sessionId, beforeSeq, maxMessages: 80 })
+    const projected = projectConversation(page)
+    const seqs = (page?.events || []).map((entry) => entry?.event?.seq).filter(Number.isInteger)
+    return {
+      messages: projected.messages,
+      hasMore: Boolean(page?.hasMore),
+      beforeSeq: seqs.length ? Math.min(...seqs) : beforeSeq
+    }
+  }
+
   async snapshot({ baseUrl, sessionId, engine = {}, admission = null }) {
     const [page, list, modelDirectory] = await Promise.all([
       this.rpc(baseUrl, 'session.history', { sessionId, maxMessages: 80 }),
@@ -192,22 +201,7 @@ class DshAdapter {
       this.rpc(baseUrl, 'session.models', { sessionId }).catch((error) => ({ error: error.message }))
     ])
     const summary = list.items?.find((item) => item.sessionId === sessionId)
-    const current = modelDirectory?.current
-    const group = (modelDirectory?.groups || []).find((item) => item?.id === current?.provider)
-    const catalogModel = (group?.models || []).find((item) => item?.id === current?.model)
-    const model = current?.provider && current?.model
-      ? {
-          available: true,
-          provider: String(current.provider),
-          id: String(current.model),
-          name: String(catalogModel?.name || current.model),
-          reasoningEffort: String(current.reasoningEffort || '')
-        }
-      : {
-          available: false,
-          ...(modelDirectory?.error ? { error: String(modelDirectory.error) } : {})
-        }
-    const conversation = humanizeHistory(page)
+    const conversation = projectConversation(page)
     const taskRunSnapshot = projectTaskRunSnapshot({ sessionId, engine, page, admission, conversation })
     const effectiveRoute = taskRunSnapshot.route || null
     const effectiveGroup = (modelDirectory?.groups || []).find((item) => item?.id === effectiveRoute?.provider)
@@ -222,7 +216,17 @@ class DshAdapter {
           evidence: 'request/header'
         }
       : { available: false, label: 'Harness 历史尚未记录本轮请求路线。' }
-    return { ...conversation, running: Boolean(summary?.running), model, effectiveModel, taskRunSnapshot }
+    return {
+      ...conversation,
+      running: Boolean(summary?.running),
+      effectiveModel,
+      taskRunSnapshot,
+      projectionBaseline: page?.projections || null,
+      historyBeforeSeq: (() => {
+        const seqs = (page?.events || []).map((entry) => entry?.event?.seq).filter(Number.isInteger)
+        return seqs.length ? Math.min(...seqs) : null
+      })()
+    }
   }
 
   async connectionSnapshot({ baseUrl }) {
@@ -415,4 +419,4 @@ class DshAdapter {
   }
 }
 
-module.exports = { DshAdapter, humanizeHistory, textBlocks, connectionCopy, safeCredentialError, credentialRefForProvider, deriveCredentialRef, SIMPLE_CATALOG_PROVIDERS, OFFICIAL_VISION_MODEL }
+module.exports = { DshAdapter, connectionCopy, safeCredentialError, credentialRefForProvider, deriveCredentialRef, SIMPLE_CATALOG_PROVIDERS, OFFICIAL_VISION_MODEL }

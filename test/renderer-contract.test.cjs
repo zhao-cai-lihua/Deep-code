@@ -9,7 +9,6 @@ const shell = readFileSync(join(root, 'src', 'renderer', 'shell.js'), 'utf8')
 const modelConnectionView = readFileSync(join(root, 'src', 'renderer', 'model-connection-view.cjs'), 'utf8')
 const modelServicesView = readFileSync(join(root, 'src', 'renderer', 'model-services-view.cjs'), 'utf8')
 const conversationMessageView = readFileSync(join(root, 'src', 'renderer', 'conversation-message-view.cjs'), 'utf8')
-const taskJourneyView = readFileSync(join(root, 'src', 'renderer', 'task-journey-view.cjs'), 'utf8')
 const taskEvidenceView = readFileSync(join(root, 'src', 'renderer', 'task-evidence-view.cjs'), 'utf8')
 const providerFlow = readFileSync(join(root, 'src', 'renderer', 'provider-provisioning-flow.cjs'), 'utf8')
 const styles = readFileSync(join(root, 'src', 'renderer', 'shell.css'), 'utf8')
@@ -175,7 +174,7 @@ test('Decision Gates use human actions while the Renderer stays outside the Harn
 
 test('an unanswered Decision Gate pauses snapshot polling so selected options and typed answers remain stable', () => {
   assert.match(shell, /thread\.agent\?\.live\?\.interactions\?\.length[\s\S]*return/)
-  assert.match(shell, /等待你的回答时暂停自动刷新/)
+  assert.match(shell, /Waiting interactions remain untouched/)
 })
 
 test('Decision Gate activity refreshes its idle timeout and recovery stays visible in the conversation', () => {
@@ -272,6 +271,14 @@ test('Engine startup explains that only model tasks consume model tokens', () =>
   assert.match(html, /发送任务或创建真实验证任务才会调用模型/)
 })
 
+test('native notifications are optional and promise no sensitive task content', () => {
+  assert.match(html, /id="notifications-enabled"/)
+  assert.match(html, /通知不会包含任务文字、文件路径或模型回答/)
+  assert.match(preload, /settings:set-notifications/)
+  assert.match(main, /mainWindow\.isFocused\(\)/)
+  assert.match(main, /NotificationTransitionTracker/)
+})
+
 test('shared Engine trust requires an explicit in-app confirmation or managed fallback', () => {
   assert.match(html, /id="confirm-shared-engine"/)
   assert.match(html, /id="start-managed-engine"/)
@@ -281,10 +288,10 @@ test('shared Engine trust requires an explicit in-app confirmation or managed fa
   assert.match(shell, /无法进行密码学身份认证/)
 })
 
-test('completed tasks show a compact human result in the fixed sidebar with evidence in trace', () => {
+test('completed tasks show a compact human result in the right inspector with evidence in trace', () => {
   assert.match(html, /id="task-outcome"/)
   assert.match(html, /id="task-outcome-sections"/)
-  assert.match(html, /id="sidebar-run-panel"/)
+  assert.match(html, /id="workbench-inspector"/)
   assert.match(html, /data-task-view="trace"/)
   assert.match(shell, /setTaskView\('trace'\)/)
   assert.match(shell, /taskEvidenceView\.render\(thread\)/)
@@ -311,7 +318,7 @@ test('work receipts translate high-impact changes and rollback uncertainty for b
   assert.match(html, /改动归属来自任务开始前的本地 Git 基线/)
 })
 
-test('the sidebar run panel shows verified run state, effective model, evidence, and explicit unavailable usage', () => {
+test('the right inspector shows verified run state, effective model, evidence, and session usage', () => {
   assert.match(html, /id="current-run-context"/)
   assert.match(html, /id="current-run-model"/)
   assert.match(shell, /本轮实际采用/)
@@ -340,26 +347,18 @@ test('the composer exposes explicit model selection while Harness remains select
   assert.doesNotMatch(shell, /gpt-5\.6-sol|gpt-5\.6-luna|deepseek-v4-pro/)
 })
 
-test('new tasks expose one optional evidence-first contract without adding another model call', () => {
-  assert.match(html, /id="task-contract-button"/)
-  assert.match(html, /协作：清晰推进/)
-  assert.match(shell, /useTaskContract: newTaskContractEnabled/)
-  assert.match(shell, /newTaskContractEnabled = !newTaskContractEnabled/)
-  assert.match(main, /createTaskContract\(\)/)
-  assert.match(main, /buildTaskPrompt\(\{ request: thread\.prompt, contract: thread\.taskContract \}\)/)
-  assert.doesNotMatch(main, /taskContract[\s\S]{0,500}(?:createSession|selectModel)\([^)]*taskContract/)
-})
-
-test('guided tasks expose one projected journey without creating another execution state', () => {
-  const journeyScript = html.indexOf('src="./task-journey-view.cjs"')
-  const shellScript = html.indexOf('src="./shell.js"')
-  assert.ok(journeyScript >= 0 && journeyScript < shellScript)
-  assert.match(html, /id="task-journey"/)
-  assert.match(html, /id="task-journey-stages"/)
-  assert.match(main, /projectTaskJourney\(thread\)/)
-  assert.match(shell, /taskJourneyView\.render\(thread\.journey\)/)
-  assert.match(shell, /function runTaskJourneyAction\(id\)/)
-  assert.doesNotMatch(taskJourneyView, /desktopHost|\.sendMessage\(|\.createTask\(|\.selectModel\(|\.cancelTask\(/)
+test('guided workbench uses Harness Plan mode and a right-side evidence inspector', () => {
+  assert.match(html, /id="collaboration-mode-button"/)
+  assert.match(html, /id="workbench-inspector"/)
+  assert.match(html, /id="guided-plan"/)
+  assert.match(shell, /effectiveCollaborationMode/)
+  assert.match(shell, /collaborationMode:/)
+  assert.match(main, /selectCollaborationMode/)
+  assert.match(main, /projectGuidedWorkbench/)
+  assert.match(html, /id="toggle-inspector"/)
+  assert.match(styles, /workbench-inspector\.is-collapsed/)
+  assert.match(shell, /visible\?\.agent\?\.liveGeneration !== generation/)
+  assert.doesNotMatch(html + shell + main, /task-journey|projectTaskJourney|DeepCodeTaskJourneyView/)
 })
 
 test('image drafts stay task-scoped and send only through the desktop host', () => {

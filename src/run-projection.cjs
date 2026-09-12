@@ -43,6 +43,34 @@ function projectTaskRun(thread = {}) {
   const toolCards = Array.isArray(details.toolCards) ? details.toolCards : []
   const changedFiles = Array.isArray(details.changedFiles) ? details.changedFiles : []
   const permissionFacts = Array.isArray(details.permissionFacts) ? details.permissionFacts : []
+  const projectionValues = live.projections?.values || {}
+  const tokenUsage = projectionValues.tokenUsage
+  const contextPressure = projectionValues.contextPressure
+  const usage = tokenUsage
+    ? (() => {
+        const tokens = {
+          uncachedInput: Number(tokenUsage.uncachedInputTokens || 0),
+          output: Number(tokenUsage.outputTokens || 0),
+          cacheRead: Number(tokenUsage.cacheReadTokens || 0),
+          cacheWrite: Number(tokenUsage.cacheWriteTokens || 0)
+        }
+        tokens.total = tokens.uncachedInput + tokens.output + tokens.cacheRead + tokens.cacheWrite
+        const used = Number.isFinite(contextPressure?.projectedTokens)
+          ? contextPressure.projectedTokens
+          : contextPressure?.pressureTokens
+        const contextPercent = Number.isFinite(used) && Number.isFinite(contextPressure?.contextWindow)
+          ? Math.round((used / contextPressure.contextWindow) * 1000) / 10
+          : null
+        return {
+          available: true,
+          scope: 'session',
+          label: `Session：输入 ${tokens.uncachedInput} · 输出 ${tokens.output} · 缓存读取 ${tokens.cacheRead} · 缓存写入 ${tokens.cacheWrite} · 合计 ${tokens.total} tokens${contextPercent === null ? '' : `；上下文约 ${contextPercent}%`}。金额不可核对。`,
+          tokens,
+          contextPercent,
+          costAvailable: false
+        }
+      })()
+    : { available: false, label: 'Harness 未提供本轮 token 或费用。' }
   const failedCount = toolCards.filter((card) => card?.state === 'error').length
   const workingCount = toolCards.filter((card) => card?.state === 'working').length
   const verificationFailed = Array.isArray(thread.outcome?.verifications)
@@ -79,7 +107,7 @@ function projectTaskRun(thread = {}) {
     waitingCount,
     queuedCount,
     model,
-    usage: { available: false, label: 'Harness 未提供本轮 token 或费用。' },
+    usage,
     evidence: {
       toolCount: Array.isArray(details.toolCards) ? details.toolCards.length : 0,
       changedFileCount: Array.isArray(taskRunSnapshot.confirmedChanges) ? taskRunSnapshot.confirmedChanges.length : 0

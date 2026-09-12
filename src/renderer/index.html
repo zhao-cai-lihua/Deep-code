@@ -30,25 +30,6 @@
           <div class="section-label"><span>本地任务</span><span id="task-count">0</span></div>
           <div id="task-list" class="task-list" aria-live="polite"></div>
         </div>
-        <section id="sidebar-run-panel" class="sidebar-run-panel hidden" aria-label="当前任务状态">
-          <div class="section-label"><span>本轮状态</span><button id="open-run-details" class="sidebar-icon-button" type="button">轨迹 →</button></div>
-          <section id="current-run-context" class="run-context hidden" aria-label="当前运行概览">
-            <strong id="current-run-state">尚未开始</strong>
-            <p id="current-run-model"></p>
-            <p id="current-run-evidence"></p>
-            <p id="current-run-usage"></p>
-          </section>
-          <section id="task-outcome" class="task-outcome hidden" aria-live="polite">
-            <div class="task-outcome-heading"><div><p class="eyebrow">RESULT</p><h3 id="task-outcome-title"></h3></div><span id="task-outcome-badge"></span></div>
-            <p id="task-outcome-summary"></p>
-            <details class="sidebar-evidence"><summary>确认项与提醒</summary><div id="task-outcome-sections" class="task-outcome-sections"></div></details>
-            <button id="show-outcome-evidence" class="text-button" type="button">查看证据</button>
-          </section>
-          <section id="activity-timeline" class="activity-timeline hidden" aria-label="Agent 活动">
-            <div class="activity-heading"><strong>正在发生什么</strong><span id="live-connection-label"></span></div>
-            <ol id="activity-list"></ol>
-          </section>
-        </section>
         <div class="sidebar-footer">
           <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false"><span aria-hidden="true">☀</span><span>切换到明亮界面</span></button>
           <div class="runtime-chip"><span id="runtime-dot" class="status-dot stopped"></span><span id="runtime-short">Harness 未连接</span></div>
@@ -94,11 +75,7 @@
                 <section id="conversation-view" class="task-view is-active" aria-label="对话">
                   <p id="active-task-prompt" class="task-prompt"></p>
                   <div id="task-engine-status" class="task-engine-status" aria-live="polite"></div>
-                  <section id="task-journey" class="task-journey hidden" aria-live="polite">
-                    <div class="task-journey-heading"><div><p class="eyebrow">TASK ROUTE</p><h3 id="task-journey-title">这次会怎样推进</h3></div><p id="task-journey-summary"></p></div>
-                    <ol id="task-journey-stages" class="task-journey-stages"></ol>
-                    <p id="task-journey-boundary" class="task-journey-boundary"></p>
-                  </section>
+                  <button id="load-earlier-history" class="load-earlier-history hidden" type="button">加载更早的对话</button>
                   <div id="conversation-feed" class="conversation-feed"></div>
                   <section id="decision-gates" class="decision-gates" aria-live="polite" aria-label="等待你的决定"></section>
                   <section id="task-recovery" class="task-recovery hidden" aria-live="polite"><strong>怎样继续</strong><p id="task-recovery-cause"></p><p id="task-recovery-safety"></p><p id="task-recovery-next"></p></section>
@@ -136,10 +113,30 @@
                 <p id="image-draft-status" class="image-draft-status" aria-live="polite"></p>
                 <label class="sr-only" for="task-composer">描述任务</label>
                 <textarea id="task-composer" rows="3" maxlength="12000" placeholder="描述你想完成的事。可以直接说人话，不需要知道命令、端口或项目术语。"></textarea>
-                <div class="composer-footer"><span id="composer-hint">新任务会沿“对齐、推进、核验、交付”路线工作。</span><div class="composer-actions"><button id="task-contract-button" type="button" class="composer-tool" title="切换新任务是否使用清晰推进路线" aria-pressed="true">协作：清晰推进</button><button id="model-route-button" type="button" class="composer-tool" title="选择模型与推理强度">模型：Harness 当前设置</button><button id="composer-stop" type="button" class="composer-stop hidden" title="停止当前生成">停止</button><button id="add-images" type="button" class="composer-tool" title="添加截图或图片">＋图片</button><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div></div>
+                <div class="composer-footer"><span id="composer-hint">Direct 直接执行；Plan 会先由 Harness 建立计划。</span><div class="composer-actions"><button id="collaboration-mode-button" type="button" class="composer-tool" title="切换 Direct 与 Plan 模式" aria-pressed="false">模式：Direct</button><button id="model-route-button" type="button" class="composer-tool" title="选择模型与推理强度">模型：Harness 当前设置</button><button id="composer-stop" type="button" class="composer-stop hidden" title="停止当前生成">停止</button><button id="add-images" type="button" class="composer-tool" title="添加截图或图片">＋图片</button><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div></div>
               </div>
             </section>
-
+            <aside id="workbench-inspector" class="workbench-inspector hidden" aria-label="任务检查器">
+              <div class="inspector-heading"><div><p class="eyebrow">SESSION</p><h2>当前任务</h2></div><div class="inspector-heading-actions"><button id="toggle-inspector" class="quiet-button inspector-toggle" type="button" aria-expanded="true">收起</button><button id="open-run-details" class="text-button" type="button">轨迹 →</button></div></div>
+              <section class="inspector-card"><span>当前阶段</span><strong id="guided-phase">准备任务</strong><p id="guided-mode">Direct</p></section>
+              <section class="inspector-card"><div class="inspector-card-heading"><span>Harness 计划</span><span id="guided-plan-count">未提供</span></div><ol id="guided-plan" class="guided-plan"></ol></section>
+              <section id="current-run-context" class="run-context hidden" aria-label="当前运行概览">
+                <strong id="current-run-state">尚未开始</strong>
+                <p id="current-run-model"></p>
+                <p id="current-run-evidence"></p>
+                <p id="current-run-usage"></p>
+              </section>
+              <section id="activity-timeline" class="activity-timeline hidden" aria-label="Agent 活动">
+                <div class="activity-heading"><strong>正在发生什么</strong><span id="live-connection-label"></span></div>
+                <ol id="activity-list"></ol>
+              </section>
+              <section id="task-outcome" class="task-outcome hidden" aria-live="polite">
+                <div class="task-outcome-heading"><div><p class="eyebrow">RESULT</p><h3 id="task-outcome-title"></h3></div><span id="task-outcome-badge"></span></div>
+                <p id="task-outcome-summary"></p>
+                <details class="sidebar-evidence"><summary>确认项与提醒</summary><div id="task-outcome-sections" class="task-outcome-sections"></div></details>
+                <button id="show-outcome-evidence" class="text-button" type="button">查看证据</button>
+              </section>
+            </aside>
           </div>
         </section>
 
@@ -242,6 +239,12 @@
               <div class="button-row"><button id="inspect" type="button" class="quiet-button">检查 Engine 环境</button><button id="export-diagnostics" type="button" class="quiet-button">导出脱敏诊断</button></div>
               <pre id="care-result">先检查 Runtime；Deep code 会告诉你缺少什么。</pre>
             </section>
+            <section class="settings-card notification-card">
+              <h2>系统通知</h2>
+              <p>仅当 Deep code 不在前台时，提醒你任务需要决定、已经完成或没有完成。通知不会包含任务文字、文件路径或模型回答。</p>
+              <label class="toggle-row"><input id="notifications-enabled" type="checkbox" checked /> <span>允许离开窗口后的必要提醒</span></label>
+              <p id="notification-setting-status" class="credential-note">默认开启；在前台工作时保持安静。</p>
+            </section>
           </div>
           <details class="logs-panel"><summary>本地诊断日志</summary><pre id="logs">还没有运行日志。</pre></details>
         </section>
@@ -303,7 +306,6 @@
     <script src="./provider-provisioning-flow.cjs"></script>
     <script src="./model-connection-view.cjs"></script>
     <script src="./model-services-view.cjs"></script>
-    <script src="./task-journey-view.cjs"></script>
     <script src="./task-evidence-view.cjs"></script>
     <script src="./shell.js"></script>
   </body>
