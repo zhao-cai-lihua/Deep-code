@@ -100,7 +100,33 @@ test('renders the one-time task contract as a compact user-visible disclosure', 
 
   const details = findAll(user, (node) => node.tagName === 'DETAILS')
   assert.equal(details.length, 1)
-  assert.match(details[0].textContent, /协作约定 · 可核验推进/)
+  assert.match(details[0].textContent, /协作路线 · 可核验推进/)
   assert.match(details[0].textContent, /仅首条消息增加 218 个字符/)
   assert.match(details[0].textContent, /保留已有工作/)
+})
+
+test('groups the guided contract into start, progress, and delivery instead of one long list', () => {
+  const { view } = createFixture()
+  const user = view.render({
+    role: 'user',
+    text: '做一个可验证的小改动。',
+    taskContract: {
+      kind: 'evidence-first',
+      version: 2,
+      label: '清晰推进',
+      summary: '开始先对齐，过程中少打扰，结束给出可核验回执。',
+      sections: [
+        { label: '开始', rules: ['先说明理解。'] },
+        { label: '推进', rules: ['只汇报阶段变化。'] },
+        { label: '交付', rules: ['先给结果。'] }
+      ],
+      addedCharacters: 622
+    }
+  })
+
+  const details = findAll(user, (node) => node.tagName === 'DETAILS')[0]
+  const sections = findAll(details, (node) => node.tagName === 'SECTION')
+  assert.equal(sections.length, 3)
+  assert.match(details.textContent, /协作路线 · 清晰推进/)
+  assert.match(details.textContent, /开始先说明理解。推进只汇报阶段变化。交付先给结果。/)
 })

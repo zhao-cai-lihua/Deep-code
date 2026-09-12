@@ -73,7 +73,10 @@ dialog label { display: grid; gap: 8px; margin-top: 18px; color: #c8cad2; font-s
 .message-task-contract { margin-top: 11px; border-top: 1px solid var(--line); padding-top: 8px; color: var(--muted); font-size: 10px; line-height: 1.55; }
 .message-task-contract > summary { cursor: pointer; color: var(--accent); }
 .message-task-contract p { margin: 8px 0 0; color: var(--muted); font-size: 10px; }
-.message-task-contract ul { margin: 7px 0; padding-left: 18px; }
+.message-task-contract-sections { display: grid; gap: 8px; margin: 9px 0; }
+.message-task-contract-sections section { display: grid; grid-template-columns: 44px 1fr; gap: 8px; }
+.message-task-contract-sections strong { padding-top: 2px; color: var(--text); font-size: 9px; }
+.message-task-contract ul { margin: 0; padding-left: 18px; }
 .message-task-contract small { color: var(--muted); }
 .copy-button { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; background: transparent; color: var(--muted); font-size: 10px; line-height: 1.2; }
 .copy-button:hover:not(:disabled) { border-color: var(--line-strong); background: var(--accent-soft); color: var(--text); }
@@ -413,6 +416,27 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 .task-view.is-active { display: block; animation: page-enter 150ms var(--ease-out) both; }
 .task-prompt { max-width: 760px; margin: 0 auto 14px; color: var(--muted); font-size: 11px; }
 .task-engine-status { max-width: 760px; margin: 0 auto 20px; border: 0; border-radius: 8px; padding: 9px 11px; background: rgba(255, 255, 255, .025); font-size: 10px; }
+.task-journey { width: min(100%, 760px); margin: 0 auto 22px; border: 1px solid rgba(91,190,254,.2); border-radius: 13px; padding: 14px; background: linear-gradient(145deg, rgba(18,45,73,.32), rgba(10,22,39,.42)); }
+.task-journey.hidden { display: none; }
+.task-journey-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.task-journey-heading h3 { margin: 4px 0 0; font-size: 15px; }
+.task-journey-heading > p { max-width: 430px; margin: 0; color: var(--muted); text-align: right; font-size: 10px; line-height: 1.5; }
+.task-journey-stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 13px 0 0; padding: 0; list-style: none; }
+.task-journey-stages li { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.02); }
+.task-journey-stage-button { display: grid; width: 100%; min-width: 0; grid-template-columns: 10px 1fr; gap: 3px 7px; border: 0; padding: 9px; background: transparent; color: inherit; text-align: left; }
+.task-journey-stage-button:hover { background: rgba(91,190,254,.05); }
+.task-journey-marker { width: 8px; height: 8px; margin-top: 3px; border: 1px solid var(--line-strong); border-radius: 50%; background: transparent; }
+.task-journey-stages strong { overflow: hidden; color: var(--text); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.task-journey-detail { grid-column: 2; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.task-journey-stages li[data-state="complete"] { border-color: rgba(75,202,151,.28); background: rgba(43,132,97,.07); }
+.task-journey-stages li[data-state="complete"] .task-journey-marker { border-color: #4bca97; background: #4bca97; }
+.task-journey-stages li[data-state="current"] { border-color: rgba(91,190,254,.4); background: rgba(91,190,254,.08); }
+.task-journey-stages li[data-state="current"] .task-journey-marker { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px rgba(91,190,254,.12); }
+.task-journey-stages li[data-state="attention"] { border-color: rgba(237,189,98,.38); background: rgba(237,189,98,.07); }
+.task-journey-stages li[data-state="attention"] .task-journey-marker { border-color: #edbd62; background: #edbd62; }
+.task-journey-boundary { margin: 10px 0 0; color: var(--muted); font-size: 8px; line-height: 1.45; }
+.task-journey[data-tone="complete"] { border-color: rgba(75,202,151,.28); }
+.task-journey[data-tone="attention"] { border-color: rgba(237,189,98,.3); }
 .task-recovery { display: grid; gap: 6px; width: min(100%, 760px); margin: 18px auto 20px; border: 1px solid rgba(237,189,98,.3); border-radius: 10px; padding: 12px 14px; background: rgba(237,189,98,.06); }
 .task-recovery.hidden { display: none; }
 .task-recovery strong { color: #f0cf91; font-size: 12px; }
@@ -461,6 +485,9 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 :root[data-theme="light"] .outcome-map-node { background: rgba(255,255,255,.65); }
 
 @media (max-width: 760px) {
+  .task-journey-heading { align-items: flex-start; flex-direction: column; }
+  .task-journey-heading > p { text-align: left; }
+  .task-journey-stages { grid-template-columns: 1fr 1fr; }
   .trace-overview { align-items: flex-start; flex-direction: column; }
   .trace-overview > p { text-align: left; }
   .outcome-map-flow { grid-template-columns: 1fr; }
@@ -468,6 +495,7 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 }
 
 :root[data-theme="light"] .workbench-topbar { background: linear-gradient(to bottom, rgba(237, 246, 255, .97), rgba(237, 246, 255, .88)); }
+:root[data-theme="light"] .task-journey { background: linear-gradient(145deg, rgba(236,247,255,.9), rgba(255,255,255,.72)); }
 :root[data-theme="light"] .sidebar-workspace, :root[data-theme="light"] .sidebar-run-panel .activity-timeline { background: rgba(255, 255, 255, .54); }
 
 @media (max-width: 1060px) {

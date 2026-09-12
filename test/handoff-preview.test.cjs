@@ -18,8 +18,9 @@ test('shows the exact one-time collaboration contract without presenting it as p
   })
 
   assert.equal(preview.contract.kind, 'evidence-first')
-  assert.match(preview.text, /协作约定（仅首条消息）/)
+  assert.match(preview.text, /协作路线（仅首条消息）/)
   assert.match(preview.text, /不会额外调用模型/)
-  assert.match(preview.text, /关键歧义才暂停询问/)
+  assert.match(preview.text, /我理解的任务/)
+  assert.match(preview.text, /有意义的阶段变化/)
   assert.match(preview.text, /不会授予或改变工具/)
 })

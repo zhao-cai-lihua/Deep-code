@@ -25,6 +25,7 @@ const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retri
 const { projectModelConnectionWithHistory, projectModelServices } = require('./model-service-projection.cjs')
 const { projectModelVerificationReceipt } = require('./model-verification-receipt.cjs')
 const { projectTaskGuidance } = require('./task-guidance-projection.cjs')
+const { projectTaskJourney } = require('./task-journey-projection.cjs')
 const { acquireSingleInstance } = require('./single-instance.cjs')
 const { stopAndDeleteTask } = require('./task-lifecycle.cjs')
 const { projectConfirmedBaselineChanges } = require('./baseline-change-projection.cjs')
@@ -210,6 +211,7 @@ async function workbenchSnapshot() {
       thread.outcome = projectTaskOutcome(thread)
       thread.run = projectTaskRun(thread)
       thread.guidance = projectTaskGuidance(thread)
+      thread.journey = projectTaskJourney(thread)
     }
     return offline
   }
@@ -282,6 +284,7 @@ async function workbenchSnapshot() {
   thread.outcome = projectTaskOutcome(thread)
   thread.run = projectTaskRun(thread)
   thread.guidance = projectTaskGuidance(thread)
+  thread.journey = projectTaskJourney(thread)
   return snapshot
 }
 

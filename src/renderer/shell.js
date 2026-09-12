@@ -37,6 +37,11 @@ const receiptView = document.querySelector('#receipt-view')
 const traceView = document.querySelector('#trace-view')
 const taskViewButtons = document.querySelectorAll('[data-task-view]')
 const taskEngineStatus = document.querySelector('#task-engine-status')
+const taskJourneyRoot = document.querySelector('#task-journey')
+const taskJourneyTitle = document.querySelector('#task-journey-title')
+const taskJourneySummary = document.querySelector('#task-journey-summary')
+const taskJourneyStages = document.querySelector('#task-journey-stages')
+const taskJourneyBoundary = document.querySelector('#task-journey-boundary')
 const taskRecovery = document.querySelector('#task-recovery')
 const taskRecoveryCause = document.querySelector('#task-recovery-cause')
 const taskRecoverySafety = document.querySelector('#task-recovery-safety')
@@ -234,6 +239,17 @@ const conversationMessageView = window.DeepCodeConversationMessageView.createCon
   copyText: (value) => window.desktopHost.copyText(value),
   formatImageBytes: imageBytes
 })
+const taskJourneyView = window.DeepCodeTaskJourneyView.createTaskJourneyView({
+  document,
+  elements: {
+    root: taskJourneyRoot,
+    title: taskJourneyTitle,
+    summary: taskJourneySummary,
+    stages: taskJourneyStages,
+    boundary: taskJourneyBoundary
+  },
+  onStageAction: runTaskJourneyAction
+})
 const taskEvidenceView = window.DeepCodeTaskEvidenceView.createTaskEvidenceView({
   document,
   elements: {
@@ -284,9 +300,9 @@ function renderTaskContractChoice() {
   const continuing = Boolean(activeThread())
   taskContractButton.classList.toggle('hidden', continuing)
   taskContractButton.setAttribute('aria-pressed', String(newTaskContractEnabled))
-  taskContractButton.textContent = newTaskContractEnabled ? '协作：可核验' : '协作：原样发送'
+  taskContractButton.textContent = newTaskContractEnabled ? '协作：清晰推进' : '协作：原样发送'
   taskContractButton.title = newTaskContractEnabled
-    ? '新任务首条消息会附带公开的协作约定；点击可改为原样发送。'
+    ? '新任务首条消息会附带公开的清晰推进协议，并显示证据绑定的任务路线；点击可改为原样发送。'
     : '新任务将原样发送；点击可恢复可核验协作约定。'
 }
 let modelConnectionState = { activeProviders: [] }
@@ -917,6 +933,12 @@ function runGuidanceAction(id) {
   if (id === 'new-task') startNewTask().catch((error) => { careResult.textContent = error.message; showPage('settings') })
 }
 
+function runTaskJourneyAction(id) {
+  if (id === 'task-brief') { previewHandoffButton.click(); return }
+  if (id === 'trace') { setTaskView('trace'); traceOverview.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
+  if (id === 'receipt') { setTaskView('receipt'); receiptView.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+}
+
 function openTaskEvidenceTarget(evidenceTarget) {
   setTaskView('trace')
   const target = taskEvidenceView.revealEvidenceTarget(evidenceTarget)
@@ -976,7 +998,7 @@ function renderImageDrafts() {
     : activeThread()
       ? '继续消息会直接发送；新手协作约定只附在新任务首条消息。'
       : newTaskContractEnabled
-        ? '新任务会附带一次公开的可核验协作约定，不会额外调用模型。'
+        ? '新任务会沿“对齐、推进、核验、交付”路线工作，不会额外调用模型。'
         : '新任务将原样发送，不附加协作约定。'
   for (const draft of imageDrafts) {
     const card = document.createElement('figure')
@@ -1319,8 +1341,10 @@ function renderWorkbench() {
       conversationFeed.append(conversationMessageView.render({ role: 'assistant', text: draft.text, draft: true, truncated: draft.truncated }))
     }
     taskEvidenceView.render(thread)
+    taskJourneyView.render(thread.journey)
     restoreTaskViewState(selectedThreadId)
   } else {
+    taskJourneyView.render({ visible: false })
     decisionGates.replaceChildren()
     activityList.replaceChildren()
     activityTimeline.classList.add('hidden')
