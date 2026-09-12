@@ -4,8 +4,8 @@ Updated: 2026-09-12
 Branch: `main`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
-Current test prerelease: `0.7.1-beta.1` (not accepted: behavioral feedback was too subtle)
-Current source version: `0.7.1-beta.2` (preparation)
+Current test prerelease: `0.7.1-beta.2` (awaiting human acceptance)
+Current source version: `0.7.1-beta.2`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -17,6 +17,10 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 
 ## Release delivery
 
+- Test prerelease v0.7.1-beta.2 was tagged at `75bc204f30510947d831a28d78a330f21fe17bd6` and published as a non-draft prerelease on 2026-09-12: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.1-beta.2. Main regression run `34675899755` and Windows release run `34675907794` both completed successfully with all 294 tests; the release workflow also validated the tag/version, built both Windows targets, generated checksums, and uploaded all assets.
+- `Deep.code.0.7.1-beta.2.exe`: 100,572,693 bytes; GitHub SHA-256 `97ff4d864ce034e1f6553d136ed96650134ad4ba94ec26268c5955cef639a743`.
+- `Deep.code.Setup.0.7.1-beta.2.exe`: 100,796,098 bytes; GitHub SHA-256 `f793b2a13127f278d6ddea10bd31e8fc09c719060983645a7eacd13890a21c54`.
+- `SHA256SUMS.txt`: 194 bytes; GitHub SHA-256 `38fb4fe36237d5bf26567741de81cd94759f49401862b10eec15cbfb9e2ef46a`.
 - v0.7.1-beta.2 preparation makes the intended collaboration observable at three seams: the initial instruction asks for a short visible task alignment before action, meaningful plain-language milestone updates during work, and a result-first evidence-aware delivery; the Task Journey shows alignment, execution, verification, and receipt as one compact route; stage actions navigate only to existing task brief, Trace, or Receipt surfaces.
 - Task Journey consumes the existing Task Contract, Harness-backed run projection, and work receipt. Prompt admission alone leaves alignment provisional until the exact contract appears in Session history. Unknown or overlapping evidence is not converted into an exact-looking count, and completed work remains yellow when verification, warning, or risk evidence is incomplete.
 - Task Contract v2 adds exactly 622 characters once and makes no additional model request. Released v1 contracts remain byte-for-byte parseable and retain their 380-character cost. Raw tasks, follow-up messages, image-only tasks, model verification, and Project Brief prompts remain outside this route.
