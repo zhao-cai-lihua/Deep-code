@@ -1,20 +1,26 @@
 # Deep Code current handoff
 
-Updated: 2026-09-11
-Branch: `main`
+Updated: 2026-09-12
+Branch: `codex/v0.7.1-guided-journey`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
-Current test prerelease: `0.7.1-beta.1` (awaiting human acceptance)
-Current source version: `0.7.1-beta.1`
+Current test prerelease: `0.7.1-beta.1` (not accepted: behavioral feedback was too subtle)
+Current source version: `0.7.1-beta.2` (preparation)
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
 PR #14 merged one bounded Task Contract seam for v0.7.1-beta.1 at `393d7b934320de98646dd3f0272713625188bf23`. It changes only the initial text of newly created, explicitly contract-enabled tasks; Engine, Session, Provider, model routing, permission, file-change truth, and terminal evidence remain owned by Harness.
 
+The current v0.7.1-beta.2 preparation responds to direct beta.1 use: the contract was visible but its behavioral effect was not obvious. It upgrades only newly created guided tasks to Task Contract v2 and adds a local four-stage Task Journey projection. It does not add a Planner, Agent Loop, model call, permission path, or completion authority.
+
 PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings without changing execution truth. The v0.7.0-rc.1 source preparation is merged on `main` through PR #12.
 
 ## Release delivery
 
+- v0.7.1-beta.2 preparation makes the intended collaboration observable at three seams: the initial instruction asks for a short visible task alignment before action, meaningful plain-language milestone updates during work, and a result-first evidence-aware delivery; the Task Journey shows alignment, execution, verification, and receipt as one compact route; stage actions navigate only to existing task brief, Trace, or Receipt surfaces.
+- Task Journey consumes the existing Task Contract, Harness-backed run projection, and work receipt. Prompt admission alone leaves alignment provisional until the exact contract appears in Session history. Unknown or overlapping evidence is not converted into an exact-looking count, and completed work remains yellow when verification, warning, or risk evidence is incomplete.
+- Task Contract v2 adds exactly 622 characters once and makes no additional model request. Released v1 contracts remain byte-for-byte parseable and retain their 380-character cost. Raw tasks, follow-up messages, image-only tasks, model verification, and Project Brief prompts remain outside this route.
+- The v0.7.1-beta.2 focused Task Contract/Journey/conversation/handoff/Renderer suite passed 78 tests; the full regression suite passed 294 tests; JavaScript syntax checks and `git diff --check` passed; and `pnpm audit --prod --audit-level=high` reported no known vulnerabilities. `npm run package:test:win` produced `dist/Deep-code-Test-0.7.1-beta.2.exe`, 368,818,831 bytes, local SHA-256 `feec1ec471226cdf486018308e14d634e1c773e43d80f56be790dc489e3c9b14`. The packaged `app.asar` contains `task-contract.cjs`, `task-journey-projection.cjs`, `task-journey-view.cjs`, and the updated `shell.js`. GitHub workflow and published asset evidence are still pending.
 - v0.7.1-beta.1 preparation introduces the first executable Soft Harness experiment: an optional, visible, one-time evidence-first collaboration contract on a new task's initial text prompt. It adds exactly 380 characters once, makes no second model request, can be disabled before creation, and is separated from the human request again in the conversation projection. Existing tasks, image-only tasks, follow-up messages, model verification, and Project Brief prompts remain unchanged. PR #14 regression run `34614417058` passed in a clean GitHub runner.
 - The v0.7.1-beta.1 focused Task Contract/store/projection/view/Renderer suite passed 83 tests; full `npm test` passed 283 tests; JavaScript syntax checks passed; and the production dependency audit reported no known vulnerabilities. The correctly versioned uncompressed Windows test portable `Deep-code-Test-0.7.1-beta.1.exe` built successfully at 368,801,676 bytes with local SHA-256 `7eecc4fb5bffb2073a97cf2e5f58ccea900e1ca4fca34f60725a8e2fe685bcae`; its `app.asar` contains `task-contract.cjs`, `conversation-message-view.cjs`, and the updated `shell.js`.
 - Test prerelease v0.7.1-beta.1 was tagged at `27544e80453f8e74bbc356ae3142ded0904ad6ce` and published as a non-draft prerelease on 2026-09-11: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.1-beta.1. Tag regression run `34614587143` and Windows release run `34614619019` both succeeded with all 283 tests.
@@ -194,6 +200,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 4. Memory MVP is local and reviewable: Markdown is canonical, indexes are rebuildable, candidates do not affect replies before confirmation, and raw private transcripts are excluded by default.
 5. Skills describe reusable procedures; they are not a substitute for durable project memory.
 6. Task Contract is a transparent, user-disableable instruction attached only to a new task's initial text prompt. It may shape collaboration, but it never grants permissions or supplies completion evidence.
+7. Task Journey is a local projection and navigation surface, not a second task state machine. Its colors and copy must stay downstream of Task Contract presence, Harness facts, and the existing work receipt.
 
 ## Code health
 
@@ -206,11 +213,12 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - A post-merge fixed-point review caught and closed two projection-boundary defects before any v0.7.0 candidate release. `task-evidence-view.cjs` now renders the single `run.trace` projection and owns disclosure reveal behavior; `run-projection.cjs` owns the Trace state, counts, and supporting-evidence label. Outcome Map navigation can no longer scroll to evidence that remains hidden. While tightening that seam, a pre-existing inconsistency was also closed: an unconfirmed cancellation no longer appears as a failed Turn, and a later matching terminal supersedes stale recovery state.
 - Main, Preload, DSH Adapter, `TaskRunSnapshot`, IPC contracts, Provider storage, model routing, and Harness authority were not changed by this decomposition.
 - `task-contract.cjs` is the single interface for creating, validating, attaching, parsing, and presenting the evidence-first Task Contract. Workbench storage persists only `{version, kind, attachedTo}`; Main attaches it only to eligible initial prompts; conversation projection reveals the original request plus a separate disclosure. Exact-body and request-hash checks fail open to visible text rather than hiding a forged or modified suffix.
+- Task Contract v2 deepens that seam without broadening authority: start/progress/delivery are explicit sections, while v1 remains readable for stored tasks and retries. `task-journey-projection.cjs` is the single pure interface that maps the existing task snapshot into four human stages. `task-journey-view.cjs` renders only that projection and delegates inert navigation IDs back to the workbench.
 
 ## Next bounded work
 
 1. v0.7.0 is stable and complete. Do not repeat accepted Engine, Provider, focus, Memory, workspace, model-receipt, task-draft, or Evidence UI checks unless the corresponding implementation changes.
-2. v0.7.1-beta.1 is the published bounded Task Contract experiment. Use the four low-cost checks in its release notes before considering promotion or iteration. Do not expand it into automatic planning, model routing, hidden memory injection, permission changes, or a second completion state.
+2. v0.7.1-beta.1 was understandable but not behaviorally obvious in direct use, so do not promote it. Finish v0.7.1-beta.2 packaging and prerelease publication, then use the low-cost checks in its release notes to judge the complete alignment/progress/verification/delivery experience.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 

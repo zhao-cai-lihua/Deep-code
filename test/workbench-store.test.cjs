@@ -20,8 +20,11 @@ test('creates a private local task and derives a readable title', () => {
 test('persists only the supported first-prompt task contract', () => {
   const store = makeStore()
   const task = store.create({ prompt: '完成并验证', taskContract: createTaskContract() })
-  assert.deepEqual(task.taskContract, { version: 1, kind: 'evidence-first', attachedTo: 'initial-prompt' })
+  assert.deepEqual(task.taskContract, { version: 2, kind: 'evidence-first', attachedTo: 'initial-prompt' })
   assert.deepEqual(store.snapshot().threads[0].taskContract, task.taskContract)
+
+  const released = store.create({ prompt: '旧版任务', taskContract: { version: 1, kind: 'evidence-first', attachedTo: 'initial-prompt' } })
+  assert.deepEqual(released.taskContract, { version: 1, kind: 'evidence-first', attachedTo: 'initial-prompt' })
 
   const legacy = store.create({ prompt: '保持原样', taskContract: { version: 99, kind: 'unknown' } })
   assert.equal(legacy.taskContract, null)

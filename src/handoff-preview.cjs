@@ -7,10 +7,10 @@ function buildHandoffPreview({ thread }) {
   if (contract) {
     const outbound = buildTaskPrompt({ request: thread.prompt, contract: thread.taskContract })
     sections.push({
-      title: '协作约定（仅首条消息）',
+      title: '协作路线（仅首条消息）',
       text: [
         `${contract.label}：${contract.summary}`,
-        ...contract.rules.map((rule) => `- ${rule}`),
+        ...contract.sections.flatMap((section) => ['', `${section.label}：`, ...section.rules.map((rule) => `- ${rule}`)]),
         '',
         `${contract.boundary} 不会额外调用模型；发送给 Harness 时增加 ${outbound.addedCharacters} 个字符。`
       ].join('\n')

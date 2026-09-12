@@ -90,18 +90,30 @@
         const details = document.createElement('details')
         details.className = 'message-task-contract'
         const summary = document.createElement('summary')
-        summary.textContent = `协作约定 · ${String(taskContract.label || '可核验推进')}`
+        summary.textContent = `协作路线 · ${String(taskContract.label || '可核验推进')}`
         const explanation = document.createElement('p')
         explanation.textContent = String(taskContract.summary || '')
-        const rules = document.createElement('ul')
-        for (const rule of Array.isArray(taskContract.rules) ? taskContract.rules : []) {
-          const item = document.createElement('li')
-          item.textContent = String(rule)
-          rules.append(item)
+        const sections = document.createElement('div')
+        sections.className = 'message-task-contract-sections'
+        const projectedSections = Array.isArray(taskContract.sections) && taskContract.sections.length
+          ? taskContract.sections
+          : [{ label: '协作约定', rules: Array.isArray(taskContract.rules) ? taskContract.rules : [] }]
+        for (const section of projectedSections) {
+          const group = document.createElement('section')
+          const heading = document.createElement('strong')
+          heading.textContent = String(section.label || '')
+          const rules = document.createElement('ul')
+          for (const rule of Array.isArray(section.rules) ? section.rules : []) {
+            const item = document.createElement('li')
+            item.textContent = String(rule)
+            rules.append(item)
+          }
+          group.append(heading, rules)
+          sections.append(group)
         }
         const footprint = document.createElement('small')
         footprint.textContent = `仅首条消息增加 ${Number(taskContract.addedCharacters) || 0} 个字符；不额外调用模型，也不改变 Harness 权限。`
-        details.append(summary, explanation, rules, footprint)
+        details.append(summary, explanation, sections, footprint)
         bubble.append(details)
       }
 

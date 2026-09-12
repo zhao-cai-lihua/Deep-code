@@ -9,6 +9,7 @@ const shell = readFileSync(join(root, 'src', 'renderer', 'shell.js'), 'utf8')
 const modelConnectionView = readFileSync(join(root, 'src', 'renderer', 'model-connection-view.cjs'), 'utf8')
 const modelServicesView = readFileSync(join(root, 'src', 'renderer', 'model-services-view.cjs'), 'utf8')
 const conversationMessageView = readFileSync(join(root, 'src', 'renderer', 'conversation-message-view.cjs'), 'utf8')
+const taskJourneyView = readFileSync(join(root, 'src', 'renderer', 'task-journey-view.cjs'), 'utf8')
 const taskEvidenceView = readFileSync(join(root, 'src', 'renderer', 'task-evidence-view.cjs'), 'utf8')
 const providerFlow = readFileSync(join(root, 'src', 'renderer', 'provider-provisioning-flow.cjs'), 'utf8')
 const styles = readFileSync(join(root, 'src', 'renderer', 'shell.css'), 'utf8')
@@ -341,12 +342,24 @@ test('the composer exposes explicit model selection while Harness remains select
 
 test('new tasks expose one optional evidence-first contract without adding another model call', () => {
   assert.match(html, /id="task-contract-button"/)
-  assert.match(html, /协作：可核验/)
+  assert.match(html, /协作：清晰推进/)
   assert.match(shell, /useTaskContract: newTaskContractEnabled/)
   assert.match(shell, /newTaskContractEnabled = !newTaskContractEnabled/)
   assert.match(main, /createTaskContract\(\)/)
   assert.match(main, /buildTaskPrompt\(\{ request: thread\.prompt, contract: thread\.taskContract \}\)/)
   assert.doesNotMatch(main, /taskContract[\s\S]{0,500}(?:createSession|selectModel)\([^)]*taskContract/)
+})
+
+test('guided tasks expose one projected journey without creating another execution state', () => {
+  const journeyScript = html.indexOf('src="./task-journey-view.cjs"')
+  const shellScript = html.indexOf('src="./shell.js"')
+  assert.ok(journeyScript >= 0 && journeyScript < shellScript)
+  assert.match(html, /id="task-journey"/)
+  assert.match(html, /id="task-journey-stages"/)
+  assert.match(main, /projectTaskJourney\(thread\)/)
+  assert.match(shell, /taskJourneyView\.render\(thread\.journey\)/)
+  assert.match(shell, /function runTaskJourneyAction\(id\)/)
+  assert.doesNotMatch(taskJourneyView, /desktopHost|\.sendMessage\(|\.createTask\(|\.selectModel\(|\.cancelTask\(/)
 })
 
 test('image drafts stay task-scoped and send only through the desktop host', () => {
