@@ -4,8 +4,8 @@ Updated: 2026-09-13
 Branch: `codex/v0.8.0-guided-workbench`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
-Current published test prerelease: `0.7.1-beta.2` (do not promote)
-Current source candidate: `0.8.0-beta.2` (not published; packaged and accepted for prerelease publication)
+Current published test prerelease: `0.8.0-beta.2` (accepted correction; observe before stable promotion)
+Current source baseline: `0.8.0-beta.2` on `main`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -33,6 +33,10 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 
 ## Release delivery
 
+- v0.8.0-beta.2 was merged through non-draft PR #16 at `43cbf8936e17e18b22749744adf1c2bab39e5e0d` and published as a non-draft prerelease on 2026-09-13: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.8.0-beta.2. PR regression run `34746772843`, merged-main regression run `34746827846`, and Windows release run `34746844109` all completed successfully with 302 tests; the release workflow also validated tag/version, rebuilt both compressed Windows targets, generated checksums, and uploaded all assets.
+- `Deep.code.0.8.0-beta.2.exe`: 100,576,305 bytes; GitHub SHA-256 `351f85f809275cbaf3869711faf9878b201dde3175c54e71257b71c02ebcd3c6`.
+- `Deep.code.Setup.0.8.0-beta.2.exe`: 100,799,707 bytes; GitHub SHA-256 `75bff94395d011a3330d88a214aebf6d89049b734799094fc335284b9b62338b`.
+- `SHA256SUMS.txt`: 194 bytes; GitHub SHA-256 `81a68e87ef0cbab5e8ff685644eb84667d2d3c99bf85e8587605eee017c1bfc0`.
 - Test prerelease v0.7.1-beta.2 was tagged at `75bc204f30510947d831a28d78a330f21fe17bd6` and published as a non-draft prerelease on 2026-09-12: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.1-beta.2. Main regression run `34675899755` and Windows release run `34675907794` both completed successfully with all 294 tests; the release workflow also validated the tag/version, built both Windows targets, generated checksums, and uploaded all assets.
 - `Deep.code.0.7.1-beta.2.exe`: 100,572,693 bytes; GitHub SHA-256 `97ff4d864ce034e1f6553d136ed96650134ad4ba94ec26268c5955cef639a743`.
 - `Deep.code.Setup.0.7.1-beta.2.exe`: 100,796,098 bytes; GitHub SHA-256 `f793b2a13127f278d6ddea10bd31e8fc09c719060983645a7eacd13890a21c54`.
@@ -237,7 +241,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Give 砚星 the five bounded checks in `docs/releases/v0.8.0-beta.2.md`. Do not publish or promote before those checks are reviewed.
+1. Keep v0.8.0-beta.2 as a prerelease while it receives ordinary daily-use observation. Do not promote it to stable merely because the bounded Direct correction passed; repeated normal task use should first confirm that the Guided Workbench is materially clearer than v0.7.0 without task, draft, history, or inspector crossover.
 2. v0.7.0 remains stable. Do not promote v0.7.1-beta.1 or beta.2; their prompt-heavy Task Contract/Task Journey direction did not produce enough felt value and the local journey has now been removed.
 3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
 4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
