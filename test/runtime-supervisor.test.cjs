@@ -38,6 +38,26 @@ test('becomes ready only after the owned child URL passes host.describe and runt
   assert.equal(supervisor.snapshot().trust, 'managed-process')
   assert.equal(supervisor.snapshot().version, '0.1.1-rc.2')
   assert.equal(supervisor.snapshot().hostDescribeVersion, '0.0.1')
+  assert.equal(supervisor.snapshot().capabilities.verified, true)
+  assert.equal(
+    supervisor.snapshot().capabilities.capabilities.find((item) => item.id === 'plan-control').state,
+    'runtime-unsupported'
+  )
+})
+
+test('clears the capability snapshot when a verified Engine exits', async () => {
+  const child = fakeChild()
+  const supervisor = new RuntimeSupervisor({
+    spawnProcess: () => child, pathExists: () => true, probeShared: async () => null,
+    describeHost: matchingHost, inspectRuntime: compatibleRuntime, platform: 'linux'
+  })
+  await supervisor.start('C:\\runtime')
+  child.stdout.emit('data', 'dsh web: http://127.0.0.1:41921\n')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(supervisor.snapshot().capabilities.verified, true)
+
+  child.emit('exit', 1, null)
+  assert.equal(supervisor.snapshot().capabilities, null)
 })
 
 test('accepts a parent folder that contains deepseek-harness', async () => {
@@ -109,6 +129,7 @@ test('invalidates a shared Harness candidate when confirmation recheck fails', a
     version: '0.1.1-rc.2',
     hostDescribeVersion: '0.0.1',
     cwd: 'C:\\runtime',
+    capabilities: null,
     message: '共享 Engine 在确认前未能通过重新检查：HEAD mismatch after prompt。请重新启动 Engine 检查，再确认新的实例。',
     logs: []
   })

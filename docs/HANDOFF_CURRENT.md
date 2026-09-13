@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-13
-Branch: `codex/v0.8.0-guided-workbench`
+Branch: `codex/v0.8.1-capability-gate`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.0-beta.2` (accepted correction; observe before stable promotion)
-Current source baseline: `0.8.0-beta.2` on `main`
+Current source candidate: `0.8.1-beta.1` on `codex/v0.8.1-capability-gate`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -14,6 +14,19 @@ PR #14 merged one bounded Task Contract seam for v0.7.1-beta.1 at `393d7b934320d
 PR #15 merged the v0.7.1-beta.2 guided journey at `77a776cd3c60610edd0031f83ccf9ea33baf4a1e`. It responds to direct beta.1 use: the contract was visible but its behavioral effect was not obvious. It upgrades only newly created guided tasks to Task Contract v2 and adds a local four-stage Task Journey projection. It does not add a Planner, Agent Loop, model call, permission path, or completion authority.
 
 PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings without changing execution truth. The v0.7.0-rc.1 source preparation is merged on `main` through PR #12.
+
+## v0.8.1-beta.1 Harness Capability Gate candidate
+
+- `harness-capability-gate.cjs` is the single runtime-capability truth. It intersects an exact audited Runtime profile, Deep Code Adapter support, trusted Engine state, and—before an operation—an exact attached Session. Engine-level `supported` is intentionally not Session-level `available`; only the latter can pass the admission assertion.
+- The current profile stays pinned to official Harness `dsh-v0.1.1-rc.2`, version `0.1.1-rc.2`, Git revision `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`, and `host.describe` marker `0.0.1`. Unknown versions, revisions, unconfirmed shared Engines, missing Adapters, and absent Session capabilities fail closed with distinct reasons.
+- The first profile covers task prompt admission, live Session events, Decision Gate responses, model selection, image transport, and read-only Plan projection. Remote Plan control remains unavailable. Image transport explicitly does not claim that the current model supports vision.
+- Runtime Supervisor publishes the immutable capability snapshot only after the existing Engine Trust Gate reaches `ready`, and clears it on every non-ready transition. Main binds that snapshot to the newly created or resumed Session and checks `task-prompt` before any user task can reach `dshAdapter.prompt`.
+- The settings page now includes a beginner-facing “当前 Engine 能做什么” card. It lists proven support and unavailable features with reasons, and states that reading it does not call a model or consume model tokens. The disabled Plan entry takes its explanation from the same snapshot rather than a separate hard-coded capability claim.
+- `host-care.cjs` no longer maintains a second version/capability list and no longer calls image transport `deepseek-vision-exp`. Its compatibility report consumes the Capability Gate profile.
+- An upstream source survey found official `master` at `c291e7961a515f6d7af9304e7fd1d257929aef26`, version `0.1.5-rc.2`, with Commands mounted in the new application Remote assembly. This is a future compatibility-lab candidate only: official Remote documentation says active Host services are not runtime-discoverable by the Client, so Deep Code will not auto-enable it. See `docs/design/HARNESS_CAPABILITY_GATE.md`.
+- Automated evidence: focused Capability Gate, Runtime Supervisor, Plan bridge, Host Care, Renderer contract and view suites passed **77/77**; full `npm test` passed **315/315**; syntax checks and `git diff --check` passed; `pnpm audit --prod --audit-level high` reported no known vulnerabilities.
+- `npm run package:test:win` produced `dist/Deep-code-Test-0.8.1-beta.1.exe`, 368,846,732 bytes, SHA-256 `37ec394811dc9d5de3afbd03e3abac8da5fd79d776d1c30b6ec7d59b8aabf0d6`. Packaged `app.asar` contains `harness-capability-gate.cjs`, `engine-capability-view.cjs`, and the guarded `plan-mode-bridge.cjs`.
+- **Human acceptance, 2026-09-13:** 砚星 confirmed both bounded checks pass in the packaged candidate. The settings Capability Gate showed the pinned Harness version, six supported items, one unavailable Plan-control item, and the image/vision boundary; one ordinary Direct task also passed through the new Session-bound admission gate. The candidate is approved for prerelease publication without repeating another Provider call.
 
 ## v0.8.0-beta.2 Guided Workbench candidate
 
@@ -233,7 +246,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 - The first post-stable Renderer decomposition is complete. `model-services-view.cjs` exposes one `render(snapshot)` interface and only displays already-projected Provider/catalog/credential/verification/current-route facts. `conversation-message-view.cjs` exposes one `render(message)` interface and owns message DOM, Markdown, copy feedback, attachment metadata, and live-draft presentation without deciding Session or terminal state.
 - The second decomposition adds `task-evidence-view.cjs` with one `render(thread)` interface. It owns trace cards, structured fact lists, technical disclosure, visual receipt, and next-action presentation. Evidence-map and guidance buttons only delegate inert IDs back to the workbench; the module cannot retry, select a model, start Engine, or alter a task.
 - Compact Evidence now makes Trace a three-level surface: a truthful state/count summary, visible confirmed file changes plus collapsed operation rows, then one supporting disclosure for permissions, Git baseline, runtime context, and raw evidence. Failed tool output is no longer expanded merely because it failed; the red summary and row remain visible while exact output stays one click away. The task title is shown only in the sticky Workbench header, while its project path and explicit project-switch action remain below.
-- `src/renderer/shell.js` is 2,073 lines and `src/main.cjs` is 1,025 lines in the v0.8.0-beta.2 candidate. The projection bridge is behavior-tested, but these two orchestration files remain the next meaningful decomposition targets; raw line-count reduction is not itself an acceptance criterion.
+- `src/renderer/shell.js` is 2,104 lines and `src/main.cjs` is 1,030 lines in the v0.8.1-beta.1 candidate. The projection bridge is behavior-tested, but these two orchestration files remain the next meaningful decomposition targets; raw line-count reduction is not itself an acceptance criterion.
 - A post-merge fixed-point review caught and closed two projection-boundary defects before any v0.7.0 candidate release. `task-evidence-view.cjs` now renders the single `run.trace` projection and owns disclosure reveal behavior; `run-projection.cjs` owns the Trace state, counts, and supporting-evidence label. Outcome Map navigation can no longer scroll to evidence that remains hidden. While tightening that seam, a pre-existing inconsistency was also closed: an unconfirmed cancellation no longer appears as a failed Turn, and a later matching terminal supersedes stale recovery state.
 - Main, Preload, DSH Adapter, `TaskRunSnapshot`, IPC contracts, Provider storage, model routing, and Harness authority were not changed by this decomposition.
 - `task-contract.cjs` is the single interface for creating, validating, attaching, parsing, and presenting the evidence-first Task Contract. Workbench storage persists only `{version, kind, attachedTo}`; Main attaches it only to eligible initial prompts; conversation projection reveals the original request plus a separate disclosure. Exact-body and request-hash checks fail open to visible text rather than hiding a forged or modified suffix.
@@ -241,10 +254,10 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Keep v0.8.0-beta.2 as a prerelease while it receives ordinary daily-use observation. Do not promote it to stable merely because the bounded Direct correction passed; repeated normal task use should first confirm that the Guided Workbench is materially clearer than v0.7.0 without task, draft, history, or inspector crossover.
-2. v0.7.0 remains stable. Do not promote v0.7.1-beta.1 or beta.2; their prompt-heavy Task Contract/Task Journey direction did not produce enough felt value and the local journey has now been removed.
-3. Add no automatic Harness upgrade merely because upstream publishes a newer Developer Preview. A new compatibility entry requires pinned source inspection, protocol fixtures, isolated startup, packaging, and bounded manual acceptance.
-4. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
+1. Merge the accepted v0.8.1-beta.1 candidate through a non-draft PR and publish it as a prerelease. After the release workflow succeeds, verify the installer, portable asset, and checksum file instead of treating a pushed tag as publication.
+2. v0.7.0 remains stable. Keep v0.8.0-beta.2 only as historical prerelease evidence after v0.8.1-beta.1 is published. Do not promote v0.7.1-beta.1 or beta.2; their prompt-heavy Task Contract/Task Journey direction did not produce enough felt value and the local journey has now been removed.
+3. The next compatibility lab may target official Harness `0.1.5-rc.2`, especially its structured Commands Remote for real Plan control. It must live behind a new exact profile and pass protocol fixtures, isolated startup, packaging, and bounded manual acceptance before replacing the current runtime. Never infer support from version number or a 2xx response.
+4. After the capability seam is accepted, decompose its settings DOM rendering from `shell.js`; avoid unrelated UI redesign. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
 ## Human acceptance for v0.6.3-rc.6
 

@@ -503,6 +503,18 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 }
 :root[data-theme="light"] .sidebar-workspace { background: rgba(255, 255, 255, .54); }
 
+.engine-capability-list { display: grid; gap: 8px; margin-top: 14px; }
+.engine-capability-item { border: 1px solid #30333d; border-radius: 9px; padding: 11px 12px; background: #15161b; }
+.engine-capability-item > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.engine-capability-item strong { color: #e5e7ed; font-size: 12px; }
+.engine-capability-item span { color: #8f94a2; font-size: 10px; white-space: nowrap; }
+.engine-capability-item.usable span { color: #70dca8; }
+.engine-capability-item.unavailable span { color: #e2ba6e; }
+.engine-capability-item p { margin: 5px 0 0; color: #8f93a0; font-size: 10px; line-height: 1.5; }
+:root[data-theme="light"] .engine-capability-item { border-color: var(--line); background: #fafdff; }
+:root[data-theme="light"] .engine-capability-item strong { color: #17334d; }
+:root[data-theme="light"] .engine-capability-item p { color: #64798e; }
+
 @media (max-width: 1060px) {
   .primary-nav { grid-template-columns: 1fr; }
   .nav-item:first-child { grid-column: auto; }
