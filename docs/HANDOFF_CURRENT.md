@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-13
-Branch: `main`
+Branch: `codex/v0.8.1-gate-b-runtime-proof`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
-Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; packaged product version remains `0.8.1-beta.1`
+Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; Gate B and the zero-token Commands/Plan portion of Gate C are verified on the current feature branch; packaged product version remains `0.8.1-beta.1`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -27,6 +27,18 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 - Automated evidence: focused Capability Gate, Runtime Supervisor, Plan bridge, Host Care, Renderer contract and view suites passed **77/77**; full `npm test` passed **315/315**; syntax checks and `git diff --check` passed; `pnpm audit --prod --audit-level high` reported no known vulnerabilities.
 - `npm run package:test:win` produced `dist/Deep-code-Test-0.8.1-beta.1.exe`, 368,846,732 bytes, SHA-256 `37ec394811dc9d5de3afbd03e3abac8da5fd79d776d1c30b6ec7d59b8aabf0d6`. Packaged `app.asar` contains `harness-capability-gate.cjs`, `engine-capability-view.cjs`, and the guarded `plan-mode-bridge.cjs`.
 - **Human acceptance, 2026-09-13:** 砚星 confirmed both bounded checks pass in the packaged candidate. The settings Capability Gate showed the pinned Harness version, six supported items, one unavailable Plan-control item, and the image/vision boundary; one ordinary Direct task also passed through the new Session-bound admission gate. The candidate is approved for prerelease publication without repeating another Provider call.
+
+## DSH 0.1.5 compatibility Gates B and C candidate
+
+- Exact upstream evidence is fixed to official tag `dsh-v0.1.5-rc.2`, version `0.1.5-rc.2`, commit `fb2c4b9e698e30edb738bca4cf0618587db7d203`. The official worktree was installed with `pnpm@11.7.0`, built on Windows, and remained detached and clean; the user's older Desktop checkout and its logs were not modified.
+- `ManagedTypertConnection` now owns authenticated `/api/remote.mux` streams in addition to unary RPC. It correlates exact stream IDs, ignores other valid logical streams, rejects malformed or structured-error frames without exposing `details`, cancels on iterator return, and closes every stream when the connection is disposed or its generation becomes stale.
+- New `DshAdapterV2` is an intentionally unreachable candidate seam. It unwraps Typert results, validates model catalogs and Session creation, requires `$events` to begin with a complete `ready`, and requires `session/follow` to begin with a snapshot for the exact requested Session.
+- The V2 Plan path does not call `session/prompt`. It lists the Session's official commands, executes only bare `/plan` or `/plan off`, and reports a switch only after matching `command/run`, successful `command/done`, and the requested `plan/mode` event. The real Host descriptor requires `submittedAttachments`; the official in-memory fixture's `images` alias was rejected at runtime and is not used by Deep Code.
+- The V2 Decision Gate keeps a private pending-event set for each exact `$events` generation. Only an observed waterfall can be answered. Invented, cancelled, already answered, replayed, foreign-Adapter, or stale-generation event IDs fail before RPC; no raw cookie, launch token, or transport is exposed to Renderer.
+- Two real source-module runs and two packaged-module runs completed authentication, `$events ready`, model catalog, empty Session creation, exact follow snapshot, process teardown, and post-stop invalidation. The later runs also entered and exited Plan with complete structured evidence. Every run reported **0 Provider requests and 0 prompt requests**.
+- Focused V2 connection/Adapter behavior: **21/21**. Full `npm test`: **337/337**. Syntax checks and `git diff --check` passed.
+- Final local compatibility artifact: `E:\Temp\lenovo\deep-code-gate-c-final-package\Deep-code-Gate-C-Final-0.8.1-beta.1.exe`, 368,873,983 bytes, SHA-256 `fb46f94872ef45965ed251ebee8c632ea94132e19adc020798b858fdcc0489e2`. Extracted `app.asar` hashes matched source for both V2 modules, and the live smoke used those extracted packaged modules.
+- This work does **not** add `0.1.5-rc.2` to the product's usable runtime list, change the existing `0.1.1-rc.2` Adapter, migrate a user runtime, or publish an artifact. The remaining real question-waterfall, bounded model, prompt-correlation, Runtime Supervisor, and UI gates must pass first.
 
 ## v0.8.0-beta.2 Guided Workbench candidate
 
@@ -262,10 +274,10 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. The exact-tag source inventory and compatibility Gate A for official Harness `dsh-v0.1.5-rc.2` are recorded in `docs/research/DSH_0.1.5_RC2_COMPATIBILITY_LAB.md`. It is not drop-in compatible: browser authentication, unary RPC envelopes, Remote streams, and Decision Gate responses changed together.
-2. Gate A is complete behind an unreachable candidate seam. Keep the current `legacy-0.1.1` Adapter unchanged and do not add `0.1.5-rc.2` to the usable compatibility list yet.
-3. Run Gate B's isolated, zero-Provider-token handshake: authenticated `$events` ready, model catalog, empty Session creation, Session follow snapshot, process teardown, and packaged Windows repetition. Only then implement Commands/Plan and Decision Gate transport.
-4. v0.7.0 remains stable. Keep v0.8.0-beta.2 and v0.8.1-beta.1 as historical/current prerelease evidence. Do not promote the prompt-heavy v0.7.1 experiments.
+1. Gate B is complete. Commands/Plan has both behavior and real-runtime evidence; the Decision Gate correlation owner has behavior evidence only. Build a synthetic, isolated, no-model question source and prove a real `user-questions/request → $events/result` round trip plus stale replay rejection.
+2. Only after that, wire the V2 profile into Runtime Supervisor behind exact checkout identity and an explicit candidate capability profile. Keep `legacy-0.1.1` unchanged and do not add `0.1.5-rc.2` to the usable list yet.
+3. Gate D remains one bounded, explicit, low-cost model acceptance: prompt admission, durable request correlation, same-Session route, terminal, usage, and receipt must agree. Do not spend Provider tokens before all zero-token gates and product integration checks pass.
+4. v0.7.0 remains stable. Keep v0.8.0-beta.2 and v0.8.1-beta.1 as historical/current prerelease evidence. This feature branch is not a release candidate and its local executable is not a release asset.
 5. Avoid unrelated UI redesign while the V2 protocol seam is being built. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
 ## Human acceptance for v0.6.3-rc.6
