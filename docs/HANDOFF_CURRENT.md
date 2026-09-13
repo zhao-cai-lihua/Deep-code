@@ -5,7 +5,7 @@ Branch: `codex/v0.8.0-guided-workbench`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.7.1-beta.2` (do not promote)
-Current source candidate: `0.8.0-beta.2` (not published; packaged and awaiting human acceptance)
+Current source candidate: `0.8.0-beta.2` (not published; packaged and accepted for prerelease publication)
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -29,6 +29,7 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 - `npm run package:test:win` produced `dist/Deep-code-Test-0.8.0-beta.2.exe`, 368,831,147 bytes, SHA-256 `4f4df462359b2b4fed29847447039eb4119ef1c6e0838bb31139b8b528e37d9d`. Packaged `app.asar` contains the projection modules and corrected Plan bridge, contains neither Task Journey nor plugin-installer code, and contains no `/plan off` prompt literal.
 - An isolated `E:\Temp\lenovo\deep-code-v080-beta2-smoke-20260913-003609` profile kept the portable launcher's five expected Electron processes alive for six seconds. Only processes carrying that exact isolated profile were stopped afterward; Engine and Provider were not started.
 - The beta.1 local artifact is superseded and must not be published or used for acceptance because its Plan selector could create a model-visible slash-command message.
+- **Human acceptance, 2026-09-13:** 砚星 confirmed the beta.2 Direct correction passes in the real desktop app. The mode boundary and ordinary message path are accepted for prerelease publication; the remaining responsive-layout, notification, and historical Plan-projection checks stay non-blocking observations and do not justify extra Provider calls.
 
 ## Release delivery
 
