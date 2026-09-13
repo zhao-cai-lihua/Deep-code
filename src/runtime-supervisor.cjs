@@ -5,6 +5,7 @@ const { delimiter, join } = require('node:path')
 const { sanitizedEnvironment } = require('./safe-child-environment.cjs')
 const { assertHostMatchesRuntime, describeHarnessHost, inspectCompatibleRuntime } = require('./engine-trust.cjs')
 const { projectHarnessCapabilities } = require('./harness-capability-gate.cjs')
+const { redactLaunchTokens } = require('./typert-managed-connection.cjs')
 
 const LOCAL_URL = /http:\/\/127\.0\.0\.1:(\d+)/
 
@@ -55,9 +56,10 @@ class RuntimeSupervisor extends EventEmitter {
   append(stream, value) {
     for (const line of String(value).split(/\r?\n/)) {
       if (!line) continue
-      this.logs.push({ stream, line, at: new Date().toISOString() })
+      const safeLine = redactLaunchTokens(line)
+      this.logs.push({ stream, line: safeLine, at: new Date().toISOString() })
       if (this.logs.length > this.maxLogLines) this.logs.shift()
-      const match = line.match(LOCAL_URL)
+      const match = safeLine.match(LOCAL_URL)
       if (match && this.child) this.verifyManagedUrl(`http://127.0.0.1:${match[1]}`).catch(() => {})
     }
     this.emit('log', this.snapshot())
