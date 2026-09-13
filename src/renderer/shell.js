@@ -14,7 +14,7 @@ const addImagesButton = document.querySelector('#add-images')
 const imageDraftRail = document.querySelector('#image-draft-rail')
 const imageDraftStatus = document.querySelector('#image-draft-status')
 const composerHint = document.querySelector('#composer-hint')
-const taskContractButton = document.querySelector('#task-contract-button')
+const collaborationModeButton = document.querySelector('#collaboration-mode-button')
 const modelRouteButton = document.querySelector('#model-route-button')
 const modelRouteDialog = document.querySelector('#model-route-dialog')
 const modelRouteForm = document.querySelector('#model-route-form')
@@ -37,11 +37,6 @@ const receiptView = document.querySelector('#receipt-view')
 const traceView = document.querySelector('#trace-view')
 const taskViewButtons = document.querySelectorAll('[data-task-view]')
 const taskEngineStatus = document.querySelector('#task-engine-status')
-const taskJourneyRoot = document.querySelector('#task-journey')
-const taskJourneyTitle = document.querySelector('#task-journey-title')
-const taskJourneySummary = document.querySelector('#task-journey-summary')
-const taskJourneyStages = document.querySelector('#task-journey-stages')
-const taskJourneyBoundary = document.querySelector('#task-journey-boundary')
 const taskRecovery = document.querySelector('#task-recovery')
 const taskRecoveryCause = document.querySelector('#task-recovery-cause')
 const taskRecoverySafety = document.querySelector('#task-recovery-safety')
@@ -61,6 +56,7 @@ const activityTimeline = document.querySelector('#activity-timeline')
 const activityList = document.querySelector('#activity-list')
 const liveConnectionLabel = document.querySelector('#live-connection-label')
 const conversationFeed = document.querySelector('#conversation-feed')
+const loadEarlierHistoryButton = document.querySelector('#load-earlier-history')
 const jumpLatestButton = document.querySelector('#jump-latest')
 const runDetails = document.querySelector('#run-details')
 const runDetailsLabel = document.querySelector('#run-details-label')
@@ -90,7 +86,12 @@ const closeHandoffButton = document.querySelector('#close-handoff')
 const runtimeDot = document.querySelector('#runtime-dot')
 const runtimeShort = document.querySelector('#runtime-short')
 const currentRunContext = document.querySelector('#current-run-context')
-const sidebarRunPanel = document.querySelector('#sidebar-run-panel')
+const workbenchInspector = document.querySelector('#workbench-inspector')
+const toggleInspectorButton = document.querySelector('#toggle-inspector')
+const guidedPhase = document.querySelector('#guided-phase')
+const guidedMode = document.querySelector('#guided-mode')
+const guidedPlanCount = document.querySelector('#guided-plan-count')
+const guidedPlan = document.querySelector('#guided-plan')
 const currentRunState = document.querySelector('#current-run-state')
 const currentRunModel = document.querySelector('#current-run-model')
 const currentRunEvidence = document.querySelector('#current-run-evidence')
@@ -165,6 +166,8 @@ const cancelWorkspaceDialog = document.querySelector('#cancel-workspace-dialog')
 const selectWorkspaceButton = document.querySelector('#select-workspace')
 const workspaceSummary = document.querySelector('#workspace-summary')
 const settingsWorkspacePath = document.querySelector('#settings-workspace-path')
+const notificationsEnabled = document.querySelector('#notifications-enabled')
+const notificationSettingStatus = document.querySelector('#notification-setting-status')
 const openWorkspaceButton = document.querySelector('#open-workspace')
 const explainProjectButton = document.querySelector('#explain-project')
 const ecosystemEnabled = document.querySelector('#ecosystem-enabled')
@@ -201,6 +204,7 @@ let workbench = { threads: [], activeThreadId: '' }
 const workbenchRefreshGate = window.DeepCodeWorkbenchRefreshGate.createWorkbenchRefreshGate()
 const runLatestWorkbenchRequest = window.DeepCodeWorkbenchRefreshGate.runLatestWorkbenchRequest
 const composerDraftState = window.DeepCodeComposerDraftState.createComposerDraftState('new-task')
+const historyCache = new Map()
 
 function composerTextScope(snapshot = workbench) {
   return String(snapshot?.activeThreadId || 'new-task')
@@ -238,17 +242,6 @@ const conversationMessageView = window.DeepCodeConversationMessageView.createCon
   renderMarkdown: (container, source) => window.deepCodeMarkdown.renderInto(container, source),
   copyText: (value) => window.desktopHost.copyText(value),
   formatImageBytes: imageBytes
-})
-const taskJourneyView = window.DeepCodeTaskJourneyView.createTaskJourneyView({
-  document,
-  elements: {
-    root: taskJourneyRoot,
-    title: taskJourneyTitle,
-    summary: taskJourneySummary,
-    stages: taskJourneyStages,
-    boundary: taskJourneyBoundary
-  },
-  onStageAction: runTaskJourneyAction
 })
 const taskEvidenceView = window.DeepCodeTaskEvidenceView.createTaskEvidenceView({
   document,
@@ -291,19 +284,34 @@ const taskEvidenceView = window.DeepCodeTaskEvidenceView.createTaskEvidenceView(
   onEvidenceTarget: openTaskEvidenceTarget
 })
 let imageDrafts = []
-let workspaceDialogTrigger = workspaceButton
+let workspaceDialogTrigger
 let modelCatalog = { current: null, groups: [] }
 let manualModelSelection = null
-let newTaskContractEnabled = true
 
-function renderTaskContractChoice() {
-  const continuing = Boolean(activeThread())
-  taskContractButton.classList.toggle('hidden', continuing)
-  taskContractButton.setAttribute('aria-pressed', String(newTaskContractEnabled))
-  taskContractButton.textContent = newTaskContractEnabled ? '协作：清晰推进' : '协作：原样发送'
-  taskContractButton.title = newTaskContractEnabled
-    ? '新任务首条消息会附带公开的清晰推进协议，并显示证据绑定的任务路线；点击可改为原样发送。'
-    : '新任务将原样发送；点击可恢复可核验协作约定。'
+function effectiveCollaborationMode() {
+  return activeThread()?.guidedWorkbench?.collaborationMode?.id === 'plan' ? 'plan' : 'direct'
+}
+
+function mergedAgentMessages(thread) {
+  const cached = historyCache.get(thread.sessionId)
+  const combined = [...(cached?.messages || []), ...(thread.agent?.messages || [])]
+  const seen = new Set()
+  return combined.filter((message) => {
+    const key = `${message.seq}:${message.role}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(-800)
+}
+
+function renderCollaborationModeChoice() {
+  const mode = effectiveCollaborationMode()
+  const pending = activeThread()?.guidedWorkbench?.collaborationMode?.pending
+  collaborationModeButton.setAttribute('aria-pressed', String(mode === 'plan'))
+  collaborationModeButton.textContent = `模式：${mode === 'plan' ? 'Plan（Harness）' : 'Direct'}${pending ? '（确认中）' : ''}`
+  collaborationModeButton.title = mode === 'plan'
+    ? '这个 Session 的结构化证据显示 Harness 已处于 Plan；当前远程接口不支持在 Deep Code 内切换。'
+    : '当前 Engine 只开放可验证的 Direct 模式；Deep Code 不会把 /plan 当作普通消息发送。'
 }
 let modelConnectionState = { activeProviders: [] }
 let selectedMemoryIds = new Set()
@@ -933,12 +941,6 @@ function runGuidanceAction(id) {
   if (id === 'new-task') startNewTask().catch((error) => { careResult.textContent = error.message; showPage('settings') })
 }
 
-function runTaskJourneyAction(id) {
-  if (id === 'task-brief') { previewHandoffButton.click(); return }
-  if (id === 'trace') { setTaskView('trace'); traceOverview.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
-  if (id === 'receipt') { setTaskView('receipt'); receiptView.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-}
-
 function openTaskEvidenceTarget(evidenceTarget) {
   setTaskView('trace')
   const target = taskEvidenceView.revealEvidenceTarget(evidenceTarget)
@@ -995,11 +997,9 @@ function renderImageDrafts() {
   imageDraftRail.classList.toggle('hidden', !imageDrafts.length)
   composerHint.textContent = imageDrafts.length
     ? `${imageDrafts.length} 张图片只在本机预览；发送后才交给当前模型。`
-    : activeThread()
-      ? '继续消息会直接发送；新手协作约定只附在新任务首条消息。'
-      : newTaskContractEnabled
-        ? '新任务会沿“对齐、推进、核验、交付”路线工作，不会额外调用模型。'
-        : '新任务将原样发送，不附加协作约定。'
+    : effectiveCollaborationMode() === 'plan'
+      ? 'Harness 已投影 Plan 状态；Deep Code 只展示证据，不经普通消息通道切换模式。'
+      : 'Direct 会把你的原话直接交给 Harness，不附加隐藏的模式消息。'
   for (const draft of imageDrafts) {
     const card = document.createElement('figure')
     card.className = 'image-draft'
@@ -1176,10 +1176,10 @@ function renderDecisionGate(thread, interaction) {
   return card
 }
 
-function renderLiveState(thread) {
+function renderLiveState(thread, { preserveDecisionGate = false } = {}) {
   const live = thread.agent?.live
   const interactions = live?.interactions || []
-  decisionGates.replaceChildren(...interactions.map((interaction) => renderDecisionGate(thread, interaction)))
+  if (!preserveDecisionGate) decisionGates.replaceChildren(...interactions.map((interaction) => renderDecisionGate(thread, interaction)))
   const activities = live?.activities || []
   activityTimeline.classList.toggle('hidden', !activities.length && !live?.error)
   liveConnectionLabel.textContent = ({
@@ -1216,7 +1216,7 @@ function renderLiveState(thread) {
 
 function renderRunContext(thread) {
   const run = thread?.run
-  sidebarRunPanel.classList.toggle('hidden', !thread)
+  workbenchInspector.classList.toggle('hidden', !thread)
   currentRunContext.classList.toggle('hidden', !run)
   if (!run) return
   currentRunState.textContent = run.label
@@ -1239,9 +1239,61 @@ function renderRunContext(thread) {
   currentRunUsage.textContent = run.usage?.available ? run.usage.label : (run.usage?.label || '本轮用量未知。')
 }
 
+function renderGuidedInspector(thread) {
+  const guided = thread?.guidedWorkbench
+  const liveValues = thread?.agent?.live?.projections?.values || {}
+  guidedPlan.replaceChildren()
+  if (!guided) {
+    guidedPhase.textContent = '准备任务'
+    guidedMode.textContent = 'Direct'
+    guidedPlanCount.textContent = '未提供'
+    return
+  }
+  guidedPhase.textContent = guided.phase?.label || '状态待确认'
+  const planMode = liveValues.plan || guided.collaborationMode
+  guidedMode.textContent = `${planMode?.active || planMode?.id === 'plan' ? 'Plan' : 'Direct'}${planMode?.pending ? ' · Harness 确认中' : ''}`
+  const items = Array.isArray(liveValues.todos) ? liveValues.todos : (Array.isArray(guided.plan?.items) ? guided.plan.items : [])
+  guidedPlanCount.textContent = items.length ? `${items.length} 项` : '未提供'
+  for (const item of items) {
+    const row = document.createElement('li')
+    row.dataset.state = item.status
+    row.textContent = item.content
+    guidedPlan.append(row)
+  }
+}
+
+function applyLiveWorkbenchPatch(patch) {
+  const thread = activeThread()
+  if (!thread || patch?.version !== 1
+    || patch.taskId !== thread.id
+    || patch.sessionId !== thread.sessionId
+    || patch.generation !== thread.agent?.liveGeneration) return false
+  thread.agent.live = patch.live
+  renderLiveState(thread, { preserveDecisionGate: true })
+  renderGuidedInspector(thread)
+  const previousDraft = conversationFeed.querySelector('.message-bubble.live-draft')
+  if (previousDraft) previousDraft.remove()
+  const draft = patch.live?.draft
+  if (draft?.text) {
+    const followLatest = window.deepCodeReading.shouldFollow(mainPanel)
+    conversationFeed.append(conversationMessageView.render({ role: 'assistant', text: draft.text, draft: true, truncated: draft.truncated }))
+    if (followLatest) mainPanel.scrollTop = mainPanel.scrollHeight
+  }
+  const usage = patch.live?.projections?.values?.tokenUsage
+  const pressure = patch.live?.projections?.values?.contextPressure
+  if (usage) {
+    const total = usage.uncachedInputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens
+    const percent = Number.isFinite(pressure?.projectedTokens) && Number.isFinite(pressure?.contextWindow)
+      ? ` · 上下文约 ${Math.round((pressure.projectedTokens / pressure.contextWindow) * 1000) / 10}%`
+      : ''
+    currentRunUsage.textContent = `Session ${total} tokens${percent} · 金额不可核对`
+  }
+  return true
+}
+
 function renderWorkbench() {
   const selectedThreadId = workbench.activeThreadId || ''
-  renderTaskContractChoice()
+  renderCollaborationModeChoice()
   if (lastRenderedThreadId) captureTaskViewState(lastRenderedThreadId)
   if (selectedThreadId !== lastRenderedThreadId && handoffDialog.open) handoffDialog.close()
   const scrollPlan = workbenchPage.classList.contains('is-active')
@@ -1278,6 +1330,7 @@ function renderWorkbench() {
   }
   const thread = activeThread()
   renderRunContext(thread)
+  renderGuidedInspector(thread)
   taskViewTabs.classList.toggle('hidden', !thread)
   workbenchHeading.textContent = thread?.title || '今天要推进什么？'
   emptyTask.classList.toggle('hidden', Boolean(thread))
@@ -1287,7 +1340,10 @@ function renderWorkbench() {
     activeTaskWorkspace.textContent = thread.workspacePath ? `此任务的项目：${thread.workspacePath}` : '此任务尚未记录项目。'
     activeTaskWorkspace.title = thread.workspacePath || ''
     useTaskWorkspaceButton.classList.toggle('hidden', !thread.workspacePath || thread.workspacePath === currentWorkspacePath)
-    const agentMessages = thread.agent?.messages || []
+    const agentMessages = mergedAgentMessages(thread)
+    const cachedHistory = historyCache.get(thread.sessionId)
+    const hasEarlier = cachedHistory ? cachedHistory.hasMore : Boolean(thread.agent?.hasMore)
+    loadEarlierHistoryButton.classList.toggle('hidden', !hasEarlier || agentMessages.length >= 800)
     const hasHumanMessage = agentMessages.some((message) => message.role === 'user')
     activeTaskPrompt.classList.toggle('hidden', hasHumanMessage)
     activeTaskPrompt.textContent = thread.prompt
@@ -1341,10 +1397,9 @@ function renderWorkbench() {
       conversationFeed.append(conversationMessageView.render({ role: 'assistant', text: draft.text, draft: true, truncated: draft.truncated }))
     }
     taskEvidenceView.render(thread)
-    taskJourneyView.render(thread.journey)
     restoreTaskViewState(selectedThreadId)
   } else {
-    taskJourneyView.render({ visible: false })
+    loadEarlierHistoryButton.classList.add('hidden')
     decisionGates.replaceChildren()
     activityList.replaceChildren()
     activityTimeline.classList.add('hidden')
@@ -1363,6 +1418,40 @@ function renderWorkbench() {
     updateJumpLatest()
   })
 }
+
+loadEarlierHistoryButton.addEventListener('click', async () => {
+  const thread = activeThread()
+  if (!thread?.sessionId) return
+  const cached = historyCache.get(thread.sessionId)
+  const beforeSeq = cached?.beforeSeq ?? thread.agent?.historyBeforeSeq
+  if (!Number.isInteger(beforeSeq)) return
+  const taskId = thread.id
+  const sessionId = thread.sessionId
+  const generation = thread.agent?.liveGeneration
+  const previousHeight = mainPanel.scrollHeight
+  loadEarlierHistoryButton.disabled = true
+  try {
+    const page = await window.desktopHost.loadEarlierHistory(taskId, beforeSeq)
+    const visible = activeThread()
+    if (visible?.id !== taskId || visible?.sessionId !== sessionId || visible?.agent?.liveGeneration !== generation) return
+    const current = historyCache.get(sessionId)
+    const messages = [...(page.messages || []), ...(current?.messages || [])]
+    historyCache.set(sessionId, { messages, beforeSeq: page.beforeSeq, hasMore: page.hasMore })
+    renderWorkbench()
+    mainPanel.scrollTop += mainPanel.scrollHeight - previousHeight
+  } catch (error) {
+    taskEngineStatus.textContent = `没有加载更早对话：${error.message}`
+    taskEngineStatus.dataset.state = 'error'
+  } finally {
+    loadEarlierHistoryButton.disabled = false
+  }
+})
+
+toggleInspectorButton.addEventListener('click', () => {
+  const collapsed = workbenchInspector.classList.toggle('is-collapsed')
+  toggleInspectorButton.textContent = collapsed ? '展开' : '收起'
+  toggleInspectorButton.setAttribute('aria-expanded', String(!collapsed))
+})
 
 async function refreshWorkbench() {
   const current = activeThread()
@@ -1385,10 +1474,10 @@ async function createTask() {
     modelRouteButton.disabled = true
     const thread = activeThread()
     const attachmentIds = imageDrafts.map((draft) => draft.id)
-    const routing = { manualSelection: manualModelSelection }
+    const routing = { manualSelection: manualModelSelection, collaborationMode: effectiveCollaborationMode() }
     const nextWorkbench = thread?.sessionId
       ? await window.desktopHost.sendMessage(thread.id, prompt, attachmentIds, routing)
-      : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds, routing, useTaskContract: newTaskContractEnabled })
+      : await window.desktopHost.createTask({ prompt, attachmentScope: composerScope(), attachmentIds, routing, collaborationMode: effectiveCollaborationMode(), useTaskContract: false })
     replaceWorkbench(nextWorkbench)
     composerDraftState.clear(sourceComposerScope)
     composerDraftState.clear(composerTextScope())
@@ -1455,11 +1544,6 @@ newTaskButton.addEventListener('click', () => startNewTask().catch((error) => {
   showPage('settings')
 }))
 createTaskButton.addEventListener('click', createTask)
-taskContractButton.addEventListener('click', () => {
-  newTaskContractEnabled = !newTaskContractEnabled
-  renderTaskContractChoice()
-  renderImageDrafts()
-})
 addImagesButton.addEventListener('click', async () => {
   addImagesButton.disabled = true
   try {
@@ -1475,6 +1559,18 @@ ecosystemEnabled.addEventListener('change', async () => {
   ecosystemSource.textContent = ecosystemEnabled.checked ? '正在读取 GitHub 的公开 topic 元数据…' : '正在关闭生态发现…'
   try { renderEcosystem(await window.desktopHost.setEcosystemEnabled(ecosystemEnabled.checked)) } catch (error) { ecosystemSource.textContent = `无法更新设置：${error.message}` }
   finally { ecosystemEnabled.disabled = false }
+})
+notificationsEnabled.addEventListener('change', async () => {
+  notificationsEnabled.disabled = true
+  try {
+    const result = await window.desktopHost.setNotificationsEnabled(notificationsEnabled.checked)
+    notificationsEnabled.checked = result.notificationsEnabled
+    notificationSettingStatus.textContent = result.notificationsEnabled
+      ? '已开启。只有窗口不在前台时才会提醒。'
+      : '已关闭。任务状态仍会保留在 Deep code 中。'
+  } catch (error) {
+    notificationSettingStatus.textContent = `没有保存：${error.message}`
+  } finally { notificationsEnabled.disabled = false }
 })
 refreshEcosystemButton.addEventListener('click', async () => {
   refreshEcosystemButton.disabled = true
@@ -1947,6 +2043,9 @@ window.desktopHost.onStatus(renderRuntime)
 window.desktopHost.onWorkbenchChanged(() => {
   refreshWorkbench().catch((error) => { careResult.textContent = error.message })
 })
+window.desktopHost.onLiveWorkbenchPatch((patch) => {
+  applyLiveWorkbenchPatch(patch)
+})
 window.desktopHost.onSetupProgress((line) => {
   if (!line) return
   setupProgress.textContent = `${setupProgress.textContent}\n${line}`.trim()
@@ -1956,6 +2055,9 @@ window.desktopHost.status().then((status) => {
   renderRuntime(status)
   if (!status.runtimePath) showPage('setup')
 })
+window.desktopHost.preferences().then((value) => {
+  notificationsEnabled.checked = value.notificationsEnabled === true
+}).catch((error) => { notificationSettingStatus.textContent = `无法读取通知设置：${error.message}` })
 refreshWorkbench().then(() => syncImageDrafts()).catch((error) => { careResult.textContent = error.message })
 refreshWorkspace().catch((error) => { careResult.textContent = error.message })
 refreshEcosystemStatus().catch((error) => { ecosystemSource.textContent = error.message })
@@ -1964,7 +2066,8 @@ refreshControlCenter().catch((error) => { controlSkillStatus.textContent = error
 setInterval(async () => {
   const thread = activeThread()
   if (!thread?.sessionId || !['queued', 'running'].includes(thread.engineState)) return
-  // 等待你的回答时暂停自动刷新；否则整棵 Decision Gate DOM 会被替换，已选选项和输入文字会丢失。
+  // Durable reconciliation is deliberately low-frequency; WebSocket patches own live feedback.
+  // Waiting interactions remain untouched so typed answers cannot be replaced.
   if (thread.agent?.live?.interactions?.length) return
   try { await refreshWorkbench() } catch { /* Keep the last readable state visible. */ }
-}, 1500)
+}, 15000)

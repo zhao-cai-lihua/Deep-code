@@ -79,6 +79,34 @@ test('drops session-scoped frames without the exact active session id', () => {
   live.close()
 })
 
+test('projects only validated same-session Harness projection frames', () => {
+  const { live } = makeLive()
+  live.seedProjections({
+    asOfSeq: 6,
+    values: { plan: { active: false, pending: false }, tokenUsage: {
+      uncachedInputTokens: 10, outputTokens: 2, cacheReadTokens: 20, cacheWriteTokens: 1
+    } }
+  })
+  live.receive(envelope('projection-new', {
+    type: 'session/projection', sessionId: 'session-1', key: 'plan',
+    value: { active: true, pending: false }, seq: 7
+  }))
+  live.receive(envelope('projection-foreign', {
+    type: 'session/projection', sessionId: 'session-other', key: 'plan',
+    value: { active: false, pending: false }, seq: 8
+  }))
+
+  assert.deepEqual(live.snapshot().projections, {
+    sessionId: 'session-1', asOfSeq: 7,
+    values: {
+      plan: { active: true, pending: false },
+      tokenUsage: { uncachedInputTokens: 10, outputTokens: 2, cacheReadTokens: 20, cacheWriteTokens: 1 }
+    },
+    health: { droppedSessionFrames: 1, invalidProjectionFrames: 0, unknownProjectionKeys: 0 }
+  })
+  live.close()
+})
+
 test('normalizes an approval without exposing its response rpc id', async () => {
   const { live, stream } = makeLive()
   stream.frame('secret-wire-id', {

@@ -6,15 +6,15 @@ It is an independent community client, **not** an official DeepSeek product. It 
 
 ## Download for Windows
 
-The current stable release is **v0.6.3**. Normal users do **not** need to clone the repository or run pnpm:
+The current stable release is **v0.7.0**. Normal users do **not** need to clone the repository or run pnpm:
 
-- [Download the recommended Setup installer](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.6.3/Deep.code.Setup.0.6.3.exe)
-- [Download the portable app](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.6.3/Deep.code.0.6.3.exe)
-- [View release notes and SHA-256 checksums](https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.6.3)
+- [Download the recommended Setup installer](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.7.0/Deep.code.Setup.0.7.0.exe)
+- [Download the portable app](https://github.com/zhao-cai-lihua/Deep-code/releases/download/v0.7.0/Deep.code.0.7.0.exe)
+- [View release notes and SHA-256 checksums](https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.7.0)
 
-`Deep.code.Setup.0.6.3.exe` is the recommended installer. `Deep.code.0.6.3.exe` is portable and requires no installation. GitHub normalizes spaces in the built filenames to dots.
+`Deep.code.Setup.0.7.0.exe` is the recommended installer. `Deep.code.0.7.0.exe` is portable and requires no installation. GitHub normalizes spaces in the built filenames to dots.
 
-> **Compatibility boundary:** v0.6.3 supports the pinned official Harness release `dsh-v0.1.1-rc.2` at commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`. Developer Preview updates are not silently trusted or installed until their protocol and packaged behavior have been verified.
+> **Compatibility boundary:** v0.7.0 supports the pinned official Harness release `dsh-v0.1.1-rc.2` at commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`. Developer Preview updates are not silently trusted or installed until their protocol and packaged behavior have been verified.
 
 > **Historical safety notice:** v0.6.2 remains test-only. Do not enter high-value API keys or use that old build with private data or important unbacked-up files. Its tag and assets remain available only for reproducibility. The v0.6.3 release candidates likewise remain historical prereleases; do not use rc.1, whose strict compatibility check rejected the correct pinned Harness because upstream reports a hard-coded Host marker.
 
@@ -29,7 +29,10 @@ The GitHub web page cannot browse arbitrary local folders. Run the downloaded De
 - Write-only API Key setup for providers whose active Harness settings explicitly declare a simple `apiKeyEnv`. Deep code never guesses credential names, loads previous values, or keeps an app-side copy; OAuth and complex authentication remain with their provider-specific setup.
 - An explicit real-connection check that creates a visible, ordinary task, warns that a small number of tokens may be used, and never runs as a hidden background probe.
 - Live Agent Activity from the official Harness mux stream, translated into task/tool progress without exposing private analysis or inventing a second execution history.
-- A fixed left task rail backed by one Run Projection: workspace controls, current selected model, active/waiting/completed state, plain-language outcome, and confirmed tool/file evidence stay in view while the conversation scrolls. Missing token or cost usage is stated rather than estimated.
+- A three-part Guided Workbench: projects and tasks stay on the left, the readable conversation stays in the center, and a sticky evidence inspector on the right shows Harness phase, Plan/Todos, model route, Session usage, activity, and outcome. Narrow windows can fold the inspector away.
+- Direct sends only the user's original task through `session.prompt`. Deep code can display a structured Harness Plan projection, but the pinned remote API does not expose the official command plane, so Plan switching stays disabled instead of sending `/plan` as a model-visible user message.
+- Live projection patches are coalesced for smooth updates while decisions and terminal states arrive immediately. Durable reconciliation runs at a low frequency, earlier history is paged and bounded, and every asynchronous result is fenced to its task, Session, and generation.
+- Optional native notifications appear only while the app is unfocused or minimized, are deduplicated by task Turn, and contain no prompt, path, or model-output text.
 - Explicit model and reasoning-effort controls backed by the current Harness catalog. With no manual choice Deep code preserves the Session model and effort; it never infers a task role or silently raises cost. The sidebar distinguishes the requested selection from the model/effort confirmed by the latest `request/header`.
 - Task-scoped image drafts sent through the current or explicitly selected Harness model. Deep code does not silently switch models for images; unsupported-image failures keep drafts recoverable and explain how to choose a compatible model.
 - In-workbench Decision Gates for one-shot tool approvals, plan reviews, and structured user questions. Deep code forwards the user's exact decision to Harness and never invents approval.

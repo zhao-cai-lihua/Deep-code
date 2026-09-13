@@ -75,9 +75,8 @@ class HostCare {
     return this.initializeWorkspace({ documentsPath, name })
   }
 
-  initializeWorkspace({ documentsPath, name, description = '' }) {
+  initializeWorkspace({ documentsPath, name }) {
     const cleanName = String(name || '我的安全工作区').trim().replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').slice(0, 60) || '我的安全工作区'
-    const cleanDescription = String(description || '').trim().slice(0, 500)
     const root = resolve(documentsPath, 'Deep code Workspaces')
     const target = resolve(root, cleanName)
     if (!target.startsWith(`${root}${sep}`)) throw new Error('工作区名称无效。')
@@ -100,10 +99,10 @@ class HostCare {
     const metadataDirectory = join(target, '.deep-code')
     this.makeDirectory(metadataDirectory, { recursive: true })
     const files = {
-      'README.md': `# ${cleanName}\n\n${cleanDescription || '这是由 Deep code 初始化的本地 Agent 工作区。'}\n\n## 目标\n\n在这里写下这个项目真正要完成的事情。\n\n## 使用方式\n\n- 将项目文件放在这个目录中。\n- 在 Deep code 中创建任务，再显式交给官方 Harness。\n- 提交前检查密钥、个人数据和大文件。\n`,
+      'README.md': `# ${cleanName}\n\n这是由 Deep code 初始化的本地 Agent 工作区。\n\n## 目标\n\n在这里写下这个项目真正要完成的事情。\n\n## 使用方式\n\n- 将项目文件放在这个目录中。\n- 在 Deep code 中创建任务，再显式交给官方 Harness。\n- 提交前检查密钥、个人数据和大文件。\n`,
       'AGENTS.md': `# Agent 协作约定\n\n- 只在当前工作区内读取和修改项目文件。\n- 修改前先理解现有文件与用户目标，不覆盖无关改动。\n- 对删除、覆盖、发布、联网或权限扩大保持谨慎。\n- 区分事实、推断与尚未验证的假设。\n- 完成后说明改了什么、如何验证、还有什么风险。\n`,
       '.gitignore': `# Credentials and local state\n.env\n.env.*\n*.key\n*.pem\n.deep-code/local/\n\n# Common generated output\nnode_modules/\ndist/\nout/\n*.log\n`,
-      [join('.deep-code', 'project.json')]: `${JSON.stringify({ format: 'deep-code.project/v1', name: cleanName, description: cleanDescription, createdAt: new Date().toISOString() }, null, 2)}\n`
+      [join('.deep-code', 'project.json')]: `${JSON.stringify({ format: 'deep-code.project/v1', name: cleanName, createdAt: new Date().toISOString() }, null, 2)}\n`
     }
     for (const [relativePath, content] of Object.entries(files)) this.writeText(join(target, relativePath), content, 'utf8')
     return { path: target, files: Object.keys(files), created: true, message: '已创建规范工作区与基础文档，并设为 Deep code 当前项目。' }

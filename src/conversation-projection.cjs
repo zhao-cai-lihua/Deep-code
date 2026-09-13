@@ -308,7 +308,6 @@ function projectConversation(page) {
   const runtimeContext = []
   const activities = []
   const changedFiles = []
-  const unconfirmedChanges = []
   const permissionFacts = []
   const calls = new Map()
 
@@ -388,12 +387,6 @@ function projectConversation(page) {
               changedFiles.push({ path, operation: humanFileOperation(call.name), seq: event.seq, confirmed: true })
             }
           }
-          if (!presenterPaths.length) {
-            const path = filePathFrom(call.args)
-            if (path && !unconfirmedChanges.some((item) => item.path === path)) {
-              unconfirmedChanges.push({ path, operation: humanFileOperation(call.name), seq: event.seq, confirmed: false })
-            }
-          }
         }
       }
       evidence.push({ type: event.type, seq: event.seq, detail: entry.view || data })
@@ -407,7 +400,6 @@ function projectConversation(page) {
       terminal: latestTurnTerminal(latestTurnEvents),
       permissionFacts,
       changedFiles,
-      unconfirmedChanges,
       activities,
       toolCards: activities.map(toolCardFromActivity),
       runtimeContext

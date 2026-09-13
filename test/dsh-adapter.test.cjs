@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { DshAdapter, humanizeHistory, deriveCredentialRef } = require('../src/dsh-adapter.cjs')
+const { DshAdapter, deriveCredentialRef } = require('../src/dsh-adapter.cjs')
+const { projectConversation } = require('../src/conversation-projection.cjs')
 
 test('calls only the loopback DSH RPC bridge and unwraps its result', async () => {
   let request
@@ -19,7 +20,7 @@ test('calls only the loopback DSH RPC bridge and unwraps its result', async () =
 })
 
 test('normalizes user and assistant messages while keeping tool events as evidence', () => {
-  const result = humanizeHistory({
+  const result = projectConversation({
     events: [
       { event: { seq: 1, type: 'user/message', data: { content: [{ type: 'text', text: '解释项目' }] } } },
       { event: { seq: 2, type: 'tool/call', data: { name: 'read_file' } }, view: { title: '读取 README' } },
@@ -206,16 +207,58 @@ test('projects the effective Session model without guessing token or cost data',
     engine: { kind: 'managed', version: '0.1.1-rc.2', trust: 'managed-process' }
   })
 
-  assert.deepEqual(snapshot.model, {
-    available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoningEffort: ''
-  })
-  assert.equal(snapshot.model.reasoningEffort, '')
+  assert.equal(Object.hasOwn(snapshot, 'model'), false)
   assert.deepEqual(snapshot.effectiveModel, {
     available: true, provider: 'deepseek-official', id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash',
     reasoningEffort: 'high', evidence: 'request/header'
   })
   assert.equal(snapshot.taskRunSnapshot.turn.state, 'completed')
   assert.equal(snapshot.taskRunSnapshot.route.seq, 2)
+})
+
+test('carries the Harness history projection baseline only to the main-process bridge', async () => {
+  const projections = {
+    asOfSeq: 3,
+    values: { plan: { active: true, pending: false }, unknown: { private: 'wire-only' } }
+  }
+  const adapter = new DshAdapter({ fetchImpl: async (url) => {
+    const method = url.split('/api/')[1]
+    const value = ({
+      'session.history': { events: [], hasMore: false, projections },
+      'session.list': { items: [{ sessionId: 's-projection', running: false }] },
+      'session.models': { current: {}, groups: [] }
+    })[method]
+    return { ok: true, json: async () => ({ result: { ok: true, value } }) }
+  } })
+
+  const snapshot = await adapter.snapshot({
+    baseUrl: 'http://127.0.0.1:4321', sessionId: 's-projection',
+    engine: { kind: 'managed', version: '0.1.1-rc.2', trust: 'managed-process' }
+  })
+  assert.deepEqual(snapshot.projectionBaseline, projections)
+})
+
+test('loads an older history page through beforeSeq and returns only normalized product data', async () => {
+  let request
+  const adapter = new DshAdapter({ fetchImpl: async (_url, init) => {
+    request = JSON.parse(init.body)
+    return { ok: true, json: async () => ({ result: { ok: true, value: {
+      events: [
+        { event: { seq: 2, type: 'user/message', data: { content: [{ type: 'text', text: '更早的问题' }] } } },
+        { event: { seq: 3, type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '更早的回答' }] } } } }
+      ],
+      hasMore: true
+    } } }) }
+  } })
+  const page = await adapter.historyPage({ baseUrl: 'http://127.0.0.1:4321', sessionId: 's-history', beforeSeq: 8 })
+  assert.deepEqual(request.payload, { sessionId: 's-history', beforeSeq: 8, maxMessages: 80 })
+  assert.deepEqual(page.messages.map(({ role, text, seq }) => ({ role, text, seq })), [
+    { role: 'user', text: '更早的问题', seq: 2 },
+    { role: 'assistant', text: '更早的回答', seq: 3 }
+  ])
+  assert.equal(page.beforeSeq, 2)
+  assert.equal(page.hasMore, true)
+  assert.equal(Object.hasOwn(page, 'evidence'), false)
 })
 
 function rpcFetch(responses) {

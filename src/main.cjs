@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, clipboard, dialog, nativeImage, protocol, session, shell } = require('electron')
+const { app, BrowserWindow, Menu, Notification, clipboard, dialog, nativeImage, protocol, session, shell } = require('electron')
 const { existsSync, readFileSync, writeFileSync } = require('node:fs')
 const { readFile } = require('node:fs/promises')
 const { join } = require('node:path')
@@ -16,6 +16,8 @@ const { normalizeExternalUrl } = require('./external-links.cjs')
 const { projectTaskOutcome } = require('./task-outcome-projection.cjs')
 const { isAllowedAppNavigation } = require('./navigation-policy.cjs')
 const { projectTaskRun } = require('./run-projection.cjs')
+const { projectGuidedWorkbench } = require('./guided-workbench-projection.cjs')
+const { selectCollaborationMode } = require('./plan-mode-bridge.cjs')
 const { ImageDraftStore } = require('./image-draft-store.cjs')
 const { EcosystemCatalog } = require('./ecosystem-catalog.cjs')
 const { chooseModelRoute } = require('./model-router.cjs')
@@ -25,12 +27,13 @@ const { composeMemoryContext, previewMemoryRetrieval } = require('./memory-retri
 const { projectModelConnectionWithHistory, projectModelServices } = require('./model-service-projection.cjs')
 const { projectModelVerificationReceipt } = require('./model-verification-receipt.cjs')
 const { projectTaskGuidance } = require('./task-guidance-projection.cjs')
-const { projectTaskJourney } = require('./task-journey-projection.cjs')
 const { acquireSingleInstance } = require('./single-instance.cjs')
 const { stopAndDeleteTask } = require('./task-lifecycle.cjs')
 const { projectConfirmedBaselineChanges } = require('./baseline-change-projection.cjs')
 const { assertCurrentTaskTarget } = require('./task-target-guard.cjs')
 const { projectInteractionTimeout } = require('./interaction-timeout-projection.cjs')
+const { createLivePatchCoalescer, createLiveWorkbenchPatch } = require('./live-workbench-patch.cjs')
+const { NotificationTransitionTracker } = require('./notification-transition.cjs')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deep-code-image',
@@ -47,25 +50,51 @@ let settings
 let workbench
 let setupAssistant
 let liveSession
+let liveGeneration = 0
+let livePatchCoalescer
 let imageDrafts
 let ecosystemCatalog
 let memoryStore
+const notificationTransitions = new NotificationTransitionTracker()
 const requestedModelRoutes = new Map()
 const hasSingleInstanceLock = acquireSingleInstance({ app, getWindow: () => mainWindow })
 
 function closeLiveSession() {
   if (liveSession) liveSession.close()
   liveSession = null
+  if (livePatchCoalescer) livePatchCoalescer.close()
+  livePatchCoalescer = null
 }
 
 function ensureLiveSession(baseUrl, sessionId) {
   if (liveSession?.baseUrl === baseUrl && liveSession?.sessionId === sessionId && !liveSession.closed) return liveSession
   closeLiveSession()
+  const generation = ++liveGeneration
+  livePatchCoalescer = createLivePatchCoalescer({ emit: (patch) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.webContents.send('workbench:live-patch', patch)
+  } })
   liveSession = new DshLiveSession({
     baseUrl,
     sessionId,
-    onInteractionTimeout: handleInteractionTimeout
+    onInteractionTimeout: handleInteractionTimeout,
+    onChange: (urgency) => {
+      const snapshot = workbench?.snapshot()
+      const thread = snapshot?.threads?.find((item) => item.id === snapshot.activeThreadId)
+      if (!thread || thread.sessionId !== sessionId || !liveSession) return
+      livePatchCoalescer.push(createLiveWorkbenchPatch({
+        taskId: thread.id,
+        sessionId,
+        generation,
+        live: liveSession.snapshot()
+      }), urgency)
+      if (urgency === 'decision' || urgency === 'terminal' || urgency === 'error') {
+        publishWorkbenchChanged()
+        workbenchSnapshot().catch(() => { /* Durable polling remains the fallback if a critical refresh fails. */ })
+      }
+    }
   }).start()
+  liveSession.generation = generation
   return liveSession
 }
 
@@ -98,13 +127,40 @@ function settingsPath() {
 }
 
 function readSettings() {
-  try { return JSON.parse(readFileSync(settingsPath(), 'utf8')) } catch { return { runtimePath: process.env.DSH_RUNTIME_PATH || '' } }
+  const defaults = { runtimePath: process.env.DSH_RUNTIME_PATH || '', notificationsEnabled: true }
+  try { return { ...defaults, ...JSON.parse(readFileSync(settingsPath(), 'utf8')) } } catch { return defaults }
 }
 
 function saveSettings(next) {
   settings = { ...settings, ...next }
   writeFileSync(settingsPath(), JSON.stringify(settings, null, 2), 'utf8')
   return settings
+}
+
+function observeNotifications(snapshot) {
+  const events = notificationTransitions.observe(snapshot)
+  if (settings.notificationsEnabled !== true || !Notification.isSupported()) return snapshot
+  if (!mainWindow || mainWindow.isDestroyed() || (mainWindow.isFocused() && !mainWindow.isMinimized())) return snapshot
+  const copy = {
+    waiting: ['Deep code 需要你的决定', '打开 Deep code 查看问题并继续。'],
+    completed: ['Deep code 已完成这一轮', '打开 Deep code 查看工作回执。'],
+    failed: ['Deep code 这一轮没有完成', '打开 Deep code 查看原因和恢复建议。'],
+    interrupted: ['Deep code 这一轮已停止', '打开 Deep code 查看当前结果。']
+  }
+  for (const event of events) {
+    const [title, body] = copy[event.kind] || []
+    if (!title) continue
+    const notice = new Notification({ title, body, silent: true })
+    notice.on('click', () => {
+      try { workbench.select(event.taskId) } catch { /* The task may have been removed after notification. */ }
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+      publishWorkbenchChanged()
+    })
+    notice.show()
+  }
+  return snapshot
 }
 
 async function ensureEngineReady() {
@@ -116,7 +172,7 @@ async function ensureEngineReady() {
   return supervisor.waitUntilReady()
 }
 
-async function launchTask(thread, { images = [], routing = null } = {}) {
+async function launchTask(thread, { images = [], routing = null, collaborationMode = 'direct' } = {}) {
   try {
     workbench.clearRecovery(thread.id)
     if (thread.purpose?.kind === 'model-connection-test') workbench.clearVerificationReceipt(thread.id)
@@ -131,8 +187,9 @@ async function launchTask(thread, { images = [], routing = null } = {}) {
       ...(thread.sessionId ? { sessionId: thread.sessionId } : {})
     })).sessionId
     workbench.setEngineState(thread.id, { sessionId, state: 'running', notice: images.length ? undefined : '' })
-    ensureLiveSession(runtime.url, sessionId)
+    const live = ensureLiveSession(runtime.url, sessionId)
     await prepareModelRoute({ runtime, sessionId, threadId: thread.id, routing })
+    await selectCollaborationMode({ live, mode: collaborationMode })
     assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId })
     workbench.clearAdmission(thread.id)
     const taskPrompt = buildTaskPrompt({ request: thread.prompt, contract: thread.taskContract })
@@ -211,9 +268,9 @@ async function workbenchSnapshot() {
       thread.outcome = projectTaskOutcome(thread)
       thread.run = projectTaskRun(thread)
       thread.guidance = projectTaskGuidance(thread)
-      thread.journey = projectTaskJourney(thread)
+      thread.guidedWorkbench = projectGuidedWorkbench(thread)
     }
-    return offline
+    return observeNotifications(offline)
   }
   try {
     const live = ensureLiveSession(runtime.url, thread.sessionId)
@@ -223,6 +280,8 @@ async function workbenchSnapshot() {
       admission: thread.admission,
       engine: { kind: runtime.kind, version: runtime.version, trust: runtime.trust }
     })
+    live.seedProjections(thread.agent.projectionBaseline)
+    delete thread.agent.projectionBaseline
     const persistedRequest = thread.purpose?.kind === 'model-connection-test' ? thread.purpose.requestedRoute : null
     const requestedRoute = requestedModelRoutes.get(thread.id) || (persistedRequest ? {
       source: 'user', requested: persistedRequest,
@@ -258,6 +317,7 @@ async function workbenchSnapshot() {
     thread.agent.running = ['queued', 'running'].includes(projectedState)
     live.reconcileRunning(thread.agent.running)
     thread.agent.live = live.snapshot()
+    thread.agent.liveGeneration = live.generation
     const terminal = thread.agent.runDetails?.terminal
     if (!thread.verificationReceipt) {
       const verificationReceipt = projectModelVerificationReceipt(thread)
@@ -284,8 +344,8 @@ async function workbenchSnapshot() {
   thread.outcome = projectTaskOutcome(thread)
   thread.run = projectTaskRun(thread)
   thread.guidance = projectTaskGuidance(thread)
-  thread.journey = projectTaskJourney(thread)
-  return snapshot
+  thread.guidedWorkbench = projectGuidedWorkbench(thread)
+  return observeNotifications(snapshot)
 }
 
 async function modelConnectionSnapshot() {
@@ -333,13 +393,6 @@ async function writableProviderCredential(ref, { requireConfigured = false } = {
   if (provider.credential.writable !== true) throw new Error('这个凭据来自只读来源，Deep code 不会覆盖它。')
   if (requireConfigured && provider.credential.configured !== true) throw new Error('这个 Provider 当前没有可清除的 API Key。')
   return { provider, credential: provider.credential }
-}
-
-function isLocalHarnessUrl(value) {
-  try {
-    const parsed = new URL(value)
-    return parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1' && /^\d+$/.test(parsed.port)
-  } catch { return false }
 }
 
 function publishStatus() {
@@ -392,6 +445,7 @@ function createMenu() {
 if (hasSingleInstanceLock) app.whenReady().then(() => {
   settings = readSettings()
   workbench = new WorkbenchStore(join(app.getPath('userData'), 'local-tasks.json'))
+  notificationTransitions.prime(workbench.snapshot())
   imageDrafts = new ImageDraftStore({
     readFile,
     inspectImage: (data) => {
@@ -436,6 +490,11 @@ app.on('before-quit', () => {
 
 const { ipcMain } = require('electron')
 ipcMain.handle('host:status', () => ({ ...supervisor.snapshot(), runtimePath: settings.runtimePath }))
+ipcMain.handle('settings:preferences', () => ({ notificationsEnabled: settings.notificationsEnabled === true }))
+ipcMain.handle('settings:set-notifications', (_event, enabled) => {
+  saveSettings({ notificationsEnabled: enabled === true })
+  return { notificationsEnabled: settings.notificationsEnabled === true }
+})
 ipcMain.handle('host:open-external', (_event, value) => shell.openExternal(normalizeExternalUrl(value)))
 ipcMain.handle('host:copy-text', (_event, value) => {
   const text = String(value || '')
@@ -731,6 +790,14 @@ ipcMain.handle('memory:compose-preview', (_event, input) => composeMemoryContext
   maxCharacters: 3000
 }))
 ipcMain.handle('workbench:remove-image', (_event, scopeId, id) => imageDrafts.remove(imageDraftScope(scopeId), id))
+ipcMain.handle('workbench:history-page', async (_event, id, beforeSeq) => {
+  const snapshot = workbench.snapshot()
+  const thread = snapshot.threads.find((item) => item.id === String(id || ''))
+  if (!thread?.sessionId) throw new Error('这个任务没有可读取的 Engine 历史。')
+  assertCurrentTaskTarget(snapshot, { taskId: thread.id, sessionId: thread.sessionId })
+  const runtime = runningEngine()
+  return dshAdapter.historyPage({ baseUrl: runtime.url, sessionId: thread.sessionId, beforeSeq })
+})
 ipcMain.handle('workbench:create-task', async (_event, draft) => {
   const attachmentIds = Array.isArray(draft?.attachmentIds) ? draft.attachmentIds.map(String) : []
   const prompt = String(draft?.prompt || '')
@@ -740,7 +807,8 @@ ipcMain.handle('workbench:create-task', async (_event, draft) => {
   imageDrafts.moveScope(sourceScope, thread.id)
   const sent = await launchTask(thread, {
     images: imageDrafts.resolve(thread.id, attachmentIds),
-    routing: draft?.routing || null
+    routing: draft?.routing || null,
+    collaborationMode: draft?.collaborationMode === 'plan' ? 'plan' : 'direct'
   })
   if (sent) imageDrafts.clear(thread.id, attachmentIds)
   return workbenchSnapshot()
@@ -806,17 +874,18 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
   const baseline = await workspaceBaseline.capture(workspacePath)
   workbench.setWorkspaceBaseline(thread.id, { workspacePath, baseline })
   await dshAdapter.createSession({ baseUrl: runtime.url, cwd: workspacePath, sessionId: thread.sessionId })
-  ensureLiveSession(runtime.url, thread.sessionId)
+  const live = ensureLiveSession(runtime.url, thread.sessionId)
   const ids = Array.isArray(attachmentIds) ? attachmentIds.map(String) : []
   const images = imageDrafts.resolve(thread.id, ids)
   await prepareModelRoute({
     runtime,
     sessionId: thread.sessionId,
     threadId: thread.id,
-    prompt: String(text || ''),
-    images,
     routing: routing || null
   })
+  if (routing?.collaborationMode === 'plan' || routing?.collaborationMode === 'direct') {
+    await selectCollaborationMode({ live, mode: routing.collaborationMode })
+  }
   assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId: thread.sessionId })
   workbench.clearAdmission(thread.id)
   const admission = await dshAdapter.prompt({

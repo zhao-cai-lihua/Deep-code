@@ -7,7 +7,6 @@
 })(typeof globalThis === 'object' ? globalThis : this, function createMarkdownRuntime(markdownItFactory) {
   if (typeof markdownItFactory !== 'function') {
     return {
-      available: false,
       renderInto(container, source) {
         container.replaceChildren()
         container.textContent = String(source || '')
@@ -37,10 +36,6 @@
   }
 
   return {
-    available: true,
-    render(source) {
-      return markdown.render(String(source || ''))
-    },
     renderInto(container, source) {
       container.innerHTML = markdown.render(String(source || ''))
     }
