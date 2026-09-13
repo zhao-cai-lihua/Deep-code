@@ -26,7 +26,7 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 - An upstream source survey found official `master` at `c291e7961a515f6d7af9304e7fd1d257929aef26`, version `0.1.5-rc.2`, with Commands mounted in the new application Remote assembly. This is a future compatibility-lab candidate only: official Remote documentation says active Host services are not runtime-discoverable by the Client, so Deep Code will not auto-enable it. See `docs/design/HARNESS_CAPABILITY_GATE.md`.
 - Automated evidence: focused Capability Gate, Runtime Supervisor, Plan bridge, Host Care, Renderer contract and view suites passed **77/77**; full `npm test` passed **315/315**; syntax checks and `git diff --check` passed; `pnpm audit --prod --audit-level high` reported no known vulnerabilities.
 - `npm run package:test:win` produced `dist/Deep-code-Test-0.8.1-beta.1.exe`, 368,846,732 bytes, SHA-256 `37ec394811dc9d5de3afbd03e3abac8da5fd79d776d1c30b6ec7d59b8aabf0d6`. Packaged `app.asar` contains `harness-capability-gate.cjs`, `engine-capability-view.cjs`, and the guarded `plan-mode-bridge.cjs`.
-- Human acceptance is pending. No Provider call is needed for the first check: launch the packaged candidate, open “运行时与设置”, verify the capability card shows the pinned Harness version, six supported items, one unavailable Plan-control item, and the image/vision boundary. One ordinary low-cost task is sufficient to confirm that the new admission gate does not disrupt normal Direct work.
+- **Human acceptance, 2026-09-13:** 砚星 confirmed both bounded checks pass in the packaged candidate. The settings Capability Gate showed the pinned Harness version, six supported items, one unavailable Plan-control item, and the image/vision boundary; one ordinary Direct task also passed through the new Session-bound admission gate. The candidate is approved for prerelease publication without repeating another Provider call.
 
 ## v0.8.0-beta.2 Guided Workbench candidate
 
@@ -254,8 +254,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Perform the two bounded v0.8.1-beta.1 checks above. If both pass, merge the candidate through a non-draft PR and publish it as a prerelease; do not promote it to stable solely from automated evidence.
-2. Keep v0.8.0-beta.2 as the current published prerelease until the Capability Gate candidate is accepted. v0.7.0 remains stable. Do not promote v0.7.1-beta.1 or beta.2; their prompt-heavy Task Contract/Task Journey direction did not produce enough felt value and the local journey has now been removed.
+1. Merge the accepted v0.8.1-beta.1 candidate through a non-draft PR and publish it as a prerelease. After the release workflow succeeds, verify the installer, portable asset, and checksum file instead of treating a pushed tag as publication.
+2. v0.7.0 remains stable. Keep v0.8.0-beta.2 only as historical prerelease evidence after v0.8.1-beta.1 is published. Do not promote v0.7.1-beta.1 or beta.2; their prompt-heavy Task Contract/Task Journey direction did not produce enough felt value and the local journey has now been removed.
 3. The next compatibility lab may target official Harness `0.1.5-rc.2`, especially its structured Commands Remote for real Plan control. It must live behind a new exact profile and pass protocol fixtures, isolated startup, packaging, and bounded manual acceptance before replacing the current runtime. Never infer support from version number or a 2xx response.
 4. After the capability seam is accepted, decompose its settings DOM rendering from `shell.js`; avoid unrelated UI redesign. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
