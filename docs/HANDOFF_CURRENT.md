@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-13
-Branch: `codex/v0.8.1-capability-gate`
+Branch: `codex/dsh-0.1.5-compatibility-lab`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
-Current published test prerelease: `0.8.0-beta.2` (accepted correction; observe before stable promotion)
-Current source candidate: `0.8.1-beta.1` on `codex/v0.8.1-capability-gate`
+Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
+Current source baseline: `0.8.1-beta.1` merged on `main` at `f56c3fd7ea499a6c48e76a93ec07f5201b3dd6df`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -46,6 +46,10 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 
 ## Release delivery
 
+- v0.8.1-beta.1 was merged through non-draft PR #18 and published as a non-draft prerelease on 2026-09-13: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.8.1-beta.1. PR regression run `34757128770`, merged-main regression run `34757206850`, release-notes PR #19 run `34757342273`, later merged-main run `34757406405`, and Windows release run `34757463201` all succeeded with 315 tests. The release workflow validated tag/version, rebuilt both compressed Windows targets, generated checksums, and uploaded all assets.
+- `Deep code 0.8.1-beta.1.exe`: 100,579,265 bytes; GitHub SHA-256 `504a9e91158b30c55339f4052480787a7c9ba6df45a0f9aa437f63b918314a85`.
+- `Deep code Setup 0.8.1-beta.1.exe`: 100,802,671 bytes; GitHub SHA-256 `5fc2355971586aa21850dd8d3bd77e9fb50f4dd8c4839dfe29b3a7a4cd79e114`.
+- `SHA256SUMS.txt`: 194 bytes. v0.8.1-beta.1 remains a prerelease; stable v0.7.0 is unchanged.
 - v0.8.0-beta.2 was merged through non-draft PR #16 at `43cbf8936e17e18b22749744adf1c2bab39e5e0d` and published as a non-draft prerelease on 2026-09-13: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.8.0-beta.2. PR regression run `34746772843`, merged-main regression run `34746827846`, and Windows release run `34746844109` all completed successfully with 302 tests; the release workflow also validated tag/version, rebuilt both compressed Windows targets, generated checksums, and uploaded all assets.
 - `Deep.code.0.8.0-beta.2.exe`: 100,576,305 bytes; GitHub SHA-256 `351f85f809275cbaf3869711faf9878b201dde3175c54e71257b71c02ebcd3c6`.
 - `Deep.code.Setup.0.8.0-beta.2.exe`: 100,799,707 bytes; GitHub SHA-256 `75bff94395d011a3330d88a214aebf6d89049b734799094fc335284b9b62338b`.
@@ -173,6 +177,9 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Automated baseline
 
+- DSH 0.1.5 compatibility Gate A focused suite: **21 passed, 0 failed** on 2026-09-13. It proves exact candidate identity, pre-log token redaction, loopback-only launch parsing, one-time token-to-cookie exchange, correlated slash-endpoint RPC (including `$events/result`) with Typert `{ args: ... }`, legacy dot-endpoint rejection, secret-free snapshots, and generation/disposal invalidation. All HTTP behavior is fake-transport evidence; no official Engine or Provider was started.
+- Gate A full `npm test`: **325 passed, 0 failed** on 2026-09-13. JavaScript syntax checks and `git diff --check` passed. The current `0.1.1-rc.2` runtime selection and Adapter remain unchanged; `0.1.5-rc.2` is still an unusable candidate rather than a compatibility claim.
+- Gate A `npm run package:test:win` produced `dist/Deep-code-Test-0.8.1-beta.1.exe`, 368,853,998 bytes, SHA-256 `0df983ccb386a5b481179ef78b2b73abc7727ec951169f2480df5b7c04ac1048`. Packaged `app.asar` contains `typert-managed-connection.cjs` and the updated `runtime-supervisor.cjs`. An unpacked packaged app kept four expected `Deep code.exe` processes alive for eight seconds under the isolated `E:\Temp\lenovo\deep-code-v081-gate-a-smoke-20260913` profile; only those exact processes were stopped. Engine and Provider were not started.
 - Projection-integrity focused suite: **59 passed, 0 failed** on 2026-09-11. Behavior tests prove that a technical Evidence Map link opens both disclosure layers, a completed Turn with a failed tool receives one non-contradictory Run Projection summary, the View cannot override a supplied `run.trace` with conflicting raw fields, an unconfirmed stop remains unknown, and later matching terminal evidence supersedes a stale recovery marker.
 - Projection-integrity full `npm test`: **275 passed, 0 failed** on 2026-09-11. Both follow-up review axes confirmed their P1 findings closed and found no new scope or standards defect in the narrow correction.
 - Projection-integrity `npm run package:test:win` completed and produced `dist/Deep-code-Test-0.6.3.exe`, 368,793,483 bytes, local SHA-256 `436056f1772c4ee940d477cb7af044061c40e74785e7d491c5e762b3d6212d03`. This is an uncompressed local test artifact, not a v0.7.0 release asset.
@@ -254,10 +261,11 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 ## Next bounded work
 
-1. Merge the accepted v0.8.1-beta.1 candidate through a non-draft PR and publish it as a prerelease. After the release workflow succeeds, verify the installer, portable asset, and checksum file instead of treating a pushed tag as publication.
-2. v0.7.0 remains stable. Keep v0.8.0-beta.2 only as historical prerelease evidence after v0.8.1-beta.1 is published. Do not promote v0.7.1-beta.1 or beta.2; their prompt-heavy Task Contract/Task Journey direction did not produce enough felt value and the local journey has now been removed.
-3. The next compatibility lab may target official Harness `0.1.5-rc.2`, especially its structured Commands Remote for real Plan control. It must live behind a new exact profile and pass protocol fixtures, isolated startup, packaging, and bounded manual acceptance before replacing the current runtime. Never infer support from version number or a 2xx response.
-4. After the capability seam is accepted, decompose its settings DOM rendering from `shell.js`; avoid unrelated UI redesign. Do not retroactively create receipts for tasks that did not persist a structured requested route. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
+1. The exact-tag source inventory and compatibility Gate A for official Harness `dsh-v0.1.5-rc.2` are recorded in `docs/research/DSH_0.1.5_RC2_COMPATIBILITY_LAB.md`. It is not drop-in compatible: browser authentication, unary RPC envelopes, Remote streams, and Decision Gate responses changed together.
+2. Gate A is complete behind an unreachable candidate seam. Keep the current `legacy-0.1.1` Adapter unchanged and do not add `0.1.5-rc.2` to the usable compatibility list yet.
+3. Run Gate B's isolated, zero-Provider-token handshake: authenticated `$events` ready, model catalog, empty Session creation, Session follow snapshot, process teardown, and packaged Windows repetition. Only then implement Commands/Plan and Decision Gate transport.
+4. v0.7.0 remains stable. Keep v0.8.0-beta.2 and v0.8.1-beta.1 as historical/current prerelease evidence. Do not promote the prompt-heavy v0.7.1 experiments.
+5. Avoid unrelated UI redesign while the V2 protocol seam is being built. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 
 ## Human acceptance for v0.6.3-rc.6
 

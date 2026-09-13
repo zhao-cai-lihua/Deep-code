@@ -3,6 +3,15 @@ const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
 const { RuntimeSupervisor, resolveHarnessEntrypoint, resolveNodeExecutable } = require('../src/runtime-supervisor.cjs')
 
+test('redacts a future Harness launch token before output enters Engine diagnostics', () => {
+  const supervisor = new RuntimeSupervisor()
+  supervisor.append('stdout', 'dsh web: http://127.0.0.1:49152/?token=runtime-log-canary')
+
+  const serialized = JSON.stringify(supervisor.snapshot().logs)
+  assert.match(serialized, /token=\[redacted\]/)
+  assert.doesNotMatch(serialized, /runtime-log-canary/)
+})
+
 function fakeChild() {
   const child = new EventEmitter()
   child.stdout = new EventEmitter()
