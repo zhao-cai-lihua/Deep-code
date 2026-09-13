@@ -349,7 +349,9 @@ test('the composer exposes explicit model selection while Harness remains select
 
 test('guided workbench exposes Harness Plan evidence without offering an unverified remote control', () => {
   assert.match(html, /id="collaboration-mode-button"[^>]+disabled/)
-  assert.match(html, /当前 Engine 仅开放 Direct/)
+  assert.match(html, /id="engine-capability-list"/)
+  assert.match(html, /engine-capability-view\.cjs/)
+  assert.match(shell, /planControl\?\.reason/)
   assert.match(html, /id="workbench-inspector"/)
   assert.match(html, /id="guided-plan"/)
   assert.match(shell, /effectiveCollaborationMode/)

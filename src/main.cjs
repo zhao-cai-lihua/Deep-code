@@ -18,6 +18,7 @@ const { isAllowedAppNavigation } = require('./navigation-policy.cjs')
 const { projectTaskRun } = require('./run-projection.cjs')
 const { projectGuidedWorkbench } = require('./guided-workbench-projection.cjs')
 const { selectCollaborationMode } = require('./plan-mode-bridge.cjs')
+const { assertCapabilityAvailable, bindCapabilitiesToSession } = require('./harness-capability-gate.cjs')
 const { ImageDraftStore } = require('./image-draft-store.cjs')
 const { EcosystemCatalog } = require('./ecosystem-catalog.cjs')
 const { chooseModelRoute } = require('./model-router.cjs')
@@ -188,8 +189,10 @@ async function launchTask(thread, { images = [], routing = null, collaborationMo
     })).sessionId
     workbench.setEngineState(thread.id, { sessionId, state: 'running', notice: images.length ? undefined : '' })
     const live = ensureLiveSession(runtime.url, sessionId)
+    const capabilities = bindCapabilitiesToSession(runtime.capabilities, { attached: true, id: sessionId })
+    assertCapabilityAvailable(capabilities, 'task-prompt')
     await prepareModelRoute({ runtime, sessionId, threadId: thread.id, routing })
-    await selectCollaborationMode({ live, mode: collaborationMode })
+    await selectCollaborationMode({ live, mode: collaborationMode, capabilities })
     assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId })
     workbench.clearAdmission(thread.id)
     const taskPrompt = buildTaskPrompt({ request: thread.prompt, contract: thread.taskContract })
@@ -875,6 +878,8 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
   workbench.setWorkspaceBaseline(thread.id, { workspacePath, baseline })
   await dshAdapter.createSession({ baseUrl: runtime.url, cwd: workspacePath, sessionId: thread.sessionId })
   const live = ensureLiveSession(runtime.url, thread.sessionId)
+  const capabilities = bindCapabilitiesToSession(runtime.capabilities, { attached: true, id: thread.sessionId })
+  assertCapabilityAvailable(capabilities, 'task-prompt')
   const ids = Array.isArray(attachmentIds) ? attachmentIds.map(String) : []
   const images = imageDrafts.resolve(thread.id, ids)
   await prepareModelRoute({
@@ -884,7 +889,7 @@ ipcMain.handle('workbench:send-message', async (_event, id, text, attachmentIds,
     routing: routing || null
   })
   if (routing?.collaborationMode === 'plan' || routing?.collaborationMode === 'direct') {
-    await selectCollaborationMode({ live, mode: routing.collaborationMode })
+    await selectCollaborationMode({ live, mode: routing.collaborationMode, capabilities })
   }
   assertCurrentTaskTarget(workbench.snapshot(), { taskId: thread.id, sessionId: thread.sessionId })
   workbench.clearAdmission(thread.id)

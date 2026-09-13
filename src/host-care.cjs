@@ -1,5 +1,6 @@
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs')
 const { join, resolve, sep } = require('node:path')
+const { PINNED_RUNTIME_PROFILE } = require('./harness-capability-gate.cjs')
 
 const SECRET_PATTERNS = [
   /(sk-[A-Za-z0-9_-]{8,})/g,
@@ -8,14 +9,16 @@ const SECRET_PATTERNS = [
 ]
 
 const VERIFIED_HARNESS_RELEASE = Object.freeze({
-  version: '0.1.1-rc.2',
-  revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
-  capabilities: ['durable-image-attachments', 'deepseek-vision-exp', 'websocket-event-mux']
+  version: PINNED_RUNTIME_PROFILE.version,
+  revision: PINNED_RUNTIME_PROFILE.revision,
+  capabilities: Object.freeze(Object.entries(PINNED_RUNTIME_PROFILE.capabilities)
+    .filter(([, supported]) => supported === true)
+    .map(([id]) => id))
 })
 
 function harnessCompatibility(version) {
   if (version === VERIFIED_HARNESS_RELEASE.version) {
-    return { state: 'pass', label: `已验证兼容 ${version}`, detail: '图片路由与实时 WebSocket 契约均已通过 Deep code contract tests。' }
+    return { state: 'pass', label: `已验证兼容 ${version}`, detail: '核心 Session、图片传输与实时事件契约均已通过 Deep Code 行为测试；具体模型是否识图仍需真实验证。' }
   }
   return {
     state: 'warn',

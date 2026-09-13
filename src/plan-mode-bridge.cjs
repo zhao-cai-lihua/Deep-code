@@ -1,8 +1,10 @@
+const { capabilityById } = require('./harness-capability-gate.cjs')
+
 function projectedPlan(live) {
   return live?.snapshot()?.projections?.values?.plan || null
 }
 
-async function selectCollaborationMode({ live, mode }) {
+async function selectCollaborationMode({ live, mode, capabilities = null }) {
   if (!['direct', 'plan'].includes(mode)) throw new Error('协作模式只能选择 Direct 或 Plan。')
   const current = projectedPlan(live)
 
@@ -13,7 +15,9 @@ async function selectCollaborationMode({ live, mode }) {
     if (current?.active === true && current.pending === false) {
       return { mode: 'plan', changed: false, confirmed: true }
     }
-    throw new Error('当前 Engine 尚未开放可验证的 Plan 模式控制接口；正式任务没有发送。请先使用 Direct。')
+    const control = capabilityById(capabilities, 'plan-control')
+    const reason = control?.reason || '当前 Engine 尚未开放可验证的 Plan 模式控制接口。'
+    throw new Error(`${reason} 正式任务没有发送。请先使用 Direct。`)
   }
 
   if (current?.active === true || current?.pending === true) {

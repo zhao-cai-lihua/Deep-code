@@ -1,6 +1,18 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { selectCollaborationMode } = require('../src/plan-mode-bridge.cjs')
+const { bindCapabilitiesToSession, projectHarnessCapabilities } = require('../src/harness-capability-gate.cjs')
+
+const engineCapabilities = projectHarnessCapabilities({
+  runtime: {
+    official: true,
+    version: '0.1.1-rc.2',
+    revision: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+    hostDescribeVersion: '0.0.1'
+  },
+  connection: { state: 'ready', kind: 'managed', trust: 'managed-process' }
+})
+const sessionCapabilities = bindCapabilitiesToSession(engineCapabilities, { attached: true })
 
 test('Direct mode never sends a hidden slash command through the user prompt channel', async () => {
   let promptCount = 0
@@ -17,8 +29,8 @@ test('Plan fails before any Session prompt when there is no verified control-pla
   const live = { snapshot: () => ({ projections: { values: { plan: { active: false, pending: false } } } }) }
 
   await assert.rejects(
-    selectCollaborationMode({ adapter, live, baseUrl: 'x', sessionId: 's', mode: 'plan' }),
-    /当前 Engine 尚未开放可验证的 Plan 模式.*正式任务没有发送/
+    selectCollaborationMode({ adapter, live, baseUrl: 'x', sessionId: 's', mode: 'plan', capabilities: sessionCapabilities }),
+    /固定版本的官方远程接口没有提供这项能力.*正式任务没有发送/
   )
   assert.equal(promptCount, 0)
 })

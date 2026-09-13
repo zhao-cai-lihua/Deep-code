@@ -113,7 +113,7 @@
                 <p id="image-draft-status" class="image-draft-status" aria-live="polite"></p>
                 <label class="sr-only" for="task-composer">描述任务</label>
                 <textarea id="task-composer" rows="3" maxlength="12000" placeholder="描述你想完成的事。可以直接说人话，不需要知道命令、端口或项目术语。"></textarea>
-                <div class="composer-footer"><span id="composer-hint">当前 Engine 仅开放 Direct；Plan 待官方远程控制接口兼容后提供。</span><div class="composer-actions"><button id="collaboration-mode-button" type="button" class="composer-tool" title="当前 Engine 只支持可验证的 Direct 模式" aria-pressed="false" disabled>模式：Direct</button><button id="model-route-button" type="button" class="composer-tool" title="选择模型与推理强度">模型：Harness 当前设置</button><button id="composer-stop" type="button" class="composer-stop hidden" title="停止当前生成">停止</button><button id="add-images" type="button" class="composer-tool" title="添加截图或图片">＋图片</button><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div></div>
+                <div class="composer-footer"><span id="composer-hint">正在核对当前 Engine 的协作能力。</span><div class="composer-actions"><button id="collaboration-mode-button" type="button" class="composer-tool" title="等待 Engine 能力检查" aria-pressed="false" disabled>模式：Direct</button><button id="model-route-button" type="button" class="composer-tool" title="选择模型与推理强度">模型：Harness 当前设置</button><button id="composer-stop" type="button" class="composer-stop hidden" title="停止当前生成">停止</button><button id="add-images" type="button" class="composer-tool" title="添加截图或图片">＋图片</button><button id="create-task" type="button" class="send-button" title="创建任务">↑</button></div></div>
               </div>
             </section>
             <aside id="workbench-inspector" class="workbench-inspector hidden" aria-label="任务检查器">
@@ -218,6 +218,11 @@
               <div class="button-row"><button id="start" type="button" class="primary-button">启动 Engine</button><button id="confirm-shared-engine" type="button" class="primary-button hidden">确认连接共享 Engine</button><button id="start-managed-engine" type="button" class="quiet-button hidden">改用 Deep Code 托管 Engine</button><button id="stop" type="button" class="danger-button">停止</button></div>
               <p id="engine-trust-note" class="credential-note">托管 Engine 会使用净化后的环境变量；桌面环境中的 API Key 不会被自动继承。</p>
             </section>
+            <section class="settings-card capability-card">
+              <div class="editor-heading"><div><h2>当前 Engine 能做什么</h2><p>只展示固定 Runtime 源码、Deep Code Adapter 与可信连接共同证明的能力。</p></div><span class="local-badge">CAPABILITY GATE</span></div>
+              <div class="runtime-status"><span id="engine-capability-dot" class="status-dot stopped"></span><div><strong id="engine-capability-title">等待可信 Engine</strong><p id="engine-capability-summary">启动并验证 Engine 后显示能力；读取这里不会调用模型。</p></div></div>
+              <div id="engine-capability-list" class="engine-capability-list" aria-live="polite"></div>
+            </section>
             <section class="settings-card model-card">
               <h2>模型连接</h2>
               <p>把 Harness 的 provider、模型目录和凭据状态翻译成人话。这里只检查状态，不读取或显示 API Key。</p>
@@ -306,6 +311,7 @@
     <script src="./provider-provisioning-flow.cjs"></script>
     <script src="./model-connection-view.cjs"></script>
     <script src="./model-services-view.cjs"></script>
+    <script src="./engine-capability-view.cjs"></script>
     <script src="./task-evidence-view.cjs"></script>
     <script src="./shell.js"></script>
   </body>

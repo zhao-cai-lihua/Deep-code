@@ -104,6 +104,10 @@ const startButton = document.querySelector('#start')
 const confirmSharedEngineButton = document.querySelector('#confirm-shared-engine')
 const startManagedEngineButton = document.querySelector('#start-managed-engine')
 const engineTrustNote = document.querySelector('#engine-trust-note')
+const engineCapabilityDot = document.querySelector('#engine-capability-dot')
+const engineCapabilityTitle = document.querySelector('#engine-capability-title')
+const engineCapabilitySummary = document.querySelector('#engine-capability-summary')
+const engineCapabilityList = document.querySelector('#engine-capability-list')
 const stopButton = document.querySelector('#stop')
 const label = document.querySelector('#status-label')
 const message = document.querySelector('#status-message')
@@ -287,6 +291,7 @@ let imageDrafts = []
 let workspaceDialogTrigger
 let modelCatalog = { current: null, groups: [] }
 let manualModelSelection = null
+let engineCapabilities = null
 
 function effectiveCollaborationMode() {
   return activeThread()?.guidedWorkbench?.collaborationMode?.id === 'plan' ? 'plan' : 'direct'
@@ -309,9 +314,10 @@ function renderCollaborationModeChoice() {
   const pending = activeThread()?.guidedWorkbench?.collaborationMode?.pending
   collaborationModeButton.setAttribute('aria-pressed', String(mode === 'plan'))
   collaborationModeButton.textContent = `模式：${mode === 'plan' ? 'Plan（Harness）' : 'Direct'}${pending ? '（确认中）' : ''}`
+  const planControl = engineCapabilities?.capabilities?.find((item) => item.id === 'plan-control')
   collaborationModeButton.title = mode === 'plan'
     ? '这个 Session 的结构化证据显示 Harness 已处于 Plan；当前远程接口不支持在 Deep Code 内切换。'
-    : '当前 Engine 只开放可验证的 Direct 模式；Deep Code 不会把 /plan 当作普通消息发送。'
+    : planControl?.reason || '等待可信 Engine 公布可验证的协作能力；Deep Code 不会把 /plan 当作普通消息发送。'
 }
 let modelConnectionState = { activeProviders: [] }
 let selectedMemoryIds = new Set()
@@ -475,6 +481,28 @@ function applyTheme(theme, persist = false) {
 
 applyTheme(preferredTheme())
 
+function renderEngineCapabilities(snapshot) {
+  const view = window.DeepCodeEngineCapabilityView.projectEngineCapabilityView(snapshot)
+  engineCapabilityDot.className = `status-dot ${view.state === 'verified' ? 'ready' : 'stopped'}`
+  engineCapabilityTitle.textContent = view.title
+  engineCapabilitySummary.textContent = view.summary
+  engineCapabilityList.replaceChildren()
+  for (const row of view.rows) {
+    const item = document.createElement('article')
+    item.className = `engine-capability-item ${row.state}`
+    const heading = document.createElement('div')
+    const name = document.createElement('strong')
+    name.textContent = row.label
+    const badge = document.createElement('span')
+    badge.textContent = row.stateLabel
+    heading.append(name, badge)
+    const detail = document.createElement('p')
+    detail.textContent = row.detail
+    item.append(heading, detail)
+    engineCapabilityList.append(item)
+  }
+}
+
 function renderRuntime(status) {
   const runtimeChanged = lastRuntimeState !== status.state
   lastRuntimeState = status.state
@@ -494,6 +522,9 @@ function renderRuntime(status) {
   engineTrustNote.textContent = status.kind === 'shared'
     ? '共享 Engine 不是由 Deep Code 启动，无法进行密码学身份认证，也无法控制它继承的环境变量。确认只适用于当前地址、版本和工作目录。'
     : '托管 Engine 会使用净化后的环境变量；桌面环境中的 API Key 不会被自动继承。请在“模型服务”中保存凭据。'
+  engineCapabilities = status.capabilities || null
+  renderEngineCapabilities(engineCapabilities)
+  renderCollaborationModeChoice()
   logs.textContent = status.logs?.length ? status.logs.map(({ stream, line }) => `[${stream}] ${line}`).join('\n') : '还没有运行日志。'
   if (runtimeChanged) refreshModelConnection().catch(() => {})
 }

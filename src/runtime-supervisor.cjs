@@ -4,6 +4,7 @@ const { spawn } = require('node:child_process')
 const { delimiter, join } = require('node:path')
 const { sanitizedEnvironment } = require('./safe-child-environment.cjs')
 const { assertHostMatchesRuntime, describeHarnessHost, inspectCompatibleRuntime } = require('./engine-trust.cjs')
+const { projectHarnessCapabilities } = require('./harness-capability-gate.cjs')
 
 const LOCAL_URL = /http:\/\/127\.0\.0\.1:(\d+)/
 
@@ -44,7 +45,7 @@ class RuntimeSupervisor extends EventEmitter {
     this.child = null
     this.sharedCandidate = null
     this.verifyingUrl = null
-    this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, kind: null, trust: null, version: null, hostDescribeVersion: null, cwd: null, message: 'Harness 未运行。' }
+    this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, kind: null, trust: null, version: null, hostDescribeVersion: null, cwd: null, capabilities: null, message: 'Harness 未运行。' }
     this.logs = []
     this.startingAt = 0
   }
@@ -63,7 +64,8 @@ class RuntimeSupervisor extends EventEmitter {
   }
 
   setStatus(next) {
-    this.status = { ...this.status, ...next }
+    const clearCapabilities = next?.state && next.state !== 'ready' && !Object.hasOwn(next, 'capabilities')
+    this.status = { ...this.status, ...(clearCapabilities ? { capabilities: null } : {}), ...next }
     this.emit('status', this.snapshot())
   }
 
@@ -133,6 +135,7 @@ class RuntimeSupervisor extends EventEmitter {
       this.setStatus({
         state: 'ready', url, owned: true, kind: 'managed', trust: 'managed-process',
         version: runtime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+        capabilities: projectHarnessCapabilities({ runtime, connection: { state: 'ready', kind: 'managed', trust: 'managed-process' } }),
         message: elapsedSeconds ? `由 Deep Code 启动的 Harness 已验证，用时 ${elapsedSeconds} 秒。` : '由 Deep Code 启动的 Harness 已验证。'
       })
     } catch (error) {
@@ -165,6 +168,7 @@ class RuntimeSupervisor extends EventEmitter {
     this.setStatus({
       state: 'ready', url: candidate.baseUrl, runtimePath: candidate.runtimePath, owned: false, kind: 'shared', trust: 'user-confirmed-shared',
       version: currentRuntime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+      capabilities: projectHarnessCapabilities({ runtime: currentRuntime, connection: { state: 'ready', kind: 'shared', trust: 'user-confirmed-shared' } }),
       message: '已连接你明确确认的共享 Harness。Deep Code 无法控制它继承的环境变量。'
     })
     return this.snapshot()

@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { HostCare, harnessCompatibility, redact } = require('../src/host-care.cjs')
+const { HostCare, VERIFIED_HARNESS_RELEASE, harnessCompatibility, redact } = require('../src/host-care.cjs')
+const { PINNED_RUNTIME_PROFILE } = require('../src/harness-capability-gate.cjs')
 
 test('recognizes the official Harness package and reports missing setup separately', () => {
   const files = new Map([
@@ -46,6 +47,15 @@ test('distinguishes a verified Harness baseline from an untested upstream versio
   assert.equal(harnessCompatibility('0.1.1-rc.2').state, 'pass')
   assert.equal(harnessCompatibility('0.1.2').state, 'warn')
   assert.match(harnessCompatibility('0.1.2').detail, /不会被静默覆盖/)
+})
+
+test('uses the Capability Gate profile instead of maintaining a second runtime truth', () => {
+  assert.equal(VERIFIED_HARNESS_RELEASE.version, PINNED_RUNTIME_PROFILE.version)
+  assert.equal(VERIFIED_HARNESS_RELEASE.revision, PINNED_RUNTIME_PROFILE.revision)
+  assert.ok(VERIFIED_HARNESS_RELEASE.capabilities.includes('task-prompt'))
+  assert.ok(VERIFIED_HARNESS_RELEASE.capabilities.includes('image-transport'))
+  assert.ok(!VERIFIED_HARNESS_RELEASE.capabilities.includes('deepseek-vision-exp'))
+  assert.ok(!VERIFIED_HARNESS_RELEASE.capabilities.includes('plan-control'))
 })
 
 test('removes secrets from diagnostics before writing', () => {
