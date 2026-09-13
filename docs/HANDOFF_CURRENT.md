@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-13
-Branch: `codex/dsh-0.1.5-compatibility-lab`
+Branch: `main`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
-Current source baseline: `0.8.1-beta.1` merged on `main` at `f56c3fd7ea499a6c48e76a93ec07f5201b3dd6df`
+Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; packaged product version remains `0.8.1-beta.1`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -179,6 +179,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 - DSH 0.1.5 compatibility Gate A focused suite: **21 passed, 0 failed** on 2026-09-13. It proves exact candidate identity, pre-log token redaction, loopback-only launch parsing, one-time token-to-cookie exchange, correlated slash-endpoint RPC (including `$events/result`) with Typert `{ args: ... }`, legacy dot-endpoint rejection, secret-free snapshots, and generation/disposal invalidation. All HTTP behavior is fake-transport evidence; no official Engine or Provider was started.
 - Gate A full `npm test`: **325 passed, 0 failed** on 2026-09-13. JavaScript syntax checks and `git diff --check` passed. The current `0.1.1-rc.2` runtime selection and Adapter remain unchanged; `0.1.5-rc.2` is still an unusable candidate rather than a compatibility claim.
+- Gate A merged through non-draft PR #20. PR regression run `34759649025` and merged-main regression run `34759697510` both passed all 325 tests in clean GitHub Windows runners.
 - Gate A `npm run package:test:win` produced `dist/Deep-code-Test-0.8.1-beta.1.exe`, 368,853,998 bytes, SHA-256 `0df983ccb386a5b481179ef78b2b73abc7727ec951169f2480df5b7c04ac1048`. Packaged `app.asar` contains `typert-managed-connection.cjs` and the updated `runtime-supervisor.cjs`. An unpacked packaged app kept four expected `Deep code.exe` processes alive for eight seconds under the isolated `E:\Temp\lenovo\deep-code-v081-gate-a-smoke-20260913` profile; only those exact processes were stopped. Engine and Provider were not started.
 - Projection-integrity focused suite: **59 passed, 0 failed** on 2026-09-11. Behavior tests prove that a technical Evidence Map link opens both disclosure layers, a completed Turn with a failed tool receives one non-contradictory Run Projection summary, the View cannot override a supplied `run.trace` with conflicting raw fields, an unconfirmed stop remains unknown, and later matching terminal evidence supersedes a stale recovery marker.
 - Projection-integrity full `npm test`: **275 passed, 0 failed** on 2026-09-11. Both follow-up review axes confirmed their P1 findings closed and found no new scope or standards defect in the narrow correction.
