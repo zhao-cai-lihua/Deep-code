@@ -1,5 +1,5 @@
 const { spawn } = require('node:child_process')
-const { mkdirSync, mkdtempSync, rmSync } = require('node:fs')
+const { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs')
 const { createRequire } = require('node:module')
 const { tmpdir } = require('node:os')
 const { dirname, join, resolve } = require('node:path')
@@ -30,7 +30,57 @@ const builtBin = join(runtimeRoot, 'apps', 'cli', 'lib', 'bin.js')
 const WebSocket = createRequire(join(runtimeRoot, 'apps', 'cli', 'package.json'))('ws')
 const root = mkdtempSync(join(tmpdir(), 'deep-code-dsh-015-gate-b-'))
 const workspace = join(root, 'workspace')
+const questionTrigger = join(root, 'question-trigger.json')
+const questionResult = join(root, 'question-result.json')
+const questionPlugin = join(root, 'question-source.mjs')
+const questionPatch = join(root, 'question-source.patch.yml')
 mkdirSync(workspace)
+
+writeFileSync(questionPlugin, `
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+
+export const inject = ['agents', 'userQuestions']
+
+export function apply(ctx) {
+  let consumed = false
+  const poll = setInterval(async () => {
+    if (consumed || !existsSync(${JSON.stringify(questionTrigger)})) return
+    consumed = true
+    try {
+      const request = JSON.parse(readFileSync(${JSON.stringify(questionTrigger)}, 'utf8'))
+      rmSync(${JSON.stringify(questionTrigger)}, { force: true })
+      const agent = ctx.agents.get(request.sessionId)
+      if (!agent || agent.id !== request.sessionId) throw new Error('synthetic source could not resolve the exact live Agent')
+      const answer = await ctx.userQuestions.ask({
+        agent,
+        questions: [{
+          id: 'gate-b-choice',
+          header: 'Decision Gate smoke',
+          question: 'Should the zero-token protocol check continue?',
+          options: [
+            { label: 'continue', description: 'Complete the isolated protocol check.' },
+            { label: 'stop', description: 'Stop the isolated protocol check.' },
+          ],
+        }],
+      })
+      writeFileSync(${JSON.stringify(questionResult)}, JSON.stringify({ ok: true, answer }), { flag: 'wx' })
+    } catch (error) {
+      writeFileSync(${JSON.stringify(questionResult)}, JSON.stringify({
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+      }), { flag: 'wx' })
+    }
+  }, 25)
+  poll.unref()
+  ctx.effect(() => () => clearInterval(poll))
+}
+`, { encoding: 'utf8', flag: 'wx' })
+
+const yamlPluginPath = questionPlugin.replaceAll('\\', '/').replaceAll("'", "''")
+writeFileSync(questionPatch, `- insert:\n    - id: deep-code-decision-gate-smoke\n      name: '${yamlPluginPath}'\n`, {
+  encoding: 'utf8',
+  flag: 'wx'
+})
 
 let generation = 1
 let connection
@@ -41,6 +91,7 @@ let settled = false
 const child = spawn(process.execPath, [
   builtBin,
   'web',
+  '--patch', questionPatch,
   '--no-open',
   '--host', '127.0.0.1',
   '--port', '0'
@@ -108,6 +159,25 @@ async function nextWithin(iterator, label, timeoutMs = 15_000) {
   return result.value
 }
 
+async function nextMatchingWithin(iterator, predicate, label, timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs
+  while (true) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) throw new Error(`${label} 在 ${timeoutMs}ms 内没有返回。`)
+    const frame = await nextWithin(iterator, label, remaining)
+    if (predicate(frame)) return frame
+  }
+}
+
+async function readJsonWhenPresent(path, label, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf8'))
+    await delay(25, undefined, { ref: false })
+  }
+  throw new Error(`${label} 在 ${timeoutMs}ms 内没有落盘。`)
+}
+
 async function stopChild() {
   if (child.exitCode !== null) return
   const closed = Promise.withResolvers()
@@ -123,8 +193,6 @@ async function run() {
   await managed.authenticate()
   const adapter = new DshAdapterV2({ connection: managed })
 
-  const eventGeneration = await adapter.openEventGeneration()
-
   const catalog = await adapter.modelCatalog()
   if (!catalog || !Array.isArray(catalog.groups) || !Array.isArray(catalog.failures)
     || !Array.isArray(catalog.routableProviders) || typeof catalog.default?.provider !== 'string') {
@@ -132,6 +200,43 @@ async function run() {
   }
 
   const created = await adapter.createSession({ cwd: workspace })
+  const eventGeneration = await adapter.openEventGeneration({ sessionId: created.sessionId })
+
+  writeFileSync(questionTrigger, JSON.stringify({ sessionId: created.sessionId }), { encoding: 'utf8', flag: 'wx' })
+  const questionFrame = await nextMatchingWithin(
+    eventGeneration.stream,
+    frame => frame?.type === 'waterfall' && frame.event === 'user-questions/request'
+      && frame.agentId === created.sessionId,
+    '绑定当前 Session 的 user-questions/request'
+  )
+  if (!Array.isArray(questionFrame.request?.questions)
+    || questionFrame.request.questions[0]?.id !== 'gate-b-choice') {
+    throw new Error('真实 Remote Event 没有保留结构化问题。')
+  }
+  const answer = {
+    kind: 'result',
+    value: { answers: [{ id: 'gate-b-choice', selected: ['continue'] }] }
+  }
+  await adapter.answerRemoteEvent({
+    eventGeneration,
+    eventId: questionFrame.eventId,
+    outcome: answer
+  })
+  const sourceResult = await readJsonWhenPresent(questionResult, 'synthetic user-question source result')
+  if (sourceResult?.ok !== true || sourceResult.answer?.answers?.[0]?.selected?.[0] !== 'continue') {
+    throw new Error(`synthetic user-question source 没有收到精确回答：${JSON.stringify(sourceResult)}`)
+  }
+  let replayRejected = false
+  try {
+    await adapter.answerRemoteEvent({
+      eventGeneration,
+      eventId: questionFrame.eventId,
+      outcome: answer
+    })
+  } catch (error) {
+    replayRejected = /不再可用/u.test(error instanceof Error ? error.message : String(error))
+  }
+  if (!replayRejected) throw new Error('已经回答的 Remote Event 仍可重放。')
 
   const follow = adapter.followSession({ sessionId: created.sessionId })[Symbol.asyncIterator]()
   const opening = await nextWithin(follow, 'session/follow snapshot')
@@ -170,6 +275,11 @@ async function run() {
       entered: planOn.active === true && planOn.evidenceSeqs.length === 3,
       exited: planOff.active === false && planOff.evidenceSeqs.length === 3,
       promptTextChanged: false
+    },
+    decisionGate: {
+      sessionBound: questionFrame.agentId === created.sessionId,
+      answeredOnce: sourceResult.ok === true,
+      replayRejected
     },
     invalidatedAfterStop: true,
     providerRequests: 0,

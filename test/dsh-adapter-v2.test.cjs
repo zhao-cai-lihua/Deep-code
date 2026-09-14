@@ -71,7 +71,7 @@ test('binds the event generation to an exact ready opening and preserves the rem
     dispose: () => {}
   }
   const adapter = new DshAdapterV2({ connection })
-  const generation = await adapter.openEventGeneration()
+  const generation = await adapter.openEventGeneration({ sessionId: 'session-a' })
 
   assert.deepEqual({ clientId: generation.clientId, host: generation.host }, {
     clientId: 'client-8', host: { home: 'C:\\Users\\tester' }
@@ -99,7 +99,8 @@ test('fails closed when event ready or Session follow identity does not match', 
   }
   const adapter = new DshAdapterV2({ connection })
 
-  await assert.rejects(adapter.openEventGeneration(), /ready/)
+  await assert.rejects(adapter.openEventGeneration(), /缺少 Session 身份/)
+  await assert.rejects(adapter.openEventGeneration({ sessionId: 'session-a' }), /ready/)
   const follow = adapter.followSession({ sessionId: 'session-a' })[Symbol.asyncIterator]()
   await assert.rejects(follow.next(), /Session 身份不匹配/)
   assert.deepEqual(returns, ['$events', 'session/follow'])
@@ -190,7 +191,7 @@ test('does not claim Plan when the command is absent or structured mode evidence
   assert.equal(executeCount, 1)
 })
 
-test('answers only a waterfall observed on the exact live event generation and rejects replay', async () => {
+test('answers only a same-Session waterfall observed on the exact live event generation and rejects replay', async () => {
   const calls = []
   const connection = {
     snapshot: () => ({ state: 'authenticated', generation: 11 }),
@@ -203,6 +204,13 @@ test('answers only a waterfall observed on the exact live event generation and r
       {
         type: 'waterfall',
         event: 'user-questions/request',
+        eventId: 'event-foreign',
+        agentId: 'session-b',
+        request: { questions: [{ id: 'foreign' }] }
+      },
+      {
+        type: 'waterfall',
+        event: 'user-questions/request',
         eventId: 'event-11',
         agentId: 'session-a',
         request: { questions: [{ id: 'choice' }] }
@@ -211,7 +219,13 @@ test('answers only a waterfall observed on the exact live event generation and r
     dispose: () => {}
   }
   const adapter = new DshAdapterV2({ connection })
-  const generation = await adapter.openEventGeneration()
+  const generation = await adapter.openEventGeneration({ sessionId: 'session-a' })
+  assert.equal((await generation.stream.next()).value.eventId, 'event-foreign')
+  await assert.rejects(adapter.answerRemoteEvent({
+    eventGeneration: generation,
+    eventId: 'event-foreign',
+    outcome: { kind: 'next' }
+  }), /不再可用/)
   assert.equal((await generation.stream.next()).value.eventId, 'event-11')
 
   assert.deepEqual(await adapter.answerRemoteEvent({
@@ -249,7 +263,7 @@ test('refuses invented, unobserved, cancelled, and stale Remote Event correlatio
     dispose: () => {}
   }
   const adapter = new DshAdapterV2({ connection })
-  const current = await adapter.openEventGeneration()
+  const current = await adapter.openEventGeneration({ sessionId: 'session-a' })
 
   await assert.rejects(adapter.answerRemoteEvent({
     eventGeneration: {}, eventId: 'invented', outcome: { kind: 'next' }
