@@ -483,7 +483,7 @@ applyTheme(preferredTheme())
 
 function renderEngineCapabilities(snapshot) {
   const view = window.DeepCodeEngineCapabilityView.projectEngineCapabilityView(snapshot)
-  engineCapabilityDot.className = `status-dot ${view.state === 'verified' ? 'ready' : 'stopped'}`
+  engineCapabilityDot.className = `status-dot ${view.state === 'verified' ? 'ready' : view.state === 'candidate' ? 'candidate-ready' : 'stopped'}`
   engineCapabilityTitle.textContent = view.title
   engineCapabilitySummary.textContent = view.summary
   engineCapabilityList.replaceChildren()
@@ -507,18 +507,20 @@ function renderRuntime(status) {
   const runtimeChanged = lastRuntimeState !== status.state
   lastRuntimeState = status.state
   pathInput.value = status.runtimePath || pathInput.value
-  const stateLabel = ({ stopped: '尚未启动', starting: '正在启动', probing: '正在验证', 'awaiting-user': '等待你确认', incompatible: '版本不兼容', ready: '已就绪', stopping: '正在停止', error: '启动失败' })[status.state] || status.state
+  const stateLabel = ({ stopped: '尚未启动', starting: '正在启动', probing: '正在验证', 'candidate-ready': '候选协议已验证', 'awaiting-user': '等待你确认', incompatible: '版本不兼容', ready: '已就绪', stopping: '正在停止', error: '启动失败' })[status.state] || status.state
   label.textContent = stateLabel
   message.textContent = status.message || ''
   dot.className = `status-dot ${status.state}`
   runtimeDot.className = `status-dot ${status.state}`
-  runtimeShort.textContent = status.state === 'ready' ? 'Engine 已连接' : `Engine ${stateLabel}`
-  startButton.disabled = ['starting', 'probing', 'ready', 'awaiting-user'].includes(status.state) || !pathInput.value
+  runtimeShort.textContent = status.state === 'ready'
+    ? 'Engine 已连接'
+    : status.state === 'candidate-ready' ? 'Engine 候选协议已验证（任务入口关闭）' : `Engine ${stateLabel}`
+  startButton.disabled = ['starting', 'probing', 'candidate-ready', 'ready', 'awaiting-user'].includes(status.state) || !pathInput.value
   confirmSharedEngineButton.classList.toggle('hidden', status.state !== 'awaiting-user')
   startManagedEngineButton.classList.toggle('hidden', !['awaiting-user', 'incompatible'].includes(status.state))
   confirmSharedEngineButton.disabled = status.state !== 'awaiting-user'
   startManagedEngineButton.disabled = !['awaiting-user', 'incompatible'].includes(status.state)
-  stopButton.disabled = !['starting', 'probing', 'ready', 'stopping'].includes(status.state)
+  stopButton.disabled = !['starting', 'probing', 'candidate-ready', 'ready', 'stopping'].includes(status.state)
   engineTrustNote.textContent = status.kind === 'shared'
     ? '共享 Engine 不是由 Deep Code 启动，无法进行密码学身份认证，也无法控制它继承的环境变量。确认只适用于当前地址、版本和工作目录。'
     : '托管 Engine 会使用净化后的环境变量；桌面环境中的 API Key 不会被自动继承。请在“模型服务”中保存凭据。'

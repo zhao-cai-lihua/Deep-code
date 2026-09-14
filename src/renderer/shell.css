@@ -515,6 +515,8 @@ dialog[open]::backdrop { animation: backdrop-enter 170ms ease-out both; }
 :root[data-theme="light"] .engine-capability-item strong { color: #17334d; }
 :root[data-theme="light"] .engine-capability-item p { color: #64798e; }
 
+.status-dot.candidate-ready { background: #edbd62; box-shadow: 0 0 0 3px rgba(237, 189, 98, .12); }
+
 @media (max-width: 1060px) {
   .primary-nav { grid-template-columns: 1fr; }
   .nav-item:first-child { grid-column: auto; }

@@ -10,12 +10,13 @@ This is a read-only admission projection. It is not a second plugin registry, Ag
 
 ## Public seam
 
-`src/harness-capability-gate.cjs` owns one versioned capability snapshot. The Runtime Supervisor publishes an Engine-scoped snapshot only after the existing trust checks have reached `ready`. Main binds that snapshot to the exact Session before sending a task. Renderer translates the same snapshot into beginner-facing availability and reasons.
+`src/harness-capability-gate.cjs` owns one versioned capability snapshot. A shipping Runtime may publish usable Engine capability only after the existing trust checks have reached `ready`. An audited future protocol may publish a visibly separate `candidate-ready` snapshot, but every capability remains `candidate-disabled`; Main's existing `ready` admission therefore cannot send a task through it. Main binds only a usable snapshot to the exact Session before sending a task. Renderer translates the same snapshot into beginner-facing availability and reasons.
 
 The states are intentionally not collapsed into one optimistic boolean:
 
 - `supported`: the exact Runtime and Adapter are compatible, but no Session has been bound;
 - `available`: all Engine, Adapter, trust, and Session conditions are satisfied;
+- `candidate-disabled`: an exact future Runtime completed its bounded protocol checks, but product admission is deliberately still closed;
 - `engine-untrusted`, `runtime-unverified`, `runtime-unsupported`, `adapter-missing`, `session-required`, and `session-unavailable`: fail-closed reasons.
 
 Only `available` can pass `assertCapabilityAvailable()`. “Supported” is useful UI evidence, not permission to send a Session operation.
@@ -35,11 +36,11 @@ Not available: remote Plan control. This pinned API Proxy does not expose the co
 
 Image transport is deliberately not named “vision support.” It proves that the attachment reaches Harness; a particular model's image capability still comes from the Harness model directory and a real model validation task.
 
-## Upstream observation, not compatibility
+## Audited 0.1.5 candidate, not shipping compatibility
 
-On 2026-09-13, the official `master` ref was inspected at `c291e7961a515f6d7af9304e7fd1d257929aef26` (`0.1.5-rc.2`). Its new application Remote assembly explicitly mounts the Commands contribution, and the client command layer uses structured command remotes. This makes a future non-prompt Plan Adapter plausible.
+The exact official tag `dsh-v0.1.5-rc.2` at `fb2c4b9e698e30edb738bca4cf0618587db7d203` now has an isolated candidate profile. Its child launch, temporary authentication, model catalog, empty Session, follow stream, structured Plan command, and Session-bound Decision Gate have passed zero-token live checks. Runtime Supervisor can identify and authenticate that exact checkout twice in succession while keeping every projected capability disabled and rejecting `waitUntilReady()`.
 
-It does not make `0.1.5-rc.2` compatible with Deep Code. The upstream Remote documentation says the capability set is selected at build time and is not discovered by clients from active Host services. A future profile therefore needs pinned protocol fixtures, a reviewed Adapter, real startup tests, and human smoke acceptance before it can enter the compatibility list.
+This still does not make `0.1.5-rc.2` a supported Deep Code runtime. The candidate has no product task admission, no shared-Engine path, and no public Renderer transport. Prompt correlation, same-Turn outcome/usage projection, packaging, and one bounded human/model acceptance remain separate gates. Candidate evidence may expand; it cannot silently mutate the shipping `legacy-0.1.1` profile.
 
 Primary-source snapshots:
 

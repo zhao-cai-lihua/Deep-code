@@ -27,6 +27,15 @@ const compatibleRuntime = () => ({
   hostDescribeVersion: '0.0.1'
 })
 
+const candidateRuntime = () => ({
+  official: true,
+  tag: 'dsh-v0.1.5-rc.2',
+  version: '0.1.5-rc.2',
+  revision: 'fb2c4b9e698e30edb738bca4cf0618587db7d203',
+  protocol: 'typert-0.1.5',
+  status: 'candidate'
+})
+
 const matchingHost = async () => ({
   version: '0.0.1', cwd: 'C:\\runtime', attachedSessions: 0,
   home: 'C:\\Users\\test', canOpenPath: true
@@ -67,6 +76,79 @@ test('clears the capability snapshot when a verified Engine exits', async () => 
 
   child.emit('exit', 1, null)
   assert.equal(supervisor.snapshot().capabilities, null)
+})
+
+test('authenticates an exact 0.1.5 managed candidate but keeps product admission closed', async () => {
+  const child = fakeChild()
+  let disposed = false
+  let observedLine = ''
+  const connection = {
+    snapshot: () => ({ state: 'authenticated', generation: 1, baseUrl: 'http://127.0.0.1:41922' }),
+    authenticate: async () => connection.snapshot(),
+    dispose: () => { disposed = true }
+  }
+  const supervisor = new RuntimeSupervisor({
+    spawnProcess: () => child,
+    pathExists: () => true,
+    probeShared: async () => null,
+    inspectRuntime: candidateRuntime,
+    observeTypertLaunch: (line, options) => {
+      observedLine = line
+      assert.deepEqual(options.runtime, candidateRuntime())
+      return { diagnosticLine: 'dsh web: http://127.0.0.1:41922/?token=[redacted]', connection }
+    },
+    createTypertAdapter: exactConnection => {
+      assert.equal(exactConnection, connection)
+      return { kind: 'candidate-adapter' }
+    },
+    platform: 'linux'
+  })
+
+  await supervisor.start('C:\\runtime')
+  child.stdout.emit('data', 'dsh web: http://127.0.0.1:41922/?token=launch-canary\n')
+  await new Promise((resolve) => setImmediate(resolve))
+
+  const snapshot = supervisor.snapshot()
+  assert.match(observedLine, /launch-canary/)
+  assert.equal(snapshot.state, 'candidate-ready')
+  assert.equal(snapshot.protocol, 'typert-0.1.5')
+  assert.equal(snapshot.url, 'http://127.0.0.1:41922')
+  assert.equal(snapshot.trust, 'managed-process')
+  assert.equal(snapshot.capabilities.verified, true)
+  assert.equal(snapshot.capabilities.capabilities.find(item => item.id === 'task-prompt').state, 'candidate-disabled')
+  assert.doesNotMatch(JSON.stringify(snapshot), /launch-canary/)
+  await assert.rejects(supervisor.waitUntilReady(), /候选协议.*尚未开放/)
+
+  supervisor.stop()
+  assert.equal(disposed, true)
+})
+
+test('an intentional stop during candidate authentication stays stopped instead of becoming an Engine error', async () => {
+  const child = fakeChild()
+  const authentication = Promise.withResolvers()
+  const connection = {
+    authenticate: () => authentication.promise,
+    dispose: () => authentication.reject(new Error('connection disposed by user stop'))
+  }
+  const supervisor = new RuntimeSupervisor({
+    spawnProcess: () => child,
+    pathExists: () => true,
+    probeShared: async () => null,
+    inspectRuntime: candidateRuntime,
+    observeTypertLaunch: () => ({ diagnosticLine: 'redacted', connection }),
+    platform: 'linux'
+  })
+
+  await supervisor.start('C:\\runtime')
+  child.stdout.emit('data', 'dsh web: http://127.0.0.1:41922/?token=launch-canary\n')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(supervisor.snapshot().state, 'probing')
+
+  supervisor.stop()
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(supervisor.snapshot().state, 'stopped')
+  assert.doesNotMatch(supervisor.snapshot().message, /验证失败/)
 })
 
 test('accepts a parent folder that contains deepseek-harness', async () => {
@@ -136,6 +218,7 @@ test('invalidates a shared Harness candidate when confirmation recheck fails', a
     kind: 'shared',
     trust: null,
     version: '0.1.1-rc.2',
+    protocol: 'legacy-0.1.1',
     hostDescribeVersion: '0.0.1',
     cwd: 'C:\\runtime',
     capabilities: null,

@@ -1,6 +1,12 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { assertHostMatchesRuntime, describeHarnessHost, inspectCompatibleRuntime, validateHostDescription } = require('../src/engine-trust.cjs')
+const {
+  assertHostMatchesRuntime,
+  describeHarnessHost,
+  inspectAuditedRuntime,
+  inspectCompatibleRuntime,
+  validateHostDescription
+} = require('../src/engine-trust.cjs')
 
 test('rejects a loopback service whose root is healthy but host.describe is unavailable', async () => {
   await assert.rejects(
@@ -58,4 +64,19 @@ test('keeps the pinned runtime release separate from the upstream host.describe 
   })
   assert.equal(runtime.version, '0.1.1-rc.2')
   assert.equal(runtime.hostDescribeVersion, '0.0.1')
+})
+
+test('recognizes the exact audited 0.1.5 checkout as a disabled protocol candidate', () => {
+  const readText = () => JSON.stringify({ name: '@deepseek-ai/dsh-root', version: '0.1.5-rc.2' })
+  const runGit = () => 'fb2c4b9e698e30edb738bca4cf0618587db7d203\n'
+
+  assert.deepEqual(inspectAuditedRuntime('C:\\runtime', { readText, runGit }), {
+    official: true,
+    tag: 'dsh-v0.1.5-rc.2',
+    version: '0.1.5-rc.2',
+    revision: 'fb2c4b9e698e30edb738bca4cf0618587db7d203',
+    protocol: 'typert-0.1.5',
+    status: 'candidate'
+  })
+  assert.throws(() => inspectCompatibleRuntime('C:\\runtime', { readText, runGit }), /尚未验证/)
 })
