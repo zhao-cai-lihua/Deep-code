@@ -66,7 +66,8 @@ async function startCandidate() {
   }
   const session = await supervisor.attachCandidateSessionForLab({ cwd: isolatedRoot })
   if (session.state !== 'observing' || !session.sessionId || session.connectionGeneration < 1
-    || session.follow?.attached !== true || session.decisionGate?.state !== 'observing'
+    || session.follow?.attached !== true || session.usageControl?.attached !== true
+    || !Number.isInteger(session.usageControl.asOfSeq) || session.decisionGate?.state !== 'observing'
     || session.decisionGate?.pendingCount !== 0) {
     throw new Error('Runtime Supervisor did not bind an exact empty candidate Session.')
   }
@@ -117,6 +118,7 @@ async function main() {
     protocol: second.ready.protocol,
     starts: statuses.filter(status => status.state === 'candidate-ready').length,
     sessionsAttached: [first.session, second.session].filter(session => session.follow.attached).length,
+    usageControlsAttached: [first.session, second.session].filter(session => session.usageControl.attached).length,
     managedTrust: first.ready.trust === 'managed-process' && second.ready.trust === 'managed-process',
     productAdmissionClosed: true,
     allCapabilitiesCandidateDisabled: second.ready.capabilities.capabilities

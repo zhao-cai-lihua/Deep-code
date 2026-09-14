@@ -189,6 +189,7 @@ test('owns an internal candidate Session projection and invalidates it across st
   const children = [fakeChild(), fakeChild()]
   const eventStreams = [controllableStream(), controllableStream()]
   const followStreams = [controllableStream(), controllableStream()]
+  const usageStreams = [controllableStream(), controllableStream()]
   let connectionIndex = -1
   const adapters = eventStreams.map((events, index) => ({
     connectionSnapshot: () => ({ state: 'authenticated', generation: index === 0 ? 1 : 3 }),
@@ -197,6 +198,13 @@ test('owns an internal candidate Session projection and invalidates it across st
       followStreams[index].push({ type: 'snapshot', header: { id: sessionId }, cursor: index + 10, records: [] })
       return followStreams[index]
     },
+    openTokenUsageControl: async () => ({
+      baseline: {
+        asOfSeq: index + 10,
+        usage: { uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
+      },
+      stream: usageStreams[index]
+    }),
     openEventGeneration: async ({ sessionId }) => ({
       generation: index === 0 ? 1 : 3,
       sessionId,

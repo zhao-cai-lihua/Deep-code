@@ -11,6 +11,7 @@ function emptySnapshot(connectionGeneration = null) {
     connectionGeneration,
     sessionId: null,
     follow: { attached: false, cursor: null },
+    usageControl: { attached: false, asOfSeq: null },
     decisionGate: { state: 'closed', pendingCount: 0, kinds: [] },
     promptEvidence: null
   }
@@ -26,6 +27,7 @@ class CandidateSessionLab {
   constructor({ adapter, connectionGeneration } = {}) {
     if (!adapter || typeof adapter.createSession !== 'function'
       || typeof adapter.followSession !== 'function'
+      || typeof adapter.openTokenUsageControl !== 'function'
       || typeof adapter.openEventGeneration !== 'function') {
       throw new Error('候选 Session Lab 缺少新版 Harness Adapter。')
     }
@@ -36,12 +38,15 @@ class CandidateSessionLab {
     this.connectionGeneration = connectionGeneration
     this.followIterator = null
     this.eventStream = null
+    this.usageControlStream = null
     this.eventPump = null
+    this.usageControlPump = null
     this.followPump = null
     this.attachmentNonce = 0
     this.attachInFlight = false
     this.pendingEvents = new Map()
     this.promptEvidence = null
+    this.currentUsageControl = null
     this.current = emptySnapshot(connectionGeneration)
   }
 
@@ -49,6 +54,7 @@ class CandidateSessionLab {
     return {
       ...this.current,
       follow: { ...this.current.follow },
+      usageControl: { ...this.current.usageControl },
       decisionGate: {
         ...this.current.decisionGate,
         kinds: [...this.current.decisionGate.kinds]
@@ -65,6 +71,7 @@ class CandidateSessionLab {
     const nonce = ++this.attachmentNonce
     let followIterator = null
     let eventStream = null
+    let usageControlStream = null
     try {
       const created = await this.adapter.createSession({ cwd, ...(sessionId ? { sessionId } : {}) })
       this.#assertAttachCurrent(nonce)
@@ -80,6 +87,12 @@ class CandidateSessionLab {
       if (first.done || first.value?.type !== 'snapshot' || first.value?.header?.id !== exactSessionId) {
         throw new Error('候选 Session Lab 未收到精确匹配的 Session 快照。')
       }
+      const usageControl = await this.adapter.openTokenUsageControl({ sessionId: exactSessionId })
+      usageControlStream = usageControl?.stream || null
+      this.#assertAttachCurrent(nonce)
+      if (!usageControl?.baseline || !usageControlStream) {
+        throw new Error('候选 Session Lab 未收到精确 Session 的用量控制流。')
+      }
       const eventGeneration = await this.adapter.openEventGeneration({ sessionId: exactSessionId })
       eventStream = eventGeneration?.stream || null
       this.#assertAttachCurrent(nonce)
@@ -88,6 +101,8 @@ class CandidateSessionLab {
         throw new Error('候选 Session Lab 的 Remote Event generation 与当前连接不一致。')
       }
       this.eventStream = eventStream
+      this.usageControlStream = usageControlStream
+      this.currentUsageControl = usageControl.baseline
       this.pendingEvents.clear()
       this.current = {
         version: 1,
@@ -98,16 +113,20 @@ class CandidateSessionLab {
           attached: true,
           cursor: Number.isInteger(first.value.cursor) ? first.value.cursor : null
         },
+        usageControl: { attached: true, asOfSeq: usageControl.baseline.asOfSeq },
         decisionGate: { state: 'observing', pendingCount: 0, kinds: [] },
         promptEvidence: null
       }
       this.followPump = this.#pumpFollow(followIterator, exactSessionId, nonce)
+      this.usageControlPump = this.#pumpUsageControl(usageControlStream, exactSessionId, nonce)
       this.eventPump = this.#pumpDecisionGate(eventStream, exactSessionId, nonce)
       return this.snapshot()
     } catch (error) {
       if (this.followIterator === followIterator) this.followIterator = null
       if (this.eventStream === eventStream) this.eventStream = null
-      await Promise.all([closeIterator(followIterator), closeIterator(eventStream)])
+      if (this.usageControlStream === usageControlStream) this.usageControlStream = null
+      this.currentUsageControl = null
+      await Promise.all([closeIterator(followIterator), closeIterator(usageControlStream), closeIterator(eventStream)])
       throw error
     } finally {
       this.attachInFlight = false
@@ -118,19 +137,24 @@ class CandidateSessionLab {
     this.attachmentNonce += 1
     const followIterator = this.followIterator
     const eventStream = this.eventStream
+    const usageControlStream = this.usageControlStream
     this.followIterator = null
     this.eventStream = null
+    this.usageControlStream = null
     this.eventPump = null
+    this.usageControlPump = null
     this.followPump = null
     this.pendingEvents.clear()
     this.promptEvidence = null
+    this.currentUsageControl = null
     this.current = emptySnapshot(this.connectionGeneration)
-    await Promise.all([closeIterator(followIterator), closeIterator(eventStream)])
+    await Promise.all([closeIterator(followIterator), closeIterator(usageControlStream), closeIterator(eventStream)])
     return this.snapshot()
   }
 
   preparePromptEvidence({ requestId, expectedRoute } = {}) {
-    if (this.current.state !== 'observing' || !this.current.sessionId || !this.followIterator) {
+    if (this.current.state !== 'observing' || !this.current.sessionId || !this.followIterator
+      || !this.current.usageControl.attached || !this.currentUsageControl) {
       throw new Error('候选 Session Lab 尚未进入可观察状态。')
     }
     if (this.promptEvidence && !['completed', 'failed', 'interrupted', 'route-mismatch', 'evidence-incomplete', 'rejected']
@@ -140,7 +164,8 @@ class CandidateSessionLab {
     this.promptEvidence = new CandidatePromptEvidence({
       sessionId: this.current.sessionId,
       requestId,
-      expectedRoute
+      expectedRoute,
+      usageBaseline: this.currentUsageControl
     })
     return this.promptEvidence.snapshot()
   }
@@ -231,6 +256,31 @@ class CandidateSessionLab {
     } catch {
       if (nonce === this.attachmentNonce && this.current.sessionId === sessionId) {
         this.current = { ...this.current, state: 'error', follow: { ...this.current.follow, attached: false } }
+      }
+    }
+  }
+
+  async #pumpUsageControl(stream, sessionId, nonce) {
+    try {
+      for await (const sample of stream) {
+        if (nonce !== this.attachmentNonce || this.current.sessionId !== sessionId) return
+        this.currentUsageControl = sample
+        this.current = {
+          ...this.current,
+          usageControl: { attached: true, asOfSeq: sample.asOfSeq }
+        }
+        this.promptEvidence?.observeControlUsage(sample)
+      }
+      if (nonce === this.attachmentNonce && this.current.sessionId === sessionId) {
+        this.current = { ...this.current, usageControl: { ...this.current.usageControl, attached: false } }
+      }
+    } catch {
+      if (nonce === this.attachmentNonce && this.current.sessionId === sessionId) {
+        this.current = {
+          ...this.current,
+          state: 'error',
+          usageControl: { ...this.current.usageControl, attached: false }
+        }
       }
     }
   }

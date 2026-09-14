@@ -175,3 +175,65 @@ test('a rejected Prompt receipt cannot be revived by early follow events', () =>
     /已经拒绝/
   )
 })
+
+test('calls one Turn usage proven only when its Session-control delta agrees', () => {
+  const evidence = new CandidatePromptEvidence({
+    sessionId: 'session-a', requestId: 'request-a',
+    expectedRoute: { provider: 'deepseek-official', model: 'deepseek-v4-pro' },
+    usageBaseline: {
+      asOfSeq: 80,
+      usage: { uncachedInputTokens: 100, outputTokens: 20, cacheReadTokens: 300, cacheWriteTokens: 5 }
+    }
+  })
+  evidence.confirmAdmission({ acceptedAt: '2026-09-14T10:03:00.000Z' })
+  evidence.observe(event(81, 'turn/start', { turn: 14 }))
+  evidence.observe(event(82, 'user/message', { source: { kind: 'user', rpcId: 'request-a' } }))
+  evidence.observe(event(83, 'request/header', {
+    header: { config: { provider: 'deepseek-official', model: 'deepseek-v4-pro' } }
+  }))
+  evidence.observe(event(84, 'assistant/message', {
+    turn: 14, step: 1,
+    usage: { inputTokens: 20, outputTokens: 8, cacheReadTokens: 80, cacheWriteTokens: 4 }
+  }))
+  evidence.observe(event(85, 'turn/end', { turn: 14, reason: { kind: 'completed' } }))
+  assert.equal(evidence.snapshot().state, 'evidence-incomplete')
+  evidence.observeControlUsage({
+    asOfSeq: 84,
+    usage: { uncachedInputTokens: 120, outputTokens: 28, cacheReadTokens: 380, cacheWriteTokens: 9 }
+  })
+
+  const snapshot = evidence.snapshot()
+  assert.equal(snapshot.state, 'completed')
+  assert.deepEqual(snapshot.usageAgreement, {
+    state: 'matched', baselineSeq: 80, latestSeq: 84,
+    controlDelta: { uncachedInputTokens: 20, outputTokens: 8, cacheReadTokens: 80, cacheWriteTokens: 4 }
+  })
+})
+
+test('fails closed when same-Turn samples disagree with the authoritative Session delta', () => {
+  const evidence = new CandidatePromptEvidence({
+    sessionId: 'session-a', requestId: 'request-a',
+    expectedRoute: { provider: 'deepseek-official', model: 'deepseek-v4-pro' },
+    usageBaseline: {
+      asOfSeq: 90,
+      usage: { uncachedInputTokens: 10, outputTokens: 1, cacheReadTokens: 20, cacheWriteTokens: 0 }
+    }
+  })
+  evidence.confirmAdmission({ acceptedAt: '2026-09-14T10:04:00.000Z' })
+  evidence.observe(event(91, 'turn/start', { turn: 15 }))
+  evidence.observe(event(92, 'user/message', { source: { kind: 'user', rpcId: 'request-a' } }))
+  evidence.observe(event(93, 'request/header', {
+    header: { config: { provider: 'deepseek-official', model: 'deepseek-v4-pro' } }
+  }))
+  evidence.observe(event(94, 'assistant/message', {
+    turn: 15, step: 1, usage: { inputTokens: 5, outputTokens: 2, cacheReadTokens: 10 }
+  }))
+  evidence.observeControlUsage({
+    asOfSeq: 94,
+    usage: { uncachedInputTokens: 20, outputTokens: 5, cacheReadTokens: 40, cacheWriteTokens: 0 }
+  })
+  evidence.observe(event(95, 'turn/end', { turn: 15, reason: { kind: 'completed' } }))
+
+  assert.equal(evidence.snapshot().state, 'usage-mismatch')
+  assert.equal(evidence.snapshot().usageAgreement.state, 'mismatched')
+})
