@@ -1,4 +1,5 @@
 const { VERIFIED_HARNESS } = require('./engine-trust.cjs')
+const { TYPERT_015_CANDIDATE_PROFILE } = require('./typert-managed-connection.cjs')
 
 const CAPABILITY_DEFINITIONS = Object.freeze([
   Object.freeze({
@@ -47,6 +48,8 @@ const CAPABILITY_DEFINITIONS = Object.freeze([
 ])
 
 const PINNED_RUNTIME_PROFILE = Object.freeze({
+  protocol: 'legacy-0.1.1',
+  status: 'supported',
   tag: VERIFIED_HARNESS.tag,
   version: VERIFIED_HARNESS.version,
   revision: VERIFIED_HARNESS.revision,
@@ -60,6 +63,25 @@ const PINNED_RUNTIME_PROFILE = Object.freeze({
     'image-transport': true,
     'plan-projection': true,
     'plan-control': false
+  })
+})
+
+const CANDIDATE_RUNTIME_PROFILE = Object.freeze({
+  protocol: TYPERT_015_CANDIDATE_PROFILE.protocol,
+  status: TYPERT_015_CANDIDATE_PROFILE.status,
+  tag: TYPERT_015_CANDIDATE_PROFILE.tag,
+  version: TYPERT_015_CANDIDATE_PROFILE.version,
+  revision: TYPERT_015_CANDIDATE_PROFILE.revision,
+  hostDescribeVersion: null,
+  source: 'official-source-and-live-runtime-audit',
+  capabilities: Object.freeze({
+    'task-prompt': true,
+    'live-session': true,
+    'decision-response': true,
+    'model-selection': true,
+    'image-transport': true,
+    'plan-projection': true,
+    'plan-control': true
   })
 })
 
@@ -78,6 +100,7 @@ const STATE_COPY = Object.freeze({
   supported: ['已支持', '固定 Runtime 与 Deep Code Adapter 已验证；创建或连接任务后生效。'],
   'engine-untrusted': ['等待 Engine 验证', 'Engine 尚未进入可信 ready 状态，因此不能使用这项能力。'],
   'runtime-unverified': ['Runtime 未验证', '当前 Runtime 不在 Deep Code 的精确兼容清单中。'],
+  'candidate-disabled': ['候选协议（尚未开放）', '这份 Runtime 已通过兼容实验，但产品任务入口仍保持关闭。'],
   'runtime-unsupported': ['当前 Runtime 未开放', '固定版本的官方远程接口没有提供这项能力。'],
   'adapter-missing': ['Deep Code 尚未适配', 'Harness 可能具备这项能力，但 Deep Code 还没有可信的调用实现。'],
   'session-required': ['需要任务 Session', '先创建或重新连接任务，才能确认这项 Session 能力。'],
@@ -86,15 +109,21 @@ const STATE_COPY = Object.freeze({
 
 function exactProfile(runtime) {
   if (!runtime || runtime.official !== true) return null
-  if (runtime.version !== PINNED_RUNTIME_PROFILE.version) return null
-  if (runtime.revision !== PINNED_RUNTIME_PROFILE.revision) return null
-  if (runtime.hostDescribeVersion !== PINNED_RUNTIME_PROFILE.hostDescribeVersion) return null
-  return PINNED_RUNTIME_PROFILE
+  if (runtime.version === PINNED_RUNTIME_PROFILE.version
+    && runtime.revision === PINNED_RUNTIME_PROFILE.revision
+    && runtime.hostDescribeVersion === PINNED_RUNTIME_PROFILE.hostDescribeVersion) return PINNED_RUNTIME_PROFILE
+  if (runtime.protocol === CANDIDATE_RUNTIME_PROFILE.protocol
+    && runtime.status === CANDIDATE_RUNTIME_PROFILE.status
+    && runtime.tag === CANDIDATE_RUNTIME_PROFILE.tag
+    && runtime.version === CANDIDATE_RUNTIME_PROFILE.version
+    && runtime.revision === CANDIDATE_RUNTIME_PROFILE.revision) return CANDIDATE_RUNTIME_PROFILE
+  return null
 }
 
 function stateFor({ definition, profile, connection, session, adapterCapabilities }) {
   if (!profile) return 'runtime-unverified'
   if (connection?.state !== 'ready' || !['managed-process', 'user-confirmed-shared'].includes(connection?.trust)) return 'engine-untrusted'
+  if (profile.status === 'candidate') return 'candidate-disabled'
   if (profile.capabilities[definition.id] !== true) return 'runtime-unsupported'
   if (adapterCapabilities[definition.id] !== true) return 'adapter-missing'
   if (!definition.requiresSession) return 'available'
@@ -135,6 +164,8 @@ function projectHarnessCapabilities({ runtime, connection, session, adapterCapab
       version: String(runtime?.version || ''),
       revision: String(runtime?.revision || ''),
       hostDescribeVersion: String(runtime?.hostDescribeVersion || ''),
+      protocol: profile?.protocol || String(runtime?.protocol || ''),
+      status: profile?.status || String(runtime?.status || 'unverified'),
       evidence: profile?.source || 'none'
     },
     connection: {
@@ -181,6 +212,7 @@ function assertCapabilityAvailable(snapshot, id) {
 
 module.exports = {
   CAPABILITY_DEFINITIONS,
+  CANDIDATE_RUNTIME_PROFILE,
   DEFAULT_ADAPTER_CAPABILITIES,
   PINNED_RUNTIME_PROFILE,
   assertCapabilityAvailable,

@@ -1,11 +1,13 @@
 const { EventEmitter } = require('node:events')
 const { existsSync } = require('node:fs')
 const { spawn } = require('node:child_process')
+const { createRequire } = require('node:module')
 const { delimiter, join } = require('node:path')
 const { sanitizedEnvironment } = require('./safe-child-environment.cjs')
-const { assertHostMatchesRuntime, describeHarnessHost, inspectCompatibleRuntime } = require('./engine-trust.cjs')
+const { assertHostMatchesRuntime, describeHarnessHost, inspectAuditedRuntime } = require('./engine-trust.cjs')
 const { projectHarnessCapabilities } = require('./harness-capability-gate.cjs')
-const { redactLaunchTokens } = require('./typert-managed-connection.cjs')
+const { DshAdapterV2 } = require('./dsh-adapter-v2.cjs')
+const { observeManagedTypertLaunch, redactLaunchTokens } = require('./typert-managed-connection.cjs')
 
 const LOCAL_URL = /http:\/\/127\.0\.0\.1:(\d+)/
 
@@ -28,10 +30,19 @@ function resolveHarnessEntrypoint(runtimePath, pathExists = existsSync) {
   return ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', '--no-open', '--port', '0']
 }
 
+function createRuntimeWebSocketFactory(runtimePath) {
+  const WebSocket = createRequire(join(runtimePath, 'apps', 'cli', 'package.json'))('ws')
+  return ({ url, headers }) => new WebSocket(url, { headers })
+}
+
 class RuntimeSupervisor extends EventEmitter {
   constructor({
     spawnProcess = spawn, pathExists = existsSync, probeShared = probeSharedHarness,
-    describeHost = describeHarnessHost, inspectRuntime = inspectCompatibleRuntime,
+    describeHost = describeHarnessHost, inspectRuntime = inspectAuditedRuntime,
+    observeTypertLaunch = observeManagedTypertLaunch,
+    createWebSocketFactory = createRuntimeWebSocketFactory,
+    createTypertAdapter = connection => new DshAdapterV2({ connection }),
+    fetchImpl = globalThis.fetch,
     maxLogLines = 250, platform = process.platform, environment = process.env
   } = {}) {
     super()
@@ -40,13 +51,22 @@ class RuntimeSupervisor extends EventEmitter {
     this.probeShared = probeShared
     this.describeHost = describeHost
     this.inspectRuntime = inspectRuntime
+    this.observeTypertLaunch = observeTypertLaunch
+    this.createWebSocketFactory = createWebSocketFactory
+    this.createTypertAdapter = createTypertAdapter
+    this.fetchImpl = fetchImpl
     this.maxLogLines = maxLogLines
     this.platform = platform
     this.environment = environment
     this.child = null
+    this.managedConnection = null
+    this.candidateAdapter = null
+    this.runtime = null
+    this.connectionGeneration = 0
+    this.typertAuthentication = null
     this.sharedCandidate = null
     this.verifyingUrl = null
-    this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, kind: null, trust: null, version: null, hostDescribeVersion: null, cwd: null, capabilities: null, message: 'Harness 未运行。' }
+    this.status = { state: 'stopped', url: null, runtimePath: null, owned: false, kind: null, trust: null, version: null, protocol: null, hostDescribeVersion: null, cwd: null, capabilities: null, message: 'Harness 未运行。' }
     this.logs = []
     this.startingAt = 0
   }
@@ -59,8 +79,13 @@ class RuntimeSupervisor extends EventEmitter {
       const safeLine = redactLaunchTokens(line)
       this.logs.push({ stream, line: safeLine, at: new Date().toISOString() })
       if (this.logs.length > this.maxLogLines) this.logs.shift()
-      const match = safeLine.match(LOCAL_URL)
-      if (match && this.child) this.verifyManagedUrl(`http://127.0.0.1:${match[1]}`).catch(() => {})
+      if (!this.child) continue
+      if (this.runtime?.protocol === 'typert-0.1.5') {
+        this.verifyManagedTypertLine(line).catch(() => {})
+      } else {
+        const match = safeLine.match(LOCAL_URL)
+        if (match) this.verifyManagedUrl(`http://127.0.0.1:${match[1]}`).catch(() => {})
+      }
     }
     this.emit('log', this.snapshot())
   }
@@ -83,6 +108,7 @@ class RuntimeSupervisor extends EventEmitter {
     if (this.child) return this.snapshot()
     const runtimePath = this.resolveRuntimePath(selectedPath)
     const runtime = this.inspectRuntime(runtimePath)
+    this.runtime = runtime
     const shared = await this.probeShared().catch(() => null)
     if (!shared?.descriptor) return this.startManaged(runtimePath, { resolved: true })
     try {
@@ -90,7 +116,7 @@ class RuntimeSupervisor extends EventEmitter {
       this.sharedCandidate = { baseUrl: shared.baseUrl, descriptor, runtimePath, runtime }
       this.setStatus({
         state: 'awaiting-user', url: null, runtimePath, owned: false, kind: 'shared', trust: null,
-        version: runtime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+        version: runtime.version, protocol: runtime.protocol || 'legacy-0.1.1', hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
         message: '发现不是由 Deep Code 启动的共享 Harness。确认来源后才能连接。'
       })
     } catch (error) {
@@ -103,10 +129,13 @@ class RuntimeSupervisor extends EventEmitter {
     if (this.child) return this.snapshot()
     const runtimePath = resolved ? selectedPath : this.resolveRuntimePath(selectedPath)
     const runtime = this.inspectRuntime(runtimePath)
+    this.invalidateManagedConnection()
+    const generation = ++this.connectionGeneration
+    this.runtime = runtime
     this.sharedCandidate = null
     this.logs = []
     this.startingAt = Date.now()
-    this.setStatus({ state: 'starting', url: null, runtimePath, owned: true, kind: 'managed', trust: null, version: runtime.version, hostDescribeVersion: null, cwd: null, message: '正在启动固定版本的官方 Harness runtime…' })
+    this.setStatus({ state: 'starting', url: null, runtimePath, owned: true, kind: 'managed', trust: null, version: runtime.version, protocol: runtime.protocol || 'legacy-0.1.1', hostDescribeVersion: null, cwd: null, message: runtime.status === 'candidate' ? '正在启动已审核但尚未开放的 Harness 候选协议…' : '正在启动固定版本的官方 Harness runtime…' })
     const nodeExecutable = resolveNodeExecutable({ platform: this.platform, environment: this.environment, pathExists: this.pathExists })
     const child = this.spawnProcess(nodeExecutable, resolveHarnessEntrypoint(runtimePath, this.pathExists), {
       cwd: runtimePath, env: sanitizedEnvironment(this.environment), shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']
@@ -116,6 +145,8 @@ class RuntimeSupervisor extends EventEmitter {
     child.stderr.on('data', (value) => this.append('stderr', value))
     child.on('error', (error) => this.setStatus({ state: 'error', url: null, trust: null, message: error.message }))
     child.on('exit', (code, signal) => {
+      if (generation === this.connectionGeneration) this.connectionGeneration += 1
+      this.invalidateManagedConnection()
       this.child = null
       const wasError = this.status.state === 'error'
       const message = this.status.state === 'stopping'
@@ -124,6 +155,69 @@ class RuntimeSupervisor extends EventEmitter {
       this.setStatus({ state: wasError ? 'error' : 'stopped', url: null, owned: false, trust: null, message })
     })
     return this.snapshot()
+  }
+
+  async verifyManagedTypertLine(line) {
+    if (this.typertAuthentication || this.status.state === 'candidate-ready') return
+    const generation = this.connectionGeneration
+    const observation = this.observeTypertLaunch(line, {
+      runtime: this.runtime,
+      generation,
+      fetchImpl: this.fetchImpl,
+      isGenerationCurrent: value => value === this.connectionGeneration,
+      webSocketFactory: options => this.createWebSocketFactory(this.status.runtimePath)(options)
+    })
+    if (!observation?.connection) return
+    const connection = observation.connection
+    this.managedConnection = connection
+    this.typertAuthentication = (async () => {
+      this.setStatus({ state: 'probing', url: null, message: '正在完成新版 Engine 的临时认证与协议核对…' })
+      try {
+        const authenticated = await connection.authenticate()
+        if (generation !== this.connectionGeneration || connection !== this.managedConnection) {
+          throw new Error('新版 Engine 连接 generation 已失效。')
+        }
+        this.candidateAdapter = this.createTypertAdapter(connection)
+        const runtime = this.runtime
+        this.setStatus({
+          state: 'candidate-ready',
+          url: authenticated.baseUrl,
+          runtimePath: this.status.runtimePath,
+          owned: true,
+          kind: 'managed',
+          trust: 'managed-process',
+          version: runtime.version,
+          protocol: runtime.protocol,
+          hostDescribeVersion: null,
+          cwd: this.status.runtimePath,
+          capabilities: projectHarnessCapabilities({
+            runtime,
+            connection: { state: 'ready', kind: 'managed', trust: 'managed-process' },
+            adapterCapabilities: {
+              'task-prompt': false,
+              'live-session': true,
+              'decision-response': true,
+              'model-selection': false,
+              'image-transport': false,
+              'plan-projection': true,
+              'plan-control': true
+            }
+          }),
+          message: '新版 Harness 候选协议已完成认证，但产品任务入口尚未开放。'
+        })
+      } catch (error) {
+        const superseded = generation !== this.connectionGeneration
+          || ['stopping', 'stopped'].includes(this.status.state)
+        this.invalidateManagedConnection()
+        if (superseded) return
+        this.setStatus({ state: 'error', url: null, trust: null, message: `新版 Engine 验证失败：${error.message}` })
+        if (this.child) this.child.kill('SIGINT')
+        throw error
+      } finally {
+        this.typertAuthentication = null
+      }
+    })()
+    return this.typertAuthentication
   }
 
   async verifyManagedUrl(url) {
@@ -136,7 +230,7 @@ class RuntimeSupervisor extends EventEmitter {
       const elapsedSeconds = this.startingAt ? Math.max(0.1, (Date.now() - this.startingAt) / 1000).toFixed(1) : null
       this.setStatus({
         state: 'ready', url, owned: true, kind: 'managed', trust: 'managed-process',
-        version: runtime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+        version: runtime.version, protocol: runtime.protocol || 'legacy-0.1.1', hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
         capabilities: projectHarnessCapabilities({ runtime, connection: { state: 'ready', kind: 'managed', trust: 'managed-process' } }),
         message: elapsedSeconds ? `由 Deep Code 启动的 Harness 已验证，用时 ${elapsedSeconds} 秒。` : '由 Deep Code 启动的 Harness 已验证。'
       })
@@ -169,7 +263,7 @@ class RuntimeSupervisor extends EventEmitter {
     this.sharedCandidate = null
     this.setStatus({
       state: 'ready', url: candidate.baseUrl, runtimePath: candidate.runtimePath, owned: false, kind: 'shared', trust: 'user-confirmed-shared',
-      version: currentRuntime.version, hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
+      version: currentRuntime.version, protocol: currentRuntime.protocol || 'legacy-0.1.1', hostDescribeVersion: descriptor.version, cwd: descriptor.cwd,
       capabilities: projectHarnessCapabilities({ runtime: currentRuntime, connection: { state: 'ready', kind: 'shared', trust: 'user-confirmed-shared' } }),
       message: '已连接你明确确认的共享 Harness。Deep Code 无法控制它继承的环境变量。'
     })
@@ -179,6 +273,7 @@ class RuntimeSupervisor extends EventEmitter {
   waitUntilReady({ timeoutMs = 20000 } = {}) {
     const current = this.snapshot()
     if (current.state === 'ready' && current.url && current.trust) return Promise.resolve(current)
+    if (current.state === 'candidate-ready') return Promise.reject(new Error('新版 Harness 候选协议已验证，但尚未开放给产品任务。'))
     if (current.state === 'awaiting-user') return Promise.reject(new Error('共享 Engine 正在等待你的明确确认。'))
     if (['error', 'stopped', 'incompatible'].includes(current.state)) return Promise.reject(new Error(current.message || 'Harness 没有启动。'))
     return new Promise((resolvePromise, reject) => {
@@ -192,6 +287,7 @@ class RuntimeSupervisor extends EventEmitter {
       }
       const onStatus = (status) => {
         if (status.state === 'ready' && status.url && status.trust) finish(resolvePromise, status)
+        else if (status.state === 'candidate-ready') finish(reject, new Error('新版 Harness 候选协议已验证，但尚未开放给产品任务。'))
         else if (['error', 'stopped', 'awaiting-user', 'incompatible'].includes(status.state)) finish(reject, new Error(status.message || 'Harness 没有启动。'))
       }
       const timer = setTimeout(() => finish(reject, new Error(`Harness 启动超过 ${Math.ceil(timeoutMs / 1000)} 秒，仍未通过身份检查。`)), timeoutMs)
@@ -206,8 +302,17 @@ class RuntimeSupervisor extends EventEmitter {
       return this.snapshot()
     }
     this.setStatus({ state: 'stopping', message: '正在停止 Harness…' })
+    this.connectionGeneration += 1
+    this.invalidateManagedConnection()
     this.child.kill('SIGINT')
     return this.snapshot()
+  }
+
+  invalidateManagedConnection() {
+    this.candidateAdapter = null
+    const connection = this.managedConnection
+    this.managedConnection = null
+    connection?.dispose?.()
   }
 }
 
@@ -215,4 +320,10 @@ async function probeSharedHarness() {
   try { return { baseUrl: 'http://127.0.0.1:3080', descriptor: await describeHarnessHost('http://127.0.0.1:3080') } } catch { return null }
 }
 
-module.exports = { RuntimeSupervisor, probeSharedHarness, resolveHarnessEntrypoint, resolveNodeExecutable }
+module.exports = {
+  RuntimeSupervisor,
+  createRuntimeWebSocketFactory,
+  probeSharedHarness,
+  resolveHarnessEntrypoint,
+  resolveNodeExecutable
+}

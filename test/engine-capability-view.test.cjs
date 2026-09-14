@@ -27,3 +27,19 @@ test('groups usable and unavailable capabilities without hiding the reason', () 
   assert.match(view.rows.find((item) => item.id === 'plan-control').detail, /没有远程接口/)
   assert.match(view.rows.find((item) => item.id === 'image-transport').detail, /不等于当前模型已经通过识图验证/)
 })
+
+test('labels an audited candidate separately and never presents its disabled capabilities as ready', () => {
+  const view = projectEngineCapabilityView({
+    verified: true,
+    runtime: { version: '0.1.5-rc.2', revision: 'fb2c4b9e698e30edb738bca4cf0618587db7d203', status: 'candidate' },
+    capabilities: [
+      { id: 'task-prompt', label: '发送与继续任务', state: 'candidate-disabled', stateLabel: '候选协议（尚未开放）', reason: '产品任务入口仍保持关闭。' }
+    ]
+  })
+
+  assert.equal(view.state, 'candidate')
+  assert.equal(view.availableCount, 0)
+  assert.equal(view.unavailableCount, 1)
+  assert.match(view.title, /候选协议.*0\.1\.5-rc\.2/)
+  assert.match(view.summary, /任务入口.*关闭/)
+})

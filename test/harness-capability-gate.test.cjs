@@ -56,6 +56,28 @@ test('fails closed for a runtime outside the exact audited profile', () => {
   assert.equal(capabilityById(snapshot, 'plan-control').state, 'runtime-unverified')
 })
 
+test('keeps an audited candidate profile visible but unavailable to product operations', () => {
+  const snapshot = projectHarnessCapabilities({
+    runtime: {
+      official: true,
+      tag: 'dsh-v0.1.5-rc.2',
+      version: '0.1.5-rc.2',
+      revision: 'fb2c4b9e698e30edb738bca4cf0618587db7d203',
+      protocol: 'typert-0.1.5',
+      status: 'candidate'
+    },
+    connection: readyConnection,
+    adapterCapabilities: { 'plan-control': true }
+  })
+
+  assert.equal(snapshot.verified, true)
+  assert.equal(snapshot.runtime.protocol, 'typert-0.1.5')
+  assert.equal(snapshot.runtime.status, 'candidate')
+  assert.equal(capabilityById(snapshot, 'task-prompt').state, 'candidate-disabled')
+  assert.equal(capabilityById(snapshot, 'plan-control').state, 'candidate-disabled')
+  assert.equal(capabilityById(snapshot, 'plan-control').available, false)
+})
+
 test('distinguishes engine support from current Session availability', () => {
   const withoutSession = projectHarnessCapabilities({
     runtime: pinnedRuntime,

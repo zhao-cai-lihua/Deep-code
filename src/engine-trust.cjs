@@ -2,6 +2,7 @@ const { randomUUID } = require('node:crypto')
 const { readFileSync } = require('node:fs')
 const { execFileSync } = require('node:child_process')
 const { resolve, normalize } = require('node:path')
+const { TYPERT_015_CANDIDATE_PROFILE } = require('./typert-managed-connection.cjs')
 
 const VERIFIED_HARNESS = Object.freeze({
   tag: 'dsh-v0.1.1-rc.2',
@@ -75,6 +76,40 @@ function inspectCompatibleRuntime(runtimePath, { readText = readFileSync, runGit
   return result
 }
 
+function inspectAuditedRuntime(runtimePath, { readText = readFileSync, runGit = execFileSync } = {}) {
+  let manifest
+  try { manifest = JSON.parse(readText(resolve(runtimePath, 'package.json'), 'utf8')) } catch { throw new Error('无法读取 Harness package.json。') }
+  let revision = ''
+  try { revision = String(runGit('git', ['-C', runtimePath, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true })).trim() } catch {
+    throw new Error('无法确认 Harness 的 Git HEAD；不会启动未经固定的 runtime。')
+  }
+  if (manifest.name !== VERIFIED_HARNESS.packageName) throw new Error('所选目录不是官方 DeepSeek Harness checkout。')
+  const version = String(manifest.version || '')
+  if (version === VERIFIED_HARNESS.version && revision === VERIFIED_HARNESS.revision) {
+    return {
+      official: true,
+      tag: VERIFIED_HARNESS.tag,
+      version,
+      revision,
+      hostDescribeVersion: VERIFIED_HARNESS.hostDescribeVersion,
+      protocol: 'legacy-0.1.1',
+      status: 'supported'
+    }
+  }
+  if (version === TYPERT_015_CANDIDATE_PROFILE.version
+    && revision === TYPERT_015_CANDIDATE_PROFILE.revision) {
+    return {
+      official: true,
+      tag: TYPERT_015_CANDIDATE_PROFILE.tag,
+      version,
+      revision,
+      protocol: TYPERT_015_CANDIDATE_PROFILE.protocol,
+      status: TYPERT_015_CANDIDATE_PROFILE.status
+    }
+  }
+  throw new Error(`Harness 版本尚未验证：需要 ${VERIFIED_HARNESS.version} (${VERIFIED_HARNESS.revision.slice(0, 8)})，或实验室候选 ${TYPERT_015_CANDIDATE_PROFILE.version} (${TYPERT_015_CANDIDATE_PROFILE.revision.slice(0, 8)})。`)
+}
+
 function assertHostMatchesRuntime(descriptor, runtimePath, runtime) {
   const host = validateHostDescription(descriptor)
   if (!runtime?.hostDescribeVersion) throw new Error('已验证 runtime 缺少 host.describe 兼容标记，不能建立可信连接。')
@@ -85,4 +120,12 @@ function assertHostMatchesRuntime(descriptor, runtimePath, runtime) {
   return host
 }
 
-module.exports = { VERIFIED_HARNESS, assertHostMatchesRuntime, describeHarnessHost, inspectCompatibleRuntime, normalizeLocalPath, validateHostDescription }
+module.exports = {
+  VERIFIED_HARNESS,
+  assertHostMatchesRuntime,
+  describeHarnessHost,
+  inspectAuditedRuntime,
+  inspectCompatibleRuntime,
+  normalizeLocalPath,
+  validateHostDescription
+}

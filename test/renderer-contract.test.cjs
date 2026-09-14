@@ -42,6 +42,13 @@ test('first-run actions expose visible and accessible progress state', () => {
   assert.match(shell, /aria-busy/)
 })
 
+test('an authenticated runtime candidate remains clearly labeled and stoppable without becoming product-ready', () => {
+  assert.match(shell, /'candidate-ready': '候选协议已验证'/)
+  assert.match(shell, /\['starting', 'probing', 'candidate-ready', 'ready', 'awaiting-user'\]\.includes\(status\.state\)/)
+  assert.match(shell, /!\['starting', 'probing', 'candidate-ready', 'ready', 'stopping'\]\.includes\(status\.state\)/)
+  assert.match(shell, /status\.state === 'candidate-ready' \? 'Engine 候选协议已验证（任务入口关闭）'/)
+})
+
 test('model connection is presented as a normalized human-facing snapshot', () => {
   assert.match(html, /id="model-status-label"/)
   assert.match(html, /id="model-status-message"/)

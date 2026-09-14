@@ -1,6 +1,6 @@
 # DSH 0.1.5-rc.2 compatibility lab
 
-Status: compatibility Gates A, B, and the zero-token portion of Gate C are complete. Commands/Plan and a Session-bound Decision Gate now have real runtime proof. The profile remains an unreachable candidate and has made no Provider or model call.
+Status: compatibility Gates A, B, and the zero-token portion of Gate C are complete. Commands/Plan and a Session-bound Decision Gate have real runtime proof. Runtime Supervisor now recognizes and authenticates the exact checkout as a disabled candidate, but Main cannot admit product tasks through it. No Provider or model call was made.
 
 Reviewed: 2026-09-14
 
@@ -149,7 +149,7 @@ Completed on 2026-09-13 against a detached, clean exact-tag worktree:
 
 The reusable probe is `scripts/dsh-015-gate-b-smoke.cjs`. It captures the launch URL only in process memory, prints only token-redacted diagnostics on failure, creates no prompt, and reported `providerRequests: 0` and `promptRequests: 0` in both source and packaged runs.
 
-`ManagedTypertConnection.open()` now owns authenticated mux streams, correlated `streamId` frames, cancellation, bounded errors, disposal, and generation invalidation. `DshAdapterV2` is a separate candidate Adapter for the exact slash endpoints; neither module is wired into Runtime Supervisor selection yet.
+`ManagedTypertConnection.open()` now owns authenticated mux streams, correlated `streamId` frames, cancellation, bounded errors, disposal, and generation invalidation. `DshAdapterV2` is a separate candidate Adapter for the exact slash endpoints. Runtime Supervisor integration is described below; product task admission remains closed.
 
 ### Gate C — Commands and Decision Gate, zero Provider tokens
 
@@ -163,6 +163,16 @@ Completed on 2026-09-14:
 - the reusable runtime smoke now creates a temporary Cordis patch and synthetic question-source plugin inside its isolated test root. After the authenticated `$events` generation is attached to the newly created Session, the source resolves that exact live Agent and calls the official `ctx.userQuestions.ask()` seam;
 - the real Host emitted a Session-bound `user-questions/request`, Deep Code returned one structured `AskUserQuestionAnswer` through `$events/result`, and the synthetic source received the exact selected option. A second answer attempt was rejected locally before another Remote call;
 - the temporary patch, plugin, trigger, result, DSH home, Agent home, and workspace are deleted at the end. The official detached runtime checkout stays clean, and the user's configured Harness is not modified.
+
+### Product integration gate — Runtime Supervisor, zero Provider tokens
+
+Completed on 2026-09-14 without enabling the candidate for ordinary tasks:
+
+- `inspectAuditedRuntime()` recognizes either the unchanged shipping `legacy-0.1.1` identity or the exact `typert-0.1.5` candidate identity. The older `inspectCompatibleRuntime()` deliberately still rejects 0.1.5, so existing callers cannot silently broaden their compatibility claim;
+- Runtime Supervisor selects the protocol only after package identity, version, and exact Git HEAD have been checked. For the candidate it parses only the owned child's launch line, performs the temporary token-to-cookie exchange in Main memory, and constructs the V2 Adapter without exposing the token, cookie, WebSocket, or Remote endpoint to Renderer;
+- authenticated 0.1.5 enters `candidate-ready`, never `ready`. `waitUntilReady()` rejects it, Main's existing `ready` checks remain false, and the Capability Gate marks every feature `candidate-disabled` even where Runtime and Adapter evidence exist;
+- stopping advances the connection generation and disposes authentication before signalling the child. An intentional stop while authentication is pending stays a stop rather than being rewritten as a verification failure;
+- `scripts/dsh-015-runtime-supervisor-smoke.cjs` started and stopped the exact official checkout twice under an isolated DSH home. Both generations authenticated, retained `managed-process` trust, kept product admission closed, removed the child, and reported zero Provider and Prompt requests.
 
 ### Gate D — bounded model acceptance
 
@@ -198,12 +208,14 @@ Completed on 2026-09-14:
 ## Current automated and packaging evidence
 
 - focused V2 connection and Adapter suite: **21/21**;
-- full Deep Code regression: **337/337**;
+- full Deep Code regression after Runtime Supervisor and candidate-state UI integration: **343/343**;
 - JavaScript syntax checks and `git diff --check`: passed;
 - live source-module smoke: exact `0.1.5-rc.2@fb2c4b9e698e`, authenticated, same-Session question answered once, replay rejected, Plan entered/exited, process-stop invalidation passed, `providerRequests: 0`, `promptRequests: 0`;
-- current local test portable: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,874,763 bytes, SHA-256 `93c163859a89371e74072e9498c79c4a2cbaffa97367315b5e8f1edc1b901f11`;
+- current local test portable: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,883,578 bytes, SHA-256 `267f902741ae811f0a9c776f4cf2169e577ad51e6f4ba5cff3ea2b2f0a1b4994`;
 - source and packaged SHA-256 matched before the packaged live run: `typert-managed-connection.cjs` `bb22451a8f194c59166bbc75d3b566a2adc16199df4a42f392991e654add09f4`; `dsh-adapter-v2.cjs` `293e3c27a581abd1c15cb040a8b101a7247726372ce6a50f05aa6ed9a425130d`;
 - the packaged modules repeated the authenticated Session-bound question, one-shot answer, replay rejection, Plan, teardown, and post-stop invalidation path with `providerRequests: 0` and `promptRequests: 0`.
+- Runtime Supervisor live smoke: two exact candidate starts and stops, `managed-process` trust, all seven capabilities `candidate-disabled`, product admission rejected, `providerRequests: 0`, `promptRequests: 0`.
+- extracted packaged Runtime Supervisor, Capability Gate, and candidate-aware capability view hashes matched source exactly (`c0013d...4834`, `dcb859...0394`, `18f8ef...7544`), and the same two-generation live Supervisor smoke passed through the packaged modules.
 
 This is compatibility-lab evidence, not a public release or a supported runtime declaration.
 
@@ -211,4 +223,4 @@ This is compatibility-lab evidence, not a public release or a supported runtime 
 
 The source audit used `git show dsh-v0.1.5-rc.2:<path>` and `git ls-tree -r dsh-v0.1.5-rc.2`, not the checkout's moving working tree. A tag-wide search found no `host.describe` declaration in this revision. That is an absence finding, not a guarantee that future tags will never expose equivalent host metadata.
 
-Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall. Prompt admission and durable request correlation, the bounded model call, and full product integration remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` Runtime Supervisor and Adapter remain unchanged.
+Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall, and the candidate can cross the product's Runtime Supervisor boundary without becoming usable. Product-facing Session attachment, prompt admission and durable request correlation, the bounded model call, packaging of this integration branch, and human acceptance remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` task path and Adapter remain unchanged.

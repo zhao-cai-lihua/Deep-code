@@ -34,6 +34,16 @@
     const availableCount = rows.filter((row) => row.state === 'usable').length
     const unavailableCount = rows.length - availableCount
     const shortRevision = String(snapshot.runtime?.revision || '').slice(0, 8) || 'unknown'
+    if (snapshot.runtime?.status === 'candidate') {
+      return {
+        state: 'candidate',
+        title: `候选协议已核对：Harness ${String(snapshot.runtime?.version || 'unknown')}`,
+        summary: `固定提交 ${shortRevision} 已通过候选检查，但任务入口仍保持关闭；${unavailableCount} 项能力不会被普通任务调用。`,
+        availableCount: 0,
+        unavailableCount,
+        rows
+      }
+    }
     return {
       state: 'verified',
       title: `已核对 Harness ${String(snapshot.runtime?.version || 'unknown')}`,
