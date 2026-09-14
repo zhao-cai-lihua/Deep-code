@@ -14,6 +14,67 @@ const exactRuntime = Object.freeze({
   revision: 'fb2c4b9e698e30edb738bca4cf0618587db7d203'
 })
 
+class FakeWebSocket {
+  constructor() {
+    this.readyState = 0
+    this.sent = []
+    this.closed = false
+    this.listeners = new Map()
+  }
+
+  addEventListener(type, listener) {
+    const listeners = this.listeners.get(type) || new Set()
+    listeners.add(listener)
+    this.listeners.set(type, listeners)
+  }
+
+  removeEventListener(type, listener) {
+    this.listeners.get(type)?.delete(listener)
+  }
+
+  send(value) {
+    this.sent.push(JSON.parse(value))
+  }
+
+  close() {
+    this.closed = true
+    this.readyState = 3
+  }
+
+  emit(type, event = {}) {
+    if (type === 'open') this.readyState = 1
+    if (type === 'close') this.readyState = 3
+    for (const listener of this.listeners.get(type) || []) listener(event)
+  }
+
+  frame(frame) {
+    this.emit('message', { data: JSON.stringify(frame) })
+  }
+}
+
+function authenticatedConnection({
+  generation = 20,
+  currentGeneration = () => generation,
+  webSocketFactory,
+  randomUUID = () => 'stream-fixed'
+} = {}) {
+  const observed = observeManagedTypertLaunch(
+    'dsh web: http://127.0.0.1:49152/?token=stream-launch-canary',
+    {
+      runtime: exactRuntime,
+      generation,
+      isGenerationCurrent: value => value === currentGeneration(),
+      randomUUID,
+      webSocketFactory,
+      fetchImpl: async () => ({
+        status: 303,
+        headers: { get: name => ({ location: '/', 'set-cookie': 'dsh_session=stream-cookie-canary; HttpOnly' })[name.toLowerCase()] || null }
+      })
+    }
+  )
+  return observed.connection.authenticate().then(() => observed.connection)
+}
+
 test('recognizes only the exact audited 0.1.5 candidate identity without enabling it', () => {
   assert.equal(assertTypertCandidateRuntime(exactRuntime), TYPERT_015_CANDIDATE_PROFILE)
   for (const changed of [
@@ -204,4 +265,87 @@ test('admits the official internal Remote Event result endpoint but rejects lega
   await assert.rejects(connection.call('session.prompt', {}), /endpoint/)
   assert.equal(requests.length, 2)
   assert.equal(requests[1].input, 'http://127.0.0.1:49152/api/$events/result')
+})
+
+test('opens one authenticated Remote mux stream and yields only correlated items', async () => {
+  const socket = new FakeWebSocket()
+  const factories = []
+  const connection = await authenticatedConnection({
+    webSocketFactory: options => {
+      factories.push(options)
+      return socket
+    }
+  })
+  const abort = new AbortController()
+  const iterator = connection.open('$events', {}, { signal: abort.signal })[Symbol.asyncIterator]()
+  const first = iterator.next()
+
+  assert.deepEqual(factories, [{
+    url: 'ws://127.0.0.1:49152/api/remote.mux',
+    headers: { cookie: 'dsh_session=stream-cookie-canary' }
+  }])
+  socket.emit('open')
+  assert.deepEqual(socket.sent, [{
+    type: 'open', streamId: 'stream-fixed', endpoint: '$events', payload: { args: {} }
+  }])
+  socket.frame({ type: 'item', streamId: 'another-stream', value: { type: 'wrong' } })
+  socket.frame({ type: 'item', streamId: 'stream-fixed', value: { type: 'ready', clientId: 'client-1', host: { home: 'C:\\Users\\tester' } } })
+
+  assert.deepEqual(await first, {
+    done: false,
+    value: { type: 'ready', clientId: 'client-1', host: { home: 'C:\\Users\\tester' } }
+  })
+  await iterator.return()
+  assert.deepEqual(socket.sent[1], { type: 'cancel', streamId: 'stream-fixed' })
+  assert.equal(socket.closed, true)
+  assert.doesNotMatch(JSON.stringify(connection.snapshot()), /canary/)
+})
+
+test('turns a correlated Remote stream error into a bounded secret-free failure', async () => {
+  const socket = new FakeWebSocket()
+  const connection = await authenticatedConnection({ webSocketFactory: () => socket })
+  const iterator = connection.open('session/follow', {
+    request: { address: { kind: 'session', sessionId: 'session-safe' }, assistantStream: true }
+  })[Symbol.asyncIterator]()
+  const first = iterator.next()
+  socket.emit('open')
+  socket.frame({
+    type: 'error',
+    streamId: 'stream-fixed',
+    error: { code: 'session/not-found', message: 'not found', details: { internal: 'hidden-canary' } }
+  })
+
+  await assert.rejects(first, error => {
+    assert.match(error.message, /session\/follow.*session\/not-found.*not found/)
+    assert.doesNotMatch(error.message, /hidden-canary/)
+    return true
+  })
+  assert.equal(socket.closed, true)
+})
+
+test('disposal cancels active streams and stale generations cannot consume later frames', async () => {
+  let generation = 30
+  const socket = new FakeWebSocket()
+  const connection = await authenticatedConnection({
+    generation,
+    currentGeneration: () => generation,
+    webSocketFactory: () => socket
+  })
+  const iterator = connection.open('$events', {})[Symbol.asyncIterator]()
+  const first = iterator.next()
+  socket.emit('open')
+  generation = 31
+  socket.frame({ type: 'item', streamId: 'stream-fixed', value: { type: 'ready', clientId: 'late-client' } })
+
+  await assert.rejects(first, /generation/)
+  assert.equal(socket.closed, true)
+  assert.equal(connection.snapshot().state, 'stale')
+
+  const secondSocket = new FakeWebSocket()
+  const second = await authenticatedConnection({ generation: 40, webSocketFactory: () => secondSocket })
+  const waiting = second.open('$events', {})[Symbol.asyncIterator]().next()
+  secondSocket.emit('open')
+  second.dispose()
+  await assert.rejects(waiting, /失效/)
+  assert.equal(secondSocket.closed, true)
 })
