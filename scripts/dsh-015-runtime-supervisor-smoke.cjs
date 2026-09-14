@@ -64,12 +64,26 @@ async function startCandidate() {
   if (/([?&]token=)(?!\[redacted\])/i.test(serialized) || /dsh\.sid=/i.test(serialized)) {
     throw new Error('Runtime Supervisor exposed launch authentication in its snapshot.')
   }
-  return ready
+  const session = await supervisor.attachCandidateSessionForLab({ cwd: isolatedRoot })
+  if (session.state !== 'observing' || !session.sessionId || session.connectionGeneration < 1
+    || session.follow?.attached !== true || session.decisionGate?.state !== 'observing'
+    || session.decisionGate?.pendingCount !== 0) {
+    throw new Error('Runtime Supervisor did not bind an exact empty candidate Session.')
+  }
+  const sessionSerialized = JSON.stringify(session)
+  if (/clientId|cookie|dsh\.sid|https?:\/\//i.test(sessionSerialized)) {
+    throw new Error('Runtime Supervisor exposed private candidate transport state.')
+  }
+  return { ready, session }
 }
 
 async function stopCandidate() {
   supervisor.stop()
-  return waitForStatus(status => status.state === 'stopped', 15_000)
+  const stopped = await waitForStatus(status => status.state === 'stopped', 15_000)
+  if (supervisor.candidateSessionLabSnapshot() !== null) {
+    throw new Error('Runtime Supervisor retained a candidate Session after stop.')
+  }
+  return stopped
 }
 
 async function main() {
@@ -99,12 +113,13 @@ async function main() {
   }
 
   process.stdout.write(`${JSON.stringify({
-    runtime: `${second.version}@${second.capabilities.runtime.revision.slice(0, 12)}`,
-    protocol: second.protocol,
+    runtime: `${second.ready.version}@${second.ready.capabilities.runtime.revision.slice(0, 12)}`,
+    protocol: second.ready.protocol,
     starts: statuses.filter(status => status.state === 'candidate-ready').length,
-    managedTrust: first.trust === 'managed-process' && second.trust === 'managed-process',
+    sessionsAttached: [first.session, second.session].filter(session => session.follow.attached).length,
+    managedTrust: first.ready.trust === 'managed-process' && second.ready.trust === 'managed-process',
     productAdmissionClosed: true,
-    allCapabilitiesCandidateDisabled: second.capabilities.capabilities
+    allCapabilitiesCandidateDisabled: second.ready.capabilities.capabilities
       .every(capability => capability.available === false && capability.state === 'candidate-disabled'),
     stopped: supervisor.snapshot().state === 'stopped',
     providerRequests: 0,
