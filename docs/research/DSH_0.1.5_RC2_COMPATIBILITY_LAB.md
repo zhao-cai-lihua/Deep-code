@@ -1,8 +1,8 @@
 # DSH 0.1.5-rc.2 compatibility lab
 
-Status: compatibility Gates A and B complete; Gate C Commands/Plan runtime proof complete and Decision Gate correlation implemented in behavior tests. The profile remains an unreachable candidate and has made no Provider or model call.
+Status: compatibility Gates A, B, and the zero-token portion of Gate C are complete. Commands/Plan and a Session-bound Decision Gate now have real runtime proof. The profile remains an unreachable candidate and has made no Provider or model call.
 
-Reviewed: 2026-09-13
+Reviewed: 2026-09-14
 
 ## Fixed source
 
@@ -151,17 +151,18 @@ The reusable probe is `scripts/dsh-015-gate-b-smoke.cjs`. It captures the launch
 
 `ManagedTypertConnection.open()` now owns authenticated mux streams, correlated `streamId` frames, cancellation, bounded errors, disposal, and generation invalidation. `DshAdapterV2` is a separate candidate Adapter for the exact slash endpoints; neither module is wired into Runtime Supervisor selection yet.
 
-### Gate C — Commands and Decision Gate, normally zero Provider tokens
+### Gate C — Commands and Decision Gate, zero Provider tokens
 
-Partially completed on 2026-09-13:
+Completed on 2026-09-14:
 
 - the V2 Adapter lists commands for the exact Session, refuses to simulate Plan when the official catalog omits it, and executes only bare `/plan` or `/plan off` with an empty attachment list;
 - a successful RPC is not enough: the Adapter requires same-command `command/run`, successful `command/done`, and the requested `plan/mode` event from the same Session follow stream before reporting the switch;
 - real isolated runtime checks entered and exited Plan with all three evidence records each, without sending or altering any natural-language task text;
 - the real Typert descriptor rejected the fixture-derived field name `images` and required `submittedAttachments`. The Adapter and behavior fixture now follow the real Host descriptor; this is recorded as a concrete example of why in-memory fixtures are not live compatibility evidence;
-- an event-generation-local Decision Gate now records only waterfall `eventId` values actually observed on its own `$events` stream. Invented, cancelled, answered, replayed, foreign-Adapter, and stale-generation correlations are rejected before `$events/result` is called. Successful answers carry the exact `clientId + eventId` and are one-shot.
-
-Still pending: introduce an isolated synthetic Host-side `user-questions/request` without a model call, then prove the complete real waterfall response and Host rejection of stale replay. The local correlation behavior is covered, but it is not yet claimed as a live runtime acceptance.
+- an event-generation-local Decision Gate records only waterfall `eventId` values actually observed on its own `$events` stream **and** whose `agentId` equals the exact Session bound to that generation. Invented, other-Session, cancelled, answered, replayed, foreign-Adapter, and stale-generation correlations are rejected before `$events/result` is called. Successful answers carry the exact `clientId + eventId` and are one-shot;
+- the reusable runtime smoke now creates a temporary Cordis patch and synthetic question-source plugin inside its isolated test root. After the authenticated `$events` generation is attached to the newly created Session, the source resolves that exact live Agent and calls the official `ctx.userQuestions.ask()` seam;
+- the real Host emitted a Session-bound `user-questions/request`, Deep Code returned one structured `AskUserQuestionAnswer` through `$events/result`, and the synthetic source received the exact selected option. A second answer attempt was rejected locally before another Remote call;
+- the temporary patch, plugin, trigger, result, DSH home, Agent home, and workspace are deleted at the end. The official detached runtime checkout stays clean, and the user's configured Harness is not modified.
 
 ### Gate D — bounded model acceptance
 
@@ -199,8 +200,10 @@ Still pending: introduce an isolated synthetic Host-side `user-questions/request
 - focused V2 connection and Adapter suite: **21/21**;
 - full Deep Code regression: **337/337**;
 - JavaScript syntax checks and `git diff --check`: passed;
-- final local portable: `E:\Temp\lenovo\deep-code-gate-c-final-package\Deep-code-Gate-C-Final-0.8.1-beta.1.exe`, 368,873,983 bytes, SHA-256 `fb46f94872ef45965ed251ebee8c632ea94132e19adc020798b858fdcc0489e2`;
-- source and packaged SHA-256 matched for both `typert-managed-connection.cjs` and `dsh-adapter-v2.cjs` before the packaged live run.
+- live source-module smoke: exact `0.1.5-rc.2@fb2c4b9e698e`, authenticated, same-Session question answered once, replay rejected, Plan entered/exited, process-stop invalidation passed, `providerRequests: 0`, `promptRequests: 0`;
+- current local test portable: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,874,763 bytes, SHA-256 `93c163859a89371e74072e9498c79c4a2cbaffa97367315b5e8f1edc1b901f11`;
+- source and packaged SHA-256 matched before the packaged live run: `typert-managed-connection.cjs` `bb22451a8f194c59166bbc75d3b566a2adc16199df4a42f392991e654add09f4`; `dsh-adapter-v2.cjs` `293e3c27a581abd1c15cb040a8b101a7247726372ce6a50f05aa6ed9a425130d`;
+- the packaged modules repeated the authenticated Session-bound question, one-shot answer, replay rejection, Plan, teardown, and post-stop invalidation path with `providerRequests: 0` and `promptRequests: 0`.
 
 This is compatibility-lab evidence, not a public release or a supported runtime declaration.
 
@@ -208,4 +211,4 @@ This is compatibility-lab evidence, not a public release or a supported runtime 
 
 The source audit used `git show dsh-v0.1.5-rc.2:<path>` and `git ls-tree -r dsh-v0.1.5-rc.2`, not the checkout's moving working tree. A tag-wide search found no `host.describe` declaration in this revision. That is an absence finding, not a guarantee that future tags will never expose equivalent host metadata.
 
-Gate B and the Commands/Plan portion of Gate C now have exact-tag Windows runtime evidence. The real synthetic question waterfall, prompt admission and durable request correlation, bounded model call, and full product integration remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` Runtime Supervisor and Adapter remain unchanged.
+Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall. Prompt admission and durable request correlation, the bounded model call, and full product integration remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` Runtime Supervisor and Adapter remain unchanged.

@@ -182,8 +182,10 @@ class DshAdapterV2 {
     }
   }
 
-  async openEventGeneration({ signal } = {}) {
+  async openEventGeneration({ sessionId, signal } = {}) {
     this.#assertReady()
+    const expectedSessionId = String(sessionId || '')
+    if (!expectedSessionId) throw new Error('新版 Engine Remote Event generation 缺少 Session 身份。')
     const iterator = asIterator(this.connection.open('$events', {}, { signal }), '$events')
     let first
     try { first = await iterator.next() } catch (error) { await closeIterator(iterator); throw error }
@@ -193,7 +195,7 @@ class DshAdapterV2 {
       await closeIterator(iterator)
       throw new Error('新版 Engine $events 没有返回完整的 ready 首项。')
     }
-    const state = { iterator, pending: new Set(), closed: false }
+    const state = { iterator, sessionId: expectedSessionId, pending: new Set(), closed: false }
     const stream = Object.freeze({
       [Symbol.asyncIterator]() { return this },
       async next() {
@@ -204,7 +206,8 @@ class DshAdapterV2 {
           return next
         }
         const frame = next.value
-        if (frame?.type === 'waterfall' && typeof frame.eventId === 'string' && frame.eventId.length > 0) {
+        if (frame?.type === 'waterfall' && frame.agentId === expectedSessionId
+          && typeof frame.eventId === 'string' && frame.eventId.length > 0) {
           state.pending.add(frame.eventId)
         } else if (frame?.type === 'cancel' && typeof frame.eventId === 'string') {
           state.pending.delete(frame.eventId)
@@ -220,6 +223,7 @@ class DshAdapterV2 {
     })
     const generation = Object.freeze({
       generation: this.connection.snapshot().generation,
+      sessionId: expectedSessionId,
       clientId: ready.clientId,
       host: Object.freeze({ home: ready.host.home }),
       stream
