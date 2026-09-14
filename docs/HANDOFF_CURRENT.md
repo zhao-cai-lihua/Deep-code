@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-14
-Branch: `codex/v0.8.1-candidate-session-seam`
+Branch: `main`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
-Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; Gate B and Commands/Plan merged through PR #22 at `f331def0b20b35f3f0a467519fad4c1a058ad4af`; the zero-token Decision Gate round trip merged through PR #23 at `93ed6c188f6196ebe2f9e3ad5c4f8e0eca48740d`; the exact disabled Runtime Supervisor candidate merged through PR #24 at `40582ae95a5b3d08362b54ad0278e8b81de2d3fd`; packaged product version remains `0.8.1-beta.1`
+Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; Gate B and Commands/Plan merged through PR #22 at `f331def0b20b35f3f0a467519fad4c1a058ad4af`; the zero-token Decision Gate round trip merged through PR #23 at `93ed6c188f6196ebe2f9e3ad5c4f8e0eca48740d`; the exact disabled Runtime Supervisor candidate merged through PR #24 at `40582ae95a5b3d08362b54ad0278e8b81de2d3fd`; the internal candidate Session seam merged through PR #26 at `ba0cb11f6201ba3e7f6eca6ba6e278c1a9a05e16`; packaged product version remains `0.8.1-beta.1`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
