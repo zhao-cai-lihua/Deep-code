@@ -108,6 +108,53 @@ class DshAdapterV2 {
     return created
   }
 
+  async selectModel({ sessionId, selection, signal } = {}) {
+    this.#assertReady()
+    const exactSessionId = String(sessionId || '')
+    const provider = typeof selection?.provider === 'string' ? selection.provider.trim() : ''
+    const model = typeof selection?.model === 'string' ? selection.model.trim() : ''
+    const reasoningEffort = typeof selection?.reasoningEffort === 'string' && selection.reasoningEffort.trim()
+      ? selection.reasoningEffort.trim()
+      : undefined
+    if (!exactSessionId) throw new Error('新版 Engine 模型选择缺少 Session 身份。')
+    if (!provider || !model) throw new Error('新版 Engine 模型选择缺少明确的 Provider 或 Model。')
+    const requested = { provider, model, ...(reasoningEffort ? { reasoningEffort } : {}) }
+    const value = requireValue('session/selectModel', await this.connection.call('session/selectModel', {
+      request: { sessionId: exactSessionId, ...requested }
+    }, { signal }))
+    const selected = value?.selected
+    const matches = selected && selected.provider === provider && selected.model === model
+      && (reasoningEffort === undefined || selected.reasoningEffort === reasoningEffort)
+    if (!matches) throw new Error('新版 Engine 没有确认请求的模型选择。')
+    return {
+      provider: selected.provider,
+      model: selected.model,
+      ...(typeof selected.reasoningEffort === 'string' && selected.reasoningEffort
+        ? { reasoningEffort: selected.reasoningEffort }
+        : {})
+    }
+  }
+
+  async prompt({ sessionId, requestId, text, mode = 'queue', clientTimeZone, signal } = {}) {
+    this.#assertReady()
+    const exactSessionId = String(sessionId || '')
+    const exactRequestId = String(requestId || '')
+    if (!exactSessionId) throw new Error('新版 Engine Prompt 缺少 Session 身份。')
+    if (!exactRequestId) throw new Error('新版 Engine Prompt 缺少 requestId。')
+    if (typeof text !== 'string' || !text.trim()) throw new Error('新版 Engine Prompt 必须包含非空文本。')
+    if (mode !== 'queue' && mode !== 'steer') throw new Error('新版 Engine Prompt 模式无效。')
+    const request = {
+      requestId: exactRequestId,
+      sessionId: exactSessionId,
+      mode,
+      content: [{ type: 'text', text }],
+      ...(typeof clientTimeZone === 'string' && clientTimeZone ? { clientTimeZone } : {})
+    }
+    const value = requireValue('session/prompt', await this.connection.call('session/prompt', { request }, { signal }))
+    if (value?.accepted !== true) throw new Error('新版 Engine 没有确认接纳这条 Prompt。')
+    return { accepted: true, requestId: exactRequestId }
+  }
+
   async listCommands({ sessionId, signal } = {}) {
     this.#assertReady()
     const agentId = String(sessionId || '')

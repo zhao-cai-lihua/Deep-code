@@ -329,6 +329,27 @@ class RuntimeSupervisor extends EventEmitter {
     return this.candidateSessionLab?.snapshot() || null
   }
 
+  prepareCandidatePromptEvidenceForLab({ requestId, expectedRoute } = {}) {
+    if (this.status.state !== 'candidate-ready' || !this.candidateSessionLab) {
+      throw new Error('候选 Session Lab 尚未绑定，不能开始 Prompt 证据观察。')
+    }
+    return this.candidateSessionLab.preparePromptEvidence({ requestId, expectedRoute })
+  }
+
+  confirmCandidatePromptAdmissionForLab({ requestId, acceptedAt } = {}) {
+    if (this.status.state !== 'candidate-ready' || !this.candidateSessionLab) {
+      throw new Error('候选 Session Lab 尚未绑定，不能确认 Prompt 接纳。')
+    }
+    return this.candidateSessionLab.confirmPromptAdmission({ requestId, acceptedAt })
+  }
+
+  rejectCandidatePromptAdmissionForLab({ requestId } = {}) {
+    if (this.status.state !== 'candidate-ready' || !this.candidateSessionLab) {
+      throw new Error('候选 Session Lab 尚未绑定，不能拒绝 Prompt 接纳。')
+    }
+    return this.candidateSessionLab.rejectPromptAdmission({ requestId })
+  }
+
   stop() {
     if (!this.child) {
       if (this.status.state === 'ready' && !this.status.owned) this.setStatus({ message: '这份 Harness 由其他终端启动；请在那个终端中停止它。' })

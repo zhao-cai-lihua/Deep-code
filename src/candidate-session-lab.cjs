@@ -1,3 +1,5 @@
+const { CandidatePromptEvidence } = require('./candidate-prompt-evidence.cjs')
+
 async function closeIterator(iterator) {
   try { await iterator?.return?.() } catch {}
 }
@@ -9,7 +11,8 @@ function emptySnapshot(connectionGeneration = null) {
     connectionGeneration,
     sessionId: null,
     follow: { attached: false, cursor: null },
-    decisionGate: { state: 'closed', pendingCount: 0, kinds: [] }
+    decisionGate: { state: 'closed', pendingCount: 0, kinds: [] },
+    promptEvidence: null
   }
 }
 
@@ -34,9 +37,11 @@ class CandidateSessionLab {
     this.followIterator = null
     this.eventStream = null
     this.eventPump = null
+    this.followPump = null
     this.attachmentNonce = 0
     this.attachInFlight = false
     this.pendingEvents = new Map()
+    this.promptEvidence = null
     this.current = emptySnapshot(connectionGeneration)
   }
 
@@ -47,7 +52,8 @@ class CandidateSessionLab {
       decisionGate: {
         ...this.current.decisionGate,
         kinds: [...this.current.decisionGate.kinds]
-      }
+      },
+      promptEvidence: this.promptEvidence?.snapshot() || null
     }
   }
 
@@ -92,8 +98,10 @@ class CandidateSessionLab {
           attached: true,
           cursor: Number.isInteger(first.value.cursor) ? first.value.cursor : null
         },
-        decisionGate: { state: 'observing', pendingCount: 0, kinds: [] }
+        decisionGate: { state: 'observing', pendingCount: 0, kinds: [] },
+        promptEvidence: null
       }
+      this.followPump = this.#pumpFollow(followIterator, exactSessionId, nonce)
       this.eventPump = this.#pumpDecisionGate(eventStream, exactSessionId, nonce)
       return this.snapshot()
     } catch (error) {
@@ -113,10 +121,45 @@ class CandidateSessionLab {
     this.followIterator = null
     this.eventStream = null
     this.eventPump = null
+    this.followPump = null
     this.pendingEvents.clear()
+    this.promptEvidence = null
     this.current = emptySnapshot(this.connectionGeneration)
     await Promise.all([closeIterator(followIterator), closeIterator(eventStream)])
     return this.snapshot()
+  }
+
+  preparePromptEvidence({ requestId, expectedRoute } = {}) {
+    if (this.current.state !== 'observing' || !this.current.sessionId || !this.followIterator) {
+      throw new Error('候选 Session Lab 尚未进入可观察状态。')
+    }
+    if (this.promptEvidence && !['completed', 'failed', 'interrupted', 'route-mismatch', 'evidence-incomplete', 'rejected']
+      .includes(this.promptEvidence.snapshot().state)) {
+      throw new Error('候选 Session Lab 已经在观察一条尚未结算的 Prompt。')
+    }
+    this.promptEvidence = new CandidatePromptEvidence({
+      sessionId: this.current.sessionId,
+      requestId,
+      expectedRoute
+    })
+    return this.promptEvidence.snapshot()
+  }
+
+  confirmPromptAdmission({ requestId, acceptedAt } = {}) {
+    this.#assertPromptRequest(requestId)
+    return this.promptEvidence.confirmAdmission({ acceptedAt })
+  }
+
+  rejectPromptAdmission({ requestId } = {}) {
+    this.#assertPromptRequest(requestId)
+    return this.promptEvidence.rejectAdmission()
+  }
+
+  #assertPromptRequest(requestId) {
+    if (!this.promptEvidence) throw new Error('候选 Session Lab 没有待核对的 Prompt。')
+    if (String(requestId || '') !== this.promptEvidence.requestId) {
+      throw new Error('候选 Prompt 的 requestId 不一致。')
+    }
   }
 
   #refreshDecisionProjection() {
@@ -166,6 +209,28 @@ class CandidateSessionLab {
           state: 'error',
           decisionGate: { state: 'closed', pendingCount: 0, kinds: [] }
         }
+      }
+    }
+  }
+
+  async #pumpFollow(stream, sessionId, nonce) {
+    try {
+      for await (const frame of { [Symbol.asyncIterator]: () => stream }) {
+        if (nonce !== this.attachmentNonce || this.current.sessionId !== sessionId) return
+        this.promptEvidence?.observe(frame)
+        if (frame?.type === 'event' && Number.isInteger(frame.event?.seq)) {
+          this.current = {
+            ...this.current,
+            follow: { attached: true, cursor: Math.max(this.current.follow.cursor ?? -1, frame.event.seq + 1) }
+          }
+        }
+      }
+      if (nonce === this.attachmentNonce && this.current.sessionId === sessionId) {
+        this.current = { ...this.current, state: 'closed', follow: { ...this.current.follow, attached: false } }
+      }
+    } catch {
+      if (nonce === this.attachmentNonce && this.current.sessionId === sessionId) {
+        this.current = { ...this.current, state: 'error', follow: { ...this.current.follow, attached: false } }
       }
     }
   }
