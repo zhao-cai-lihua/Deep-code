@@ -63,10 +63,13 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
     },
     followSession(request) {
       calls.push({ operation: 'follow', request })
+      let first = true
       return {
         [Symbol.asyncIterator]() {
           return {
             async next() {
+              if (!first) return follow.next()
+              first = false
               return {
                 done: false,
                 value: {
@@ -109,7 +112,8 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
     connectionGeneration: 7,
     sessionId: 'session-exact',
     follow: { attached: true, cursor: 12 },
-    decisionGate: { state: 'observing', pendingCount: 0, kinds: [] }
+    decisionGate: { state: 'observing', pendingCount: 0, kinds: [] },
+    promptEvidence: null
   })
   const serialized = JSON.stringify(snapshot)
   assert.doesNotMatch(serialized, /client-secret|dsh\.sid|privateState|Users\\\\private|41234/)
@@ -119,13 +123,12 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
 
 test('projects only same-Session pending Decision Gate kinds and removes cancelled events', async () => {
   const events = pushStream()
+  const follow = pushStream()
+  follow.push({ type: 'snapshot', header: { id: 'session-a' }, cursor: 3, records: [] })
   const adapter = {
     connectionSnapshot: () => ({ state: 'authenticated', generation: 9 }),
     createSession: async () => ({ sessionId: 'session-a' }),
-    followSession: () => (async function* () {
-      yield { type: 'snapshot', header: { id: 'session-a' }, cursor: 3, records: [] }
-      await new Promise(() => {})
-    })(),
+    followSession: () => follow,
     openEventGeneration: async () => ({
       generation: 9,
       sessionId: 'session-a',
@@ -186,7 +189,7 @@ test('keeps the candidate Session Lab unreachable from ordinary product IPC and 
   const sourceRoot = join(__dirname, '..', 'src')
   for (const relativePath of ['main.cjs', 'preload.cjs', join('renderer', 'shell.js')]) {
     const source = readFileSync(join(sourceRoot, relativePath), 'utf8')
-    assert.doesNotMatch(source, /attachCandidateSessionForLab|candidateSessionLabSnapshot|candidate-session-lab/)
+    assert.doesNotMatch(source, /attachCandidateSessionForLab|prepareCandidatePromptEvidenceForLab|confirmCandidatePromptAdmissionForLab|rejectCandidatePromptAdmissionForLab|candidateSessionLabSnapshot|candidate-session-lab/)
   }
 })
 
@@ -224,5 +227,66 @@ test('a close during asynchronous Session creation invalidates the late attach r
     sessionId: null,
     follow: { attached: false, cursor: null },
     decisionGate: { state: 'closed', pendingCount: 0, kinds: [] }
+    , promptEvidence: null
   })
+})
+
+test('projects live Prompt correlation from the Session follow stream without sending a Prompt', async () => {
+  const follow = pushStream()
+  follow.push({ type: 'snapshot', header: { id: 'session-a' }, cursor: 60, records: [] })
+  const lab = new CandidateSessionLab({
+    connectionGeneration: 15,
+    adapter: {
+      createSession: async () => ({ sessionId: 'session-a' }),
+      followSession: () => follow,
+      openEventGeneration: async () => ({
+        generation: 15, sessionId: 'session-a', stream: pendingStream()
+      })
+    }
+  })
+  await lab.attach({ cwd: 'C:\\workspace' })
+  lab.preparePromptEvidence({
+    requestId: 'request-a',
+    expectedRoute: { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' }
+  })
+
+  follow.push({ type: 'event', event: { seq: 61, type: 'turn/start', data: { turn: 3 } } })
+  follow.push({ type: 'event', event: {
+    seq: 62, type: 'user/message',
+    data: { source: { kind: 'user', rpcId: 'request-a' }, content: [{ type: 'text', text: 'private prompt' }] }
+  } })
+  follow.push({ type: 'event', event: {
+    seq: 63, type: 'request/header',
+    data: { header: { config: { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' } } }
+  } })
+
+  lab.confirmPromptAdmission({ requestId: 'request-a', acceptedAt: '2026-09-14T10:00:00.000Z' })
+  await waitFor(() => assert.equal(lab.snapshot().promptEvidence?.state, 'running'))
+  assert.equal(lab.snapshot().promptEvidence.routeMatch, 'matched')
+  assert.doesNotMatch(JSON.stringify(lab.snapshot()), /private prompt/)
+  await lab.close()
+})
+
+test('prepares before admission and can reject the exact observation without sending', async () => {
+  const follow = pushStream()
+  follow.push({ type: 'snapshot', header: { id: 'session-a' }, cursor: 80, records: [] })
+  const lab = new CandidateSessionLab({
+    connectionGeneration: 16,
+    adapter: {
+      createSession: async () => ({ sessionId: 'session-a' }),
+      followSession: () => follow,
+      openEventGeneration: async () => ({ generation: 16, sessionId: 'session-a', stream: pendingStream() })
+    }
+  })
+  await lab.attach({ cwd: 'C:\\workspace' })
+  assert.equal(lab.preparePromptEvidence({
+    requestId: 'request-rejected',
+    expectedRoute: { provider: 'deepseek-official', model: 'deepseek-v4-pro' }
+  }).state, 'awaiting-admission')
+  assert.equal(lab.rejectPromptAdmission({ requestId: 'request-rejected' }).state, 'rejected')
+  assert.throws(
+    () => lab.confirmPromptAdmission({ requestId: 'another-request', acceptedAt: '2026-09-14T10:00:00.000Z' }),
+    /requestId 不一致/
+  )
+  await lab.close()
 })

@@ -35,6 +35,72 @@ test('maps catalog and empty Session creation to exact Typert slash calls', asyn
   ])
 })
 
+test('maps an exact model selection and text admission without inventing completion', async () => {
+  const calls = []
+  const connection = {
+    snapshot: () => ({ state: 'authenticated', generation: 6 }),
+    call: async (endpoint, args) => {
+      calls.push({ endpoint, args })
+      if (endpoint === 'session/selectModel') {
+        return { ok: true, value: { selected: { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' } } }
+      }
+      return { ok: true, value: { accepted: true } }
+    },
+    open: () => { throw new Error('not used') },
+    dispose: () => {}
+  }
+  const adapter = new DshAdapterV2({ connection })
+
+  assert.deepEqual(await adapter.selectModel({
+    sessionId: 'session-a',
+    selection: { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' }
+  }), { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' })
+  assert.deepEqual(await adapter.prompt({
+    sessionId: 'session-a', requestId: 'request-a', text: 'private prompt', clientTimeZone: 'Asia/Shanghai'
+  }), { accepted: true, requestId: 'request-a' })
+  assert.deepEqual(calls, [
+    {
+      endpoint: 'session/selectModel',
+      args: { request: { sessionId: 'session-a', provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' } }
+    },
+    {
+      endpoint: 'session/prompt',
+      args: { request: {
+        requestId: 'request-a', sessionId: 'session-a', mode: 'queue',
+        content: [{ type: 'text', text: 'private prompt' }], clientTimeZone: 'Asia/Shanghai'
+      } }
+    }
+  ])
+})
+
+test('fails closed on selection mismatch, blank prompt identity, or non-admission response', async () => {
+  const mismatch = new DshAdapterV2({
+    connection: {
+      snapshot: () => ({ state: 'authenticated' }),
+      call: async endpoint => endpoint === 'session/selectModel'
+        ? { ok: true, value: { selected: { provider: 'other', model: 'other-model' } } }
+        : { ok: true, value: { accepted: false } },
+      open: () => streamOf(),
+      dispose: () => {}
+    }
+  })
+
+  await assert.rejects(mismatch.selectModel({
+    sessionId: 'session-a', selection: { provider: 'deepseek-official', model: 'deepseek-v4-pro' }
+  }), /没有确认请求的模型选择/)
+  await assert.rejects(mismatch.prompt({ sessionId: '', requestId: 'request-a', text: 'hello' }), /Session 身份/)
+  await assert.rejects(mismatch.prompt({ sessionId: 'session-a', requestId: '', text: 'hello' }), /requestId/)
+  await assert.rejects(mismatch.prompt({ sessionId: 'session-a', requestId: 'request-a', text: '   ' }), /非空文本/)
+  await assert.rejects(
+    mismatch.prompt({ sessionId: 'session-a', requestId: 'request-a', text: 'private-canary' }),
+    error => {
+      assert.match(error.message, /没有确认接纳/)
+      assert.doesNotMatch(error.message, /private-canary/)
+      return true
+    }
+  )
+})
+
 test('rejects failed Typert results without exposing arbitrary error details', async () => {
   const connection = {
     snapshot: () => ({ state: 'authenticated' }),

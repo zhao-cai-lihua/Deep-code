@@ -1,7 +1,7 @@
 # Deep Code current handoff
 
 Updated: 2026-09-14
-Branch: `main`
+Branch: `codex/v0.8.1-candidate-prompt-correlation`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
@@ -48,6 +48,10 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 - The Lab remains absent from ordinary Main IPC, Preload, Renderer, public Supervisor snapshots, and `waitUntilReady()`. Stop clears it before the managed connection is disposed; reconnect uses a new generation, and late old events or late Session creation results cannot revive it.
 - Focused Lab/Supervisor behavior passed **19/19**; full `npm test` passed **348/348**. Two source-module and two packaged-module candidate generations each attached an exact empty Session and stopped cleanly with product admission closed, all capabilities `candidate-disabled`, and **0 Provider / 0 Prompt requests**.
 - Current local compatibility artifact: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,891,975 bytes, SHA-256 `0882df8e53a3b9452d9696ea1dd467c81bf078dd767a6e746b1d19a687c4fd4e`. Packaged/source hashes matched for Runtime Supervisor (`227f30...1ecf`), Candidate Session Lab (`ee95cc...49a9`), V2 Adapter (`5eab1a...8238`), and managed connection (`bb2245...09f4`). This artifact is local test evidence, not a release asset.
+- The pre-Gate-D Prompt seam now has exact V2 `session/selectModel` and `session/prompt` request/response validation plus a pure `CandidatePromptEvidence` projector. The observer is prepared before any future Prompt RPC, remains `awaiting-admission` while early events may arrive, and is separately confirmed or rejected by the exact RPC result. Only the exact durable `user/message.source.rpcId` binds the Turn. Route, usage, and terminal facts are accepted only inside that Turn; old request headers, foreign request IDs, wrong-Turn usage/terminal frames, duplicate step settlements, and route mismatch all have fail-closed fixtures.
+- Candidate Session Lab consumes the remaining exact follow stream and exposes only the sanitized correlation snapshot through its internal Supervisor seam. Prompt text, answer text, raw frames, transport credentials, and Remote event IDs remain absent. Main IPC, Preload, Renderer, ordinary Supervisor snapshots, and the runtime smoke still have no V2 Prompt submission route.
+- Focused V2 Adapter/Prompt evidence/Lab/Supervisor behavior passed **38/38**; full `npm test` passed **358/358**; syntax checks and `git diff --check` passed. Source and packaged Supervisor smoke each completed two exact `0.1.5-rc.2@fb2c4b9e698e` generations with product admission closed and **0 Provider / 0 Prompt requests**.
+- Current local compatibility artifact: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,906,510 bytes, SHA-256 `97a39d6b889c3a2a33a563985fc85e4112c7cee79b8cfbd7d376454103cc2a58`. Packaged/source hashes matched for Runtime Supervisor (`6e760bf3...a040`), Candidate Session Lab (`05374caa...4da2`), Candidate Prompt Evidence (`75630cbd...c393`), V2 Adapter (`fc7695cb...49313`), and managed connection (`bb22451a...09f4`). This overwrites the prior local compatibility artifact; it is not a release asset.
 
 ## v0.8.0-beta.2 Guided Workbench candidate
 
@@ -286,7 +290,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 1. Gates B, the zero-token portion of Gate C, and the first Runtime Supervisor candidate boundary are complete. Keep `legacy-0.1.1` unchanged and do not add `0.1.5-rc.2` to the usable list yet.
 2. The internal candidate Session seam is complete. Keep it unreachable from ordinary Main IPC and Renderer task actions until the full candidate admission gate is reviewed.
-3. Before Gate D, add the V2 prompt/correlation projection behind the same internal-only seam and prove its fail-closed behavior with protocol fixtures. Gate D then remains one bounded, explicit, low-cost model acceptance: prompt admission, durable request correlation, same-Session route, terminal, usage, and receipt must agree. Do not spend Provider tokens without an explicit preflight notice and 砚星's authorization.
+3. The V2 Prompt/correlation behavior-fixture seam is complete and remains internal-only. Before the paid Gate D call, add or pin the V2 control-stream usage baseline/delta comparison so same-Turn Assistant usage cannot be mistaken for whole-Session usage. Gate D then remains one bounded, explicit, low-cost model acceptance: prompt admission, durable request correlation, same-Session route, terminal, control/Turn usage agreement, and receipt must all agree. Do not spend Provider tokens without an explicit preflight notice and 砚星's authorization.
 4. v0.7.0 remains stable. Keep v0.8.0-beta.2 and v0.8.1-beta.1 as historical/current prerelease evidence. This feature branch is not a release candidate and its local executable is not a release asset.
 5. Avoid unrelated UI redesign while the V2 protocol seam is being built. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 

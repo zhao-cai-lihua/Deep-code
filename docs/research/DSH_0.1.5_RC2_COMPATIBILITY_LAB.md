@@ -1,6 +1,6 @@
 # DSH 0.1.5-rc.2 compatibility lab
 
-Status: compatibility Gates A, B, the zero-token portion of Gate C, and the internal product-facing Session seam are complete. Commands/Plan and a Session-bound Decision Gate have real runtime proof. Runtime Supervisor now recognizes and authenticates the exact checkout, binds an empty exact Session, and observes only sanitized Decision Gate state as a disabled candidate, but Main cannot admit product tasks through it. No Provider or model call was made.
+Status: compatibility Gates A, B, the zero-token portion of Gate C, the internal Session seam, and the behavior-fixture portion of Prompt correlation are complete. Commands/Plan and a Session-bound Decision Gate have real runtime proof. Runtime Supervisor now recognizes and authenticates the exact checkout, binds an empty exact Session, and can observe sanitized Decision Gate and Prompt-correlation state as a disabled candidate, but Main cannot admit product tasks through it. No Provider or model call was made.
 
 Reviewed: 2026-09-14
 
@@ -178,6 +178,18 @@ Completed on 2026-09-14 without enabling the candidate for ordinary tasks:
 - stopping the candidate clears the Lab synchronously before disposing the managed connection. Reconnect receives a new connection generation, and a late event or late `session/create` result from the old generation cannot resurrect or alter the new projection;
 - Main IPC, Preload, Renderer, `snapshot()`, and `waitUntilReady()` do not expose the Lab. Ordinary task prompt, Provider credential, and ecosystem execution routes remain closed.
 
+### Pre-Gate D — Prompt admission and correlation fixtures, zero Provider tokens
+
+Completed on 2026-09-14 without sending a Prompt:
+
+- `DshAdapterV2.selectModel()` maps only the exact `session/selectModel` request and rejects a response that does not confirm the requested Provider/Model (and requested reasoning effort, when present);
+- `DshAdapterV2.prompt()` requires an explicit Session, client-minted `requestId`, delivery mode, and non-empty text. Its return value remains only `{accepted: true, requestId}`; it does not invent a Turn, route, completion, output, or usage;
+- `CandidatePromptEvidence` is prepared in `awaiting-admission` before any future RPC, so a fast live event cannot pass before observation begins. The exact RPC result then confirms or rejects the same requestId. It becomes durable only after the exact `user/message.source.rpcId` and binds that durable message to the live `turn/start` window. Old headers, foreign request IDs, wrong-Turn usage, wrong-Turn terminals, malformed values, and replayed sequence numbers cannot enter the projection;
+- the last structured `request/header` inside the bound Turn is compared with the requested route. A mismatched route is a separate fail-closed `route-mismatch`, even if Harness later records a completed terminal;
+- provider-reported usage is accepted only from structured `assistant/message.data.usage` records for the bound Turn. Repeated settlements for the same Turn/step use latest-wins replacement, matching the official token-meter's replacement rule; Prompt/answer content and `reasoningTokens` are not copied into the candidate snapshot;
+- Runtime Supervisor can begin this observer only after its internal Session Lab is attached. Stop and reconnect clear it with the Session generation. There is still no Main IPC, Preload, Renderer, public Supervisor snapshot, smoke-script, or product action that can submit a V2 Prompt;
+- source and packaged Supervisor smoke each completed two exact candidate generations with product admission closed and `providerRequests: 0`, `promptRequests: 0`.
+
 ### Gate D — bounded model acceptance
 
 - make one low-cost text request after explicit model selection;
@@ -211,15 +223,16 @@ Completed on 2026-09-14 without enabling the candidate for ordinary tasks:
 
 ## Current automated and packaging evidence
 
-- focused candidate Session Lab and Runtime Supervisor suite: **19/19**;
-- full Deep Code regression after the internal candidate Session seam: **348/348**;
+- focused V2 Adapter, Prompt evidence, candidate Session Lab, and Runtime Supervisor suite: **38/38**;
+- full Deep Code regression after the Prompt-correlation fixture seam: **358/358**;
 - JavaScript syntax checks and `git diff --check`: passed;
 - live source-module smoke: exact `0.1.5-rc.2@fb2c4b9e698e`, authenticated, same-Session question answered once, replay rejected, Plan entered/exited, process-stop invalidation passed, `providerRequests: 0`, `promptRequests: 0`;
-- current local test portable: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,891,975 bytes, SHA-256 `0882df8e53a3b9452d9696ea1dd467c81bf078dd767a6e746b1d19a687c4fd4e`;
+- current local test portable: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,906,510 bytes, SHA-256 `97a39d6b889c3a2a33a563985fc85e4112c7cee79b8cfbd7d376454103cc2a58`;
 - source and packaged SHA-256 matched before the packaged live run: `typert-managed-connection.cjs` `bb22451a8f194c59166bbc75d3b566a2adc16199df4a42f392991e654add09f4`; `dsh-adapter-v2.cjs` `293e3c27a581abd1c15cb040a8b101a7247726372ce6a50f05aa6ed9a425130d`;
 - the packaged modules repeated the authenticated Session-bound question, one-shot answer, replay rejection, Plan, teardown, and post-stop invalidation path with `providerRequests: 0` and `promptRequests: 0`.
 - Runtime Supervisor live smoke: two exact candidate starts and stops, `managed-process` trust, all seven capabilities `candidate-disabled`, product admission rejected, `providerRequests: 0`, `promptRequests: 0`.
 - The updated source and packaged Runtime Supervisor each attached two exact empty Sessions across two connection generations (`sessionsAttached: 2`), cleared the Lab on every stop, and kept Provider/Prompt requests at zero. Packaged hashes matched source for Runtime Supervisor (`227f30...1ecf`), Candidate Session Lab (`ee95cc...49a9`), DSH Adapter V2 (`5eab1a...8238`), and the managed connection (`bb2245...09f4`).
+- After the race-free Prompt-correlation fixture seam, packaged hashes again matched source: Runtime Supervisor `6e760bf3...a040`, Candidate Session Lab `05374caa...4da2`, Candidate Prompt Evidence `75630cbd...c393`, DSH Adapter V2 `fc7695cb...49313`, and managed connection `bb22451a...09f4`. The packaged Supervisor then repeated the two-generation zero-Prompt smoke.
 - extracted packaged Runtime Supervisor, Capability Gate, and candidate-aware capability view hashes matched source exactly (`c0013d...4834`, `dcb859...0394`, `18f8ef...7544`), and the same two-generation live Supervisor smoke passed through the packaged modules.
 
 This is compatibility-lab evidence, not a public release or a supported runtime declaration.
@@ -228,4 +241,4 @@ This is compatibility-lab evidence, not a public release or a supported runtime 
 
 The source audit used `git show dsh-v0.1.5-rc.2:<path>` and `git ls-tree -r dsh-v0.1.5-rc.2`, not the checkout's moving working tree. A tag-wide search found no `host.describe` declaration in this revision. That is an absence finding, not a guarantee that future tags will never expose equivalent host metadata.
 
-Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall, and the candidate can cross the product's Runtime Supervisor boundary, attach an internal empty Session, survive packaged-module verification, and stop without becoming usable. Prompt admission and durable request correlation, the bounded model call, and human acceptance remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` task path and Adapter remain unchanged.
+Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall, and the candidate can cross the product's Runtime Supervisor boundary, attach an internal empty Session, survive packaged-module verification, and stop without becoming usable. Prompt transport and durable correlation have fail-closed behavior-fixture evidence, but have not been exercised by a real Prompt. Control-stream usage agreement, the bounded model call, receipt agreement, and human acceptance remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` task path and Adapter remain unchanged.

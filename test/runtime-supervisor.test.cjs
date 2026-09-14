@@ -188,14 +188,15 @@ test('an intentional stop during candidate authentication stays stopped instead 
 test('owns an internal candidate Session projection and invalidates it across stop and reconnect', async () => {
   const children = [fakeChild(), fakeChild()]
   const eventStreams = [controllableStream(), controllableStream()]
+  const followStreams = [controllableStream(), controllableStream()]
   let connectionIndex = -1
   const adapters = eventStreams.map((events, index) => ({
     connectionSnapshot: () => ({ state: 'authenticated', generation: index === 0 ? 1 : 3 }),
     createSession: async ({ sessionId }) => ({ sessionId: sessionId || `session-${index + 1}` }),
-    followSession: ({ sessionId }) => (async function* () {
-      yield { type: 'snapshot', header: { id: sessionId }, cursor: index + 10, records: [] }
-      await new Promise(() => {})
-    })(),
+    followSession: ({ sessionId }) => {
+      followStreams[index].push({ type: 'snapshot', header: { id: sessionId }, cursor: index + 10, records: [] })
+      return followStreams[index]
+    },
     openEventGeneration: async ({ sessionId }) => ({
       generation: index === 0 ? 1 : 3,
       sessionId,
@@ -234,6 +235,18 @@ test('owns an internal candidate Session projection and invalidates it across st
   assert.equal(first.sessionId, 'session-1')
   assert.equal(supervisor.snapshot().candidateSession, undefined)
   assert.equal(supervisor.candidateSessionLabSnapshot().sessionId, 'session-1')
+  supervisor.prepareCandidatePromptEvidenceForLab({
+    requestId: 'request-a',
+    expectedRoute: { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' }
+  })
+  followStreams[0].push({ type: 'event', event: { seq: 11, type: 'turn/start', data: { turn: 1 } } })
+  followStreams[0].push({ type: 'event', event: {
+    seq: 12, type: 'user/message', data: { source: { kind: 'user', rpcId: 'request-a' } }
+  } })
+  supervisor.confirmCandidatePromptAdmissionForLab({
+    requestId: 'request-a', acceptedAt: '2026-09-14T10:00:00.000Z'
+  })
+  await waitFor(() => assert.equal(supervisor.candidateSessionLabSnapshot().promptEvidence.state, 'running'))
 
   eventStreams[0].push({
     type: 'waterfall', agentId: 'session-1', eventId: 'old-event', event: 'user-questions/request', request: { secret: true }
@@ -247,6 +260,7 @@ test('owns an internal candidate Session projection and invalidates it across st
   await new Promise(resolve => setImmediate(resolve))
   const second = await supervisor.attachCandidateSessionForLab({ cwd: 'C:\\workspace' })
   assert.equal(second.sessionId, 'session-2')
+  assert.equal(second.promptEvidence, null)
 
   eventStreams[0].push({
     type: 'waterfall', agentId: 'session-1', eventId: 'late-old-event', event: 'approval/request'
