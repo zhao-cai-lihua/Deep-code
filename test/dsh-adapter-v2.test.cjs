@@ -172,6 +172,103 @@ test('fails closed when event ready or Session follow identity does not match', 
   assert.deepEqual(returns, ['$events', 'session/follow'])
 })
 
+test('opens one exact Session token-usage control baseline and filters the Host-wide stream', async () => {
+  const opened = []
+  const connection = {
+    snapshot: () => ({ state: 'authenticated', generation: 13 }),
+    call: async () => ({ ok: true, value: {} }),
+    open(endpoint, args) {
+      opened.push({ endpoint, args })
+      return streamOf(
+        {
+          type: 'baseline',
+          value: {
+            queues: {}, jobs: {},
+            projections: {
+              'session-a': {
+                asOfSeq: 20,
+                values: {
+                  tokenUsage: {
+                    uncachedInputTokens: 10,
+                    outputTokens: 2,
+                    cacheReadTokens: 30,
+                    cacheWriteTokens: 1
+                  },
+                  privateProjection: { secret: 'do-not-project' }
+                }
+              }
+            },
+            privateHostState: 'do-not-project'
+          }
+        },
+        { type: 'projection', sessionId: 'session-b', key: 'tokenUsage', seq: 21, value: {
+          uncachedInputTokens: 999, outputTokens: 999, cacheReadTokens: 999, cacheWriteTokens: 999
+        } },
+        { type: 'projection', sessionId: 'session-a', key: 'plan', seq: 22, value: { active: true } },
+        { type: 'projection', sessionId: 'session-a', key: 'tokenUsage', seq: 19, value: {
+          uncachedInputTokens: 1, outputTokens: 1, cacheReadTokens: 1, cacheWriteTokens: 1
+        } },
+        { type: 'projection', sessionId: 'session-a', key: 'tokenUsage', seq: 23, value: {
+          uncachedInputTokens: 15, outputTokens: 4, cacheReadTokens: 32, cacheWriteTokens: 1
+        } }
+      )
+    },
+    dispose: () => {}
+  }
+  const adapter = new DshAdapterV2({ connection })
+
+  const control = await adapter.openTokenUsageControl({ sessionId: 'session-a' })
+
+  assert.deepEqual(opened, [{ endpoint: 'session/control', args: {} }])
+  assert.deepEqual(control.baseline, {
+    asOfSeq: 20,
+    usage: { uncachedInputTokens: 10, outputTokens: 2, cacheReadTokens: 30, cacheWriteTokens: 1 }
+  })
+  assert.deepEqual(await control.stream.next(), {
+    done: false,
+    value: {
+      asOfSeq: 23,
+      usage: { uncachedInputTokens: 15, outputTokens: 4, cacheReadTokens: 32, cacheWriteTokens: 1 }
+    }
+  })
+  assert.doesNotMatch(JSON.stringify(control), /privateHostState|privateProjection|do-not-project|999/)
+})
+
+test('fails closed when the Session control baseline or token usage is malformed', async () => {
+  const adapter = new DshAdapterV2({
+    connection: {
+      snapshot: () => ({ state: 'authenticated', generation: 13 }),
+      call: async () => ({ ok: true, value: {} }),
+      open: () => streamOf({ type: 'baseline', value: { queues: {}, jobs: {}, projections: {} } }),
+      dispose: () => {}
+    }
+  })
+
+  await assert.rejects(adapter.openTokenUsageControl({ sessionId: 'session-a' }), /tokenUsage 基线/)
+
+  const malformedUpdate = new DshAdapterV2({
+    connection: {
+      snapshot: () => ({ state: 'authenticated', generation: 13 }),
+      call: async () => ({ ok: true, value: {} }),
+      open: () => streamOf(
+        { type: 'baseline', value: {
+          queues: {}, jobs: {}, projections: {
+            'session-a': { asOfSeq: 1, values: { tokenUsage: {
+              uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0
+            } } }
+          }
+        } },
+        { type: 'projection', sessionId: 'session-a', key: 'tokenUsage', seq: 2, value: {
+          uncachedInputTokens: -1, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0
+        } }
+      ),
+      dispose: () => {}
+    }
+  })
+  const control = await malformedUpdate.openTokenUsageControl({ sessionId: 'session-a' })
+  await assert.rejects(control.stream.next(), /畸形的 tokenUsage/)
+})
+
 test('refuses use unless the managed connection reports authenticated state', () => {
   const adapter = new DshAdapterV2({
     connection: {

@@ -41,6 +41,16 @@ function pushStream() {
   }
 }
 
+function usageControl(asOfSeq = 0, stream = pendingStream()) {
+  return {
+    baseline: {
+      asOfSeq,
+      usage: { uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
+    },
+    stream
+  }
+}
+
 async function waitFor(assertion, timeoutMs = 500) {
   const deadline = Date.now() + timeoutMs
   while (true) {
@@ -86,6 +96,10 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
         }
       }
     },
+    async openTokenUsageControl(request) {
+      calls.push({ operation: 'usage', request })
+      return usageControl(12)
+    },
     async openEventGeneration(request) {
       calls.push({ operation: 'events', request })
       return {
@@ -104,6 +118,7 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
   assert.deepEqual(calls, [
     { operation: 'create', request: { cwd: 'C:\\workspace' } },
     { operation: 'follow', request: { sessionId: 'session-exact' } },
+    { operation: 'usage', request: { sessionId: 'session-exact' } },
     { operation: 'events', request: { sessionId: 'session-exact' } }
   ])
   assert.deepEqual(snapshot, {
@@ -112,6 +127,7 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
     connectionGeneration: 7,
     sessionId: 'session-exact',
     follow: { attached: true, cursor: 12 },
+    usageControl: { attached: true, asOfSeq: 12 },
     decisionGate: { state: 'observing', pendingCount: 0, kinds: [] },
     promptEvidence: null
   })
@@ -129,6 +145,7 @@ test('projects only same-Session pending Decision Gate kinds and removes cancell
     connectionSnapshot: () => ({ state: 'authenticated', generation: 9 }),
     createSession: async () => ({ sessionId: 'session-a' }),
     followSession: () => follow,
+    openTokenUsageControl: async () => usageControl(3),
     openEventGeneration: async () => ({
       generation: 9,
       sessionId: 'session-a',
@@ -189,7 +206,7 @@ test('keeps the candidate Session Lab unreachable from ordinary product IPC and 
   const sourceRoot = join(__dirname, '..', 'src')
   for (const relativePath of ['main.cjs', 'preload.cjs', join('renderer', 'shell.js')]) {
     const source = readFileSync(join(sourceRoot, relativePath), 'utf8')
-    assert.doesNotMatch(source, /attachCandidateSessionForLab|prepareCandidatePromptEvidenceForLab|confirmCandidatePromptAdmissionForLab|rejectCandidatePromptAdmissionForLab|candidateSessionLabSnapshot|candidate-session-lab/)
+    assert.doesNotMatch(source, /attachCandidateSessionForLab|prepareCandidatePromptEvidenceForLab|confirmCandidatePromptAdmissionForLab|rejectCandidatePromptAdmissionForLab|candidateSessionLabSnapshot|candidate-session-lab|openTokenUsageControl|usageAgreement/)
   }
 })
 
@@ -205,6 +222,7 @@ test('a close during asynchronous Session creation invalidates the late attach r
         followOpened = true
         return pendingStream()
       },
+      openTokenUsageControl: async () => usageControl(),
       openEventGeneration: async () => {
         eventsOpened = true
         return { generation: 14, sessionId: 'late-session', stream: pendingStream() }
@@ -226,6 +244,7 @@ test('a close during asynchronous Session creation invalidates the late attach r
     connectionGeneration: 14,
     sessionId: null,
     follow: { attached: false, cursor: null },
+    usageControl: { attached: false, asOfSeq: null },
     decisionGate: { state: 'closed', pendingCount: 0, kinds: [] }
     , promptEvidence: null
   })
@@ -239,6 +258,7 @@ test('projects live Prompt correlation from the Session follow stream without se
     adapter: {
       createSession: async () => ({ sessionId: 'session-a' }),
       followSession: () => follow,
+      openTokenUsageControl: async () => usageControl(60),
       openEventGeneration: async () => ({
         generation: 15, sessionId: 'session-a', stream: pendingStream()
       })
@@ -275,6 +295,7 @@ test('prepares before admission and can reject the exact observation without sen
     adapter: {
       createSession: async () => ({ sessionId: 'session-a' }),
       followSession: () => follow,
+      openTokenUsageControl: async () => usageControl(80),
       openEventGeneration: async () => ({ generation: 16, sessionId: 'session-a', stream: pendingStream() })
     }
   })
@@ -288,5 +309,60 @@ test('prepares before admission and can reject the exact observation without sen
     () => lab.confirmPromptAdmission({ requestId: 'another-request', acceptedAt: '2026-09-14T10:00:00.000Z' }),
     /requestId 不一致/
   )
+  await lab.close()
+})
+
+test('captures the current Session usage baseline per Prompt and reconciles live control deltas', async () => {
+  const follow = pushStream()
+  const control = pushStream()
+  follow.push({ type: 'snapshot', header: { id: 'session-a' }, cursor: 100, records: [] })
+  const lab = new CandidateSessionLab({
+    connectionGeneration: 17,
+    adapter: {
+      createSession: async () => ({ sessionId: 'session-a' }),
+      followSession: () => follow,
+      openTokenUsageControl: async () => ({
+        baseline: {
+          asOfSeq: 100,
+          usage: { uncachedInputTokens: 40, outputTokens: 10, cacheReadTokens: 80, cacheWriteTokens: 2 }
+        },
+        stream: control
+      }),
+      openEventGeneration: async () => ({ generation: 17, sessionId: 'session-a', stream: pendingStream() })
+    }
+  })
+  const attached = await lab.attach({ cwd: 'C:\\workspace' })
+  assert.deepEqual(attached.usageControl, { attached: true, asOfSeq: 100 })
+  control.push({
+    asOfSeq: 101,
+    usage: { uncachedInputTokens: 50, outputTokens: 12, cacheReadTokens: 90, cacheWriteTokens: 2 }
+  })
+  await waitFor(() => assert.deepEqual(lab.snapshot().usageControl, { attached: true, asOfSeq: 101 }))
+  lab.preparePromptEvidence({
+    requestId: 'request-usage',
+    expectedRoute: { provider: 'deepseek-official', model: 'deepseek-v4-pro' }
+  })
+  lab.confirmPromptAdmission({ requestId: 'request-usage', acceptedAt: '2026-09-14T10:05:00.000Z' })
+  follow.push({ type: 'event', event: { seq: 102, type: 'turn/start', data: { turn: 16 } } })
+  follow.push({ type: 'event', event: {
+    seq: 103, type: 'user/message', data: { source: { kind: 'user', rpcId: 'request-usage' } }
+  } })
+  follow.push({ type: 'event', event: {
+    seq: 104, type: 'request/header',
+    data: { header: { config: { provider: 'deepseek-official', model: 'deepseek-v4-pro' } } }
+  } })
+  follow.push({ type: 'event', event: {
+    seq: 105, type: 'assistant/message', turn: 16, step: 1,
+    data: { turn: 16, step: 1, usage: { inputTokens: 5, outputTokens: 3, cacheReadTokens: 12 } }
+  } })
+  control.push({
+    asOfSeq: 105,
+    usage: { uncachedInputTokens: 55, outputTokens: 15, cacheReadTokens: 102, cacheWriteTokens: 2 }
+  })
+  follow.push({ type: 'event', event: { seq: 106, type: 'turn/end', data: { turn: 16, reason: { kind: 'completed' } } } })
+
+  await waitFor(() => assert.equal(lab.snapshot().promptEvidence?.usageAgreement?.state, 'matched'))
+  assert.equal(lab.snapshot().promptEvidence.state, 'completed')
+  assert.deepEqual(lab.snapshot().usageControl, { attached: true, asOfSeq: 105 })
   await lab.close()
 })

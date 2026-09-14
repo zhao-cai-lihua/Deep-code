@@ -62,6 +62,32 @@ function usageFrom(event) {
   }
 }
 
+const USAGE_KEYS = ['uncachedInputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens']
+
+function normalizeControlUsage(sample, label) {
+  if (!sample || !Number.isInteger(sample.asOfSeq) || sample.asOfSeq < 0
+    || !sample.usage || USAGE_KEYS.some(key => !Number.isInteger(sample.usage[key]) || sample.usage[key] < 0)) {
+    throw new Error(`候选 Prompt 证据缺少有效的${label}。`)
+  }
+  return {
+    asOfSeq: sample.asOfSeq,
+    usage: Object.fromEntries(USAGE_KEYS.map(key => [key, sample.usage[key]]))
+  }
+}
+
+function usageDelta(baseline, latest) {
+  const delta = {}
+  for (const key of USAGE_KEYS) {
+    delta[key] = latest.usage[key] - baseline.usage[key]
+    if (delta[key] < 0) return null
+  }
+  return delta
+}
+
+function sameUsage(left, right) {
+  return USAGE_KEYS.every(key => left[key] === right[key])
+}
+
 function routesMatch(expected, actual) {
   return expected.provider === actual.provider
     && expected.model === actual.model
@@ -69,7 +95,7 @@ function routesMatch(expected, actual) {
 }
 
 class CandidatePromptEvidence {
-  constructor({ sessionId, requestId, expectedRoute } = {}) {
+  constructor({ sessionId, requestId, expectedRoute, usageBaseline } = {}) {
     this.sessionId = exactText(sessionId, ' Session 身份')
     this.requestId = exactText(requestId, ' requestId')
     this.acceptedAt = null
@@ -82,6 +108,11 @@ class CandidatePromptEvidence {
     this.routeMatch = 'pending'
     this.terminal = null
     this.usageByStep = new Map()
+    this.usageBaseline = usageBaseline === undefined
+      ? null
+      : Object.freeze(normalizeControlUsage(usageBaseline, ' Session 用量基线'))
+    this.latestControlUsage = null
+    this.controlUsageInvalid = false
     this.lastSeq = -1
   }
 
@@ -94,6 +125,26 @@ class CandidatePromptEvidence {
       cacheWriteTokens: usageEntries.reduce((total, item) => total + item.cacheWriteTokens, 0),
       evidenceSeqs: usageEntries.map(item => item.seq).sort((left, right) => left - right)
     } : null
+    let usageAgreement = null
+    if (this.usageBaseline) {
+      usageAgreement = { state: 'pending', baselineSeq: this.usageBaseline.asOfSeq }
+      if (this.latestControlUsage) {
+        const delta = usageDelta(this.usageBaseline, this.latestControlUsage)
+        usageAgreement = {
+          state: this.controlUsageInvalid || !delta
+            ? 'invalid'
+            : !this.terminal || usageEntries.length === 0
+                || this.latestControlUsage.asOfSeq < Math.max(...usageEntries.map(item => item.seq))
+              ? 'pending'
+              : sameUsage(delta, usage)
+                ? 'matched'
+                : 'mismatched',
+          baselineSeq: this.usageBaseline.asOfSeq,
+          latestSeq: this.latestControlUsage.asOfSeq,
+          ...(delta ? { controlDelta: delta } : {})
+        }
+      }
+    }
     let state = this.admissionState === 'rejected'
       ? 'rejected'
       : this.admissionState === 'pending'
@@ -102,6 +153,8 @@ class CandidatePromptEvidence {
     if (this.admissionState === 'accepted' && this.terminal) {
       if (this.routeMatch === 'mismatched') state = 'route-mismatch'
       else if (this.routeMatch !== 'matched') state = 'evidence-incomplete'
+      else if (this.terminal.state === 'completed' && usageAgreement?.state === 'mismatched') state = 'usage-mismatch'
+      else if (this.terminal.state === 'completed' && usageAgreement && usageAgreement.state !== 'matched') state = 'evidence-incomplete'
       else state = this.terminal.state
     }
     return {
@@ -126,6 +179,7 @@ class CandidatePromptEvidence {
       ...(this.route ? { route: { ...this.route } } : {}),
       routeMatch: this.routeMatch,
       ...(usage ? { usage } : {}),
+      ...(usageAgreement ? { usageAgreement } : {}),
       ...(this.terminal ? { terminal: { ...this.terminal } } : {})
     }
   }
@@ -180,6 +234,16 @@ class CandidatePromptEvidence {
     }
     this.admissionState = 'accepted'
     this.acceptedAt = exactAcceptedAt
+    return this.snapshot()
+  }
+
+  observeControlUsage(sample) {
+    if (!this.usageBaseline || this.admissionState === 'rejected') return this.snapshot()
+    const next = normalizeControlUsage(sample, ' Session 用量投影')
+    if (next.asOfSeq <= this.usageBaseline.asOfSeq
+      || (this.latestControlUsage && next.asOfSeq <= this.latestControlUsage.asOfSeq)) return this.snapshot()
+    if (USAGE_KEYS.some(key => next.usage[key] < this.usageBaseline.usage[key])) this.controlUsageInvalid = true
+    this.latestControlUsage = Object.freeze(next)
     return this.snapshot()
   }
 

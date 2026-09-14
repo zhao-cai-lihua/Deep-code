@@ -35,6 +35,17 @@ function sessionEvent(frame) {
   return frame.event
 }
 
+function plainRecord(value) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function tokenUsage(value) {
+  if (!plainRecord(value)) return null
+  const keys = ['uncachedInputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens']
+  if (keys.some(key => !Number.isInteger(value[key]) || value[key] < 0)) return null
+  return Object.fromEntries(keys.map(key => [key, value[key]]))
+}
+
 function isJsonValue(value, ancestors = new Set()) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true
   if (typeof value === 'number') return Number.isFinite(value) && !Object.is(value, -0)
@@ -328,6 +339,53 @@ class DshAdapterV2 {
         await closeIterator(iterator)
       }
     })()
+  }
+
+  async openTokenUsageControl({ sessionId, signal } = {}) {
+    this.#assertReady()
+    const expectedSessionId = String(sessionId || '')
+    if (!expectedSessionId) throw new Error('新版 Engine Session control 缺少 Session 身份。')
+    const iterator = asIterator(this.connection.open('session/control', {}, { signal }), 'session/control')
+    let first
+    try { first = await iterator.next() } catch (error) { await closeIterator(iterator); throw error }
+    const value = first?.value?.value
+    const projection = plainRecord(value?.projections) ? value.projections[expectedSessionId] : null
+    const baselineUsage = tokenUsage(projection?.values?.tokenUsage)
+    if (first?.done || first.value?.type !== 'baseline' || !plainRecord(value)
+      || !plainRecord(value.queues) || !plainRecord(value.jobs) || !plainRecord(value.projections)
+      || !plainRecord(projection) || !Number.isInteger(projection.asOfSeq) || projection.asOfSeq < 0
+      || !baselineUsage) {
+      await closeIterator(iterator)
+      throw new Error('新版 Engine session/control 没有返回精确 Session 的 tokenUsage 基线。')
+    }
+    let lastSeq = projection.asOfSeq
+    const stream = Object.freeze({
+      [Symbol.asyncIterator]() { return this },
+      async next() {
+        while (true) {
+          const next = await iterator.next()
+          if (next.done) return next
+          const frame = next.value
+          if (frame?.type !== 'projection' || frame.sessionId !== expectedSessionId
+            || frame.key !== 'tokenUsage' || !Number.isInteger(frame.seq) || frame.seq <= lastSeq) continue
+          const usage = tokenUsage(frame.value)
+          if (!usage) {
+            await closeIterator(iterator)
+            throw new Error('新版 Engine session/control 返回了畸形的 tokenUsage 投影。')
+          }
+          lastSeq = frame.seq
+          return { done: false, value: { asOfSeq: frame.seq, usage } }
+        }
+      },
+      async return() {
+        await closeIterator(iterator)
+        return { done: true, value: undefined }
+      }
+    })
+    return Object.freeze({
+      baseline: Object.freeze({ asOfSeq: projection.asOfSeq, usage: Object.freeze(baselineUsage) }),
+      stream
+    })
   }
 
   dispose() {
