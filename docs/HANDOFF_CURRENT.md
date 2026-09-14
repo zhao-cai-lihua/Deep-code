@@ -1,7 +1,7 @@
 # Deep Code current handoff
 
 Updated: 2026-09-14
-Branch: `main`
+Branch: `codex/v0.8.1-candidate-session-seam`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
@@ -44,6 +44,10 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 - Runtime Supervisor now recognizes the exact 0.1.5 checkout through a separate `inspectAuditedRuntime()` seam, authenticates only the owned child's loopback launch, and retains the V2 connection entirely in Main. It publishes `candidate-ready`, not `ready`; `waitUntilReady()` rejects, Main's task admission stays closed, and every Capability Gate item is `candidate-disabled`.
 - A reusable real Supervisor smoke started and stopped `0.1.5-rc.2@fb2c4b9e698e` twice with isolated state. Both generations retained `managed-process` trust, disposed cleanly, exposed no launch token/cookie, and made zero Provider or Prompt requests. A focused race test also proves that user stop during authentication remains a stop rather than turning into a false Engine error.
 - Candidate UI truth is explicit rather than green/ready: settings says “候选协议已验证（任务入口关闭）”, all capability rows remain unavailable, Start stays disabled while the owned child exists, and Stop remains available.
+- Runtime Supervisor now owns one internal `CandidateSessionLab` seam for the exact 0.1.5 candidate. It creates or reattaches an empty Session, requires the first follow snapshot to name that exact Session, and projects only Session identity, connection generation, follow cursor, and sanitized Decision Gate state/count/kinds. It does not expose URLs, cookies, launch tokens, `$events` client IDs, Host paths, event IDs, or request bodies.
+- The Lab remains absent from ordinary Main IPC, Preload, Renderer, public Supervisor snapshots, and `waitUntilReady()`. Stop clears it before the managed connection is disposed; reconnect uses a new generation, and late old events or late Session creation results cannot revive it.
+- Focused Lab/Supervisor behavior passed **19/19**; full `npm test` passed **348/348**. Two source-module and two packaged-module candidate generations each attached an exact empty Session and stopped cleanly with product admission closed, all capabilities `candidate-disabled`, and **0 Provider / 0 Prompt requests**.
+- Current local compatibility artifact: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,891,975 bytes, SHA-256 `0882df8e53a3b9452d9696ea1dd467c81bf078dd767a6e746b1d19a687c4fd4e`. Packaged/source hashes matched for Runtime Supervisor (`227f30...1ecf`), Candidate Session Lab (`ee95cc...49a9`), V2 Adapter (`5eab1a...8238`), and managed connection (`bb2245...09f4`). This artifact is local test evidence, not a release asset.
 
 ## v0.8.0-beta.2 Guided Workbench candidate
 
@@ -281,8 +285,8 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 ## Next bounded work
 
 1. Gates B, the zero-token portion of Gate C, and the first Runtime Supervisor candidate boundary are complete. Keep `legacy-0.1.1` unchanged and do not add `0.1.5-rc.2` to the usable list yet.
-2. Add one internal, product-facing candidate Session seam owned by Runtime Supervisor: create/attach an empty Session, project its exact identity plus Decision Gate state, and prove stop/reconnect invalidation. It must remain unreachable from ordinary Main IPC and Renderer task actions until the full candidate admission gate is reviewed.
-3. Gate D remains one bounded, explicit, low-cost model acceptance: prompt admission, durable request correlation, same-Session route, terminal, usage, and receipt must agree. Do not spend Provider tokens before all zero-token gates and product integration checks pass.
+2. The internal candidate Session seam is complete. Keep it unreachable from ordinary Main IPC and Renderer task actions until the full candidate admission gate is reviewed.
+3. Before Gate D, add the V2 prompt/correlation projection behind the same internal-only seam and prove its fail-closed behavior with protocol fixtures. Gate D then remains one bounded, explicit, low-cost model acceptance: prompt admission, durable request correlation, same-Session route, terminal, usage, and receipt must agree. Do not spend Provider tokens without an explicit preflight notice and 砚星's authorization.
 4. v0.7.0 remains stable. Keep v0.8.0-beta.2 and v0.8.1-beta.1 as historical/current prerelease evidence. This feature branch is not a release candidate and its local executable is not a release asset.
 5. Avoid unrelated UI redesign while the V2 protocol seam is being built. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 

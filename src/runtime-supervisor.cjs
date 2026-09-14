@@ -7,6 +7,7 @@ const { sanitizedEnvironment } = require('./safe-child-environment.cjs')
 const { assertHostMatchesRuntime, describeHarnessHost, inspectAuditedRuntime } = require('./engine-trust.cjs')
 const { projectHarnessCapabilities } = require('./harness-capability-gate.cjs')
 const { DshAdapterV2 } = require('./dsh-adapter-v2.cjs')
+const { CandidateSessionLab } = require('./candidate-session-lab.cjs')
 const { observeManagedTypertLaunch, redactLaunchTokens } = require('./typert-managed-connection.cjs')
 
 const LOCAL_URL = /http:\/\/127\.0\.0\.1:(\d+)/
@@ -42,6 +43,7 @@ class RuntimeSupervisor extends EventEmitter {
     observeTypertLaunch = observeManagedTypertLaunch,
     createWebSocketFactory = createRuntimeWebSocketFactory,
     createTypertAdapter = connection => new DshAdapterV2({ connection }),
+    createCandidateSessionLab = options => new CandidateSessionLab(options),
     fetchImpl = globalThis.fetch,
     maxLogLines = 250, platform = process.platform, environment = process.env
   } = {}) {
@@ -54,6 +56,7 @@ class RuntimeSupervisor extends EventEmitter {
     this.observeTypertLaunch = observeTypertLaunch
     this.createWebSocketFactory = createWebSocketFactory
     this.createTypertAdapter = createTypertAdapter
+    this.createCandidateSessionLab = createCandidateSessionLab
     this.fetchImpl = fetchImpl
     this.maxLogLines = maxLogLines
     this.platform = platform
@@ -61,6 +64,7 @@ class RuntimeSupervisor extends EventEmitter {
     this.child = null
     this.managedConnection = null
     this.candidateAdapter = null
+    this.candidateSessionLab = null
     this.runtime = null
     this.connectionGeneration = 0
     this.typertAuthentication = null
@@ -296,6 +300,35 @@ class RuntimeSupervisor extends EventEmitter {
     })
   }
 
+  async attachCandidateSessionForLab({ cwd, sessionId } = {}) {
+    if (this.status.state !== 'candidate-ready' || !this.candidateAdapter || !this.managedConnection) {
+      throw new Error('候选 Engine 尚未完成认证，不能绑定内部 Session Lab。')
+    }
+    if (this.candidateSessionLab) throw new Error('内部 Session Lab 已经绑定了一个候选 Session。')
+    const generation = this.connectionGeneration
+    const lab = this.createCandidateSessionLab({
+      adapter: this.candidateAdapter,
+      connectionGeneration: generation
+    })
+    this.candidateSessionLab = lab
+    try {
+      const snapshot = await lab.attach({ cwd, ...(sessionId ? { sessionId } : {}) })
+      if (generation !== this.connectionGeneration || lab !== this.candidateSessionLab
+        || this.status.state !== 'candidate-ready') {
+        throw new Error('候选 Session Lab 的 connection generation 已失效。')
+      }
+      return snapshot
+    } catch (error) {
+      if (this.candidateSessionLab === lab) this.candidateSessionLab = null
+      await lab.close()
+      throw error
+    }
+  }
+
+  candidateSessionLabSnapshot() {
+    return this.candidateSessionLab?.snapshot() || null
+  }
+
   stop() {
     if (!this.child) {
       if (this.status.state === 'ready' && !this.status.owned) this.setStatus({ message: '这份 Harness 由其他终端启动；请在那个终端中停止它。' })
@@ -309,6 +342,9 @@ class RuntimeSupervisor extends EventEmitter {
   }
 
   invalidateManagedConnection() {
+    const lab = this.candidateSessionLab
+    this.candidateSessionLab = null
+    lab?.close?.().catch(() => {})
     this.candidateAdapter = null
     const connection = this.managedConnection
     this.managedConnection = null

@@ -36,6 +36,40 @@ const candidateRuntime = () => ({
   status: 'candidate'
 })
 
+function controllableStream() {
+  const queued = []
+  const waiters = []
+  let closed = false
+  return {
+    [Symbol.asyncIterator]() { return this },
+    next() {
+      if (queued.length) return Promise.resolve({ done: false, value: queued.shift() })
+      if (closed) return Promise.resolve({ done: true, value: undefined })
+      return new Promise(resolve => waiters.push(resolve))
+    },
+    push(value) {
+      const waiter = waiters.shift()
+      if (waiter) waiter({ done: false, value })
+      else queued.push(value)
+    },
+    async return() {
+      closed = true
+      while (waiters.length) waiters.shift()({ done: true, value: undefined })
+      return { done: true, value: undefined }
+    }
+  }
+}
+
+async function waitFor(assertion, timeoutMs = 500) {
+  const deadline = Date.now() + timeoutMs
+  while (true) {
+    try { return assertion() } catch (error) {
+      if (Date.now() >= deadline) throw error
+      await new Promise(resolve => setTimeout(resolve, 5))
+    }
+  }
+}
+
 const matchingHost = async () => ({
   version: '0.0.1', cwd: 'C:\\runtime', attachedSessions: 0,
   home: 'C:\\Users\\test', canOpenPath: true
@@ -149,6 +183,79 @@ test('an intentional stop during candidate authentication stays stopped instead 
 
   assert.equal(supervisor.snapshot().state, 'stopped')
   assert.doesNotMatch(supervisor.snapshot().message, /验证失败/)
+})
+
+test('owns an internal candidate Session projection and invalidates it across stop and reconnect', async () => {
+  const children = [fakeChild(), fakeChild()]
+  const eventStreams = [controllableStream(), controllableStream()]
+  let connectionIndex = -1
+  const adapters = eventStreams.map((events, index) => ({
+    connectionSnapshot: () => ({ state: 'authenticated', generation: index === 0 ? 1 : 3 }),
+    createSession: async ({ sessionId }) => ({ sessionId: sessionId || `session-${index + 1}` }),
+    followSession: ({ sessionId }) => (async function* () {
+      yield { type: 'snapshot', header: { id: sessionId }, cursor: index + 10, records: [] }
+      await new Promise(() => {})
+    })(),
+    openEventGeneration: async ({ sessionId }) => ({
+      generation: index === 0 ? 1 : 3,
+      sessionId,
+      clientId: `private-client-${index}`,
+      host: { home: 'C:\\Users\\private' },
+      stream: events
+    })
+  }))
+  const connections = [0, 1].map(index => ({
+    snapshot: () => ({ state: 'authenticated', generation: index === 0 ? 1 : 3, baseUrl: `http://127.0.0.1:${42000 + index}` }),
+    authenticate: async function () { return this.snapshot() },
+    dispose: () => {}
+  }))
+  const supervisor = new RuntimeSupervisor({
+    spawnProcess: () => children.shift(),
+    pathExists: () => true,
+    probeShared: async () => null,
+    inspectRuntime: candidateRuntime,
+    observeTypertLaunch: () => {
+      connectionIndex += 1
+      return { diagnosticLine: 'redacted', connection: connections[connectionIndex] }
+    },
+    createTypertAdapter: () => adapters[connectionIndex],
+    platform: 'linux'
+  })
+
+  await assert.rejects(
+    supervisor.attachCandidateSessionForLab({ cwd: 'C:\\workspace' }),
+    /候选 Engine 尚未完成认证/
+  )
+
+  await supervisor.start('C:\\runtime')
+  supervisor.child.stdout.emit('data', 'candidate launch 1\n')
+  await new Promise(resolve => setImmediate(resolve))
+  const first = await supervisor.attachCandidateSessionForLab({ cwd: 'C:\\workspace' })
+  assert.equal(first.sessionId, 'session-1')
+  assert.equal(supervisor.snapshot().candidateSession, undefined)
+  assert.equal(supervisor.candidateSessionLabSnapshot().sessionId, 'session-1')
+
+  eventStreams[0].push({
+    type: 'waterfall', agentId: 'session-1', eventId: 'old-event', event: 'user-questions/request', request: { secret: true }
+  })
+  await waitFor(() => assert.equal(supervisor.candidateSessionLabSnapshot().decisionGate.pendingCount, 1))
+  supervisor.stop()
+  assert.equal(supervisor.candidateSessionLabSnapshot(), null)
+
+  await supervisor.start('C:\\runtime')
+  supervisor.child.stdout.emit('data', 'candidate launch 2\n')
+  await new Promise(resolve => setImmediate(resolve))
+  const second = await supervisor.attachCandidateSessionForLab({ cwd: 'C:\\workspace' })
+  assert.equal(second.sessionId, 'session-2')
+
+  eventStreams[0].push({
+    type: 'waterfall', agentId: 'session-1', eventId: 'late-old-event', event: 'approval/request'
+  })
+  await new Promise(resolve => setTimeout(resolve, 20))
+  assert.deepEqual(supervisor.candidateSessionLabSnapshot().decisionGate, {
+    state: 'observing', pendingCount: 0, kinds: []
+  })
+  supervisor.stop()
 })
 
 test('accepts a parent folder that contains deepseek-harness', async () => {

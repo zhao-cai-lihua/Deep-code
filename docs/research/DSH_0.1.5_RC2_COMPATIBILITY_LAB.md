@@ -1,6 +1,6 @@
 # DSH 0.1.5-rc.2 compatibility lab
 
-Status: compatibility Gates A, B, and the zero-token portion of Gate C are complete. Commands/Plan and a Session-bound Decision Gate have real runtime proof. Runtime Supervisor now recognizes and authenticates the exact checkout as a disabled candidate, but Main cannot admit product tasks through it. No Provider or model call was made.
+Status: compatibility Gates A, B, the zero-token portion of Gate C, and the internal product-facing Session seam are complete. Commands/Plan and a Session-bound Decision Gate have real runtime proof. Runtime Supervisor now recognizes and authenticates the exact checkout, binds an empty exact Session, and observes only sanitized Decision Gate state as a disabled candidate, but Main cannot admit product tasks through it. No Provider or model call was made.
 
 Reviewed: 2026-09-14
 
@@ -173,6 +173,10 @@ Completed on 2026-09-14 without enabling the candidate for ordinary tasks:
 - authenticated 0.1.5 enters `candidate-ready`, never `ready`. `waitUntilReady()` rejects it, Main's existing `ready` checks remain false, and the Capability Gate marks every feature `candidate-disabled` even where Runtime and Adapter evidence exist;
 - stopping advances the connection generation and disposes authentication before signalling the child. An intentional stop while authentication is pending stays a stop rather than being rewritten as a verification failure;
 - `scripts/dsh-015-runtime-supervisor-smoke.cjs` started and stopped the exact official checkout twice under an isolated DSH home. Both generations authenticated, retained `managed-process` trust, kept product admission closed, removed the child, and reported zero Provider and Prompt requests.
+- `CandidateSessionLab` is owned and invalidated by Runtime Supervisor. It creates or reattaches one exact empty Session, requires the first follow snapshot to name that Session, opens the Session-bound `$events` generation, and exposes only a sanitized read-only projection of Session identity, follow cursor, and Decision Gate state/count/kinds.
+- same-Session question and approval waterfalls affect only the private pending projection; other-Session frames are ignored, cancellation removes only a previously observed event, and no event ID or request body crosses the seam;
+- stopping the candidate clears the Lab synchronously before disposing the managed connection. Reconnect receives a new connection generation, and a late event or late `session/create` result from the old generation cannot resurrect or alter the new projection;
+- Main IPC, Preload, Renderer, `snapshot()`, and `waitUntilReady()` do not expose the Lab. Ordinary task prompt, Provider credential, and ecosystem execution routes remain closed.
 
 ### Gate D — bounded model acceptance
 
@@ -207,14 +211,15 @@ Completed on 2026-09-14 without enabling the candidate for ordinary tasks:
 
 ## Current automated and packaging evidence
 
-- focused V2 connection and Adapter suite: **21/21**;
-- full Deep Code regression after Runtime Supervisor and candidate-state UI integration: **343/343**;
+- focused candidate Session Lab and Runtime Supervisor suite: **19/19**;
+- full Deep Code regression after the internal candidate Session seam: **348/348**;
 - JavaScript syntax checks and `git diff --check`: passed;
 - live source-module smoke: exact `0.1.5-rc.2@fb2c4b9e698e`, authenticated, same-Session question answered once, replay rejected, Plan entered/exited, process-stop invalidation passed, `providerRequests: 0`, `promptRequests: 0`;
-- current local test portable: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,883,578 bytes, SHA-256 `267f902741ae811f0a9c776f4cf2169e577ad51e6f4ba5cff3ea2b2f0a1b4994`;
+- current local test portable: `dist\Deep-code-Test-0.8.1-beta.1.exe`, 368,891,975 bytes, SHA-256 `0882df8e53a3b9452d9696ea1dd467c81bf078dd767a6e746b1d19a687c4fd4e`;
 - source and packaged SHA-256 matched before the packaged live run: `typert-managed-connection.cjs` `bb22451a8f194c59166bbc75d3b566a2adc16199df4a42f392991e654add09f4`; `dsh-adapter-v2.cjs` `293e3c27a581abd1c15cb040a8b101a7247726372ce6a50f05aa6ed9a425130d`;
 - the packaged modules repeated the authenticated Session-bound question, one-shot answer, replay rejection, Plan, teardown, and post-stop invalidation path with `providerRequests: 0` and `promptRequests: 0`.
 - Runtime Supervisor live smoke: two exact candidate starts and stops, `managed-process` trust, all seven capabilities `candidate-disabled`, product admission rejected, `providerRequests: 0`, `promptRequests: 0`.
+- The updated source and packaged Runtime Supervisor each attached two exact empty Sessions across two connection generations (`sessionsAttached: 2`), cleared the Lab on every stop, and kept Provider/Prompt requests at zero. Packaged hashes matched source for Runtime Supervisor (`227f30...1ecf`), Candidate Session Lab (`ee95cc...49a9`), DSH Adapter V2 (`5eab1a...8238`), and the managed connection (`bb2245...09f4`).
 - extracted packaged Runtime Supervisor, Capability Gate, and candidate-aware capability view hashes matched source exactly (`c0013d...4834`, `dcb859...0394`, `18f8ef...7544`), and the same two-generation live Supervisor smoke passed through the packaged modules.
 
 This is compatibility-lab evidence, not a public release or a supported runtime declaration.
@@ -223,4 +228,4 @@ This is compatibility-lab evidence, not a public release or a supported runtime 
 
 The source audit used `git show dsh-v0.1.5-rc.2:<path>` and `git ls-tree -r dsh-v0.1.5-rc.2`, not the checkout's moving working tree. A tag-wide search found no `host.describe` declaration in this revision. That is an absence finding, not a guarantee that future tags will never expose equivalent host metadata.
 
-Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall, and the candidate can cross the product's Runtime Supervisor boundary without becoming usable. Product-facing Session attachment, prompt admission and durable request correlation, the bounded model call, packaging of this integration branch, and human acceptance remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` task path and Adapter remain unchanged.
+Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall, and the candidate can cross the product's Runtime Supervisor boundary, attach an internal empty Session, survive packaged-module verification, and stop without becoming usable. Prompt admission and durable request correlation, the bounded model call, and human acceptance remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` task path and Adapter remain unchanged.

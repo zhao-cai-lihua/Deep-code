@@ -38,9 +38,11 @@ Image transport is deliberately not named “vision support.” It proves that t
 
 ## Audited 0.1.5 candidate, not shipping compatibility
 
-The exact official tag `dsh-v0.1.5-rc.2` at `fb2c4b9e698e30edb738bca4cf0618587db7d203` now has an isolated candidate profile. Its child launch, temporary authentication, model catalog, empty Session, follow stream, structured Plan command, and Session-bound Decision Gate have passed zero-token live checks. Runtime Supervisor can identify and authenticate that exact checkout twice in succession while keeping every projected capability disabled and rejecting `waitUntilReady()`.
+The exact official tag `dsh-v0.1.5-rc.2` at `fb2c4b9e698e30edb738bca4cf0618587db7d203` now has an isolated candidate profile. Its child launch, temporary authentication, model catalog, empty Session, follow stream, structured Plan command, and Session-bound Decision Gate have passed zero-token live checks. Runtime Supervisor can identify and authenticate that exact checkout twice in succession, bind an exact empty Session in each connection generation, and invalidate the prior Session observation on stop while keeping every projected capability disabled and rejecting `waitUntilReady()`.
 
-This still does not make `0.1.5-rc.2` a supported Deep Code runtime. The candidate has no product task admission, no shared-Engine path, and no public Renderer transport. Prompt correlation, same-Turn outcome/usage projection, packaging, and one bounded human/model acceptance remain separate gates. Candidate evidence may expand; it cannot silently mutate the shipping `legacy-0.1.1` profile.
+`CandidateSessionLab` is the intentionally internal seam for this proof. It projects only `{connectionGeneration, sessionId, follow cursor, Decision Gate state/count/kinds}`. It never projects the authenticated URL, cookie, launch token, `$events` client ID, Host home, event IDs, question bodies, approval bodies, or raw frames. Main IPC, Preload, and Renderer have no route to attach or inspect it.
+
+This still does not make `0.1.5-rc.2` a supported Deep Code runtime. The candidate has no product task admission, no shared-Engine path, and no public Renderer transport. Prompt correlation, same-Turn outcome/usage projection, and one bounded human/model acceptance remain separate gates. Candidate evidence may expand; it cannot silently mutate the shipping `legacy-0.1.1` profile.
 
 Primary-source snapshots:
 
