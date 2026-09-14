@@ -1,11 +1,11 @@
 # Deep Code current handoff
 
 Updated: 2026-09-14
-Branch: `codex/dsh-0.1.5-runtime-profile`
+Branch: `main`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
-Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; Gate B and Commands/Plan merged through PR #22 at `f331def0b20b35f3f0a467519fad4c1a058ad4af`; the zero-token Decision Gate round trip merged through PR #23 at `93ed6c188f6196ebe2f9e3ad5c4f8e0eca48740d`; the current feature branch wires that exact candidate into Runtime Supervisor while keeping product admission closed; packaged product version remains `0.8.1-beta.1`
+Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; Gate B and Commands/Plan merged through PR #22 at `f331def0b20b35f3f0a467519fad4c1a058ad4af`; the zero-token Decision Gate round trip merged through PR #23 at `93ed6c188f6196ebe2f9e3ad5c4f8e0eca48740d`; the exact disabled Runtime Supervisor candidate merged through PR #24 at `40582ae95a5b3d08362b54ad0278e8b81de2d3fd`; packaged product version remains `0.8.1-beta.1`
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -63,6 +63,7 @@ PR #11 closed the fixed-point `v0.6.3...main` Standards/Spec review findings wit
 
 ## Release delivery
 
+- PR #24 merged the disabled DSH 0.1.5 Runtime Supervisor candidate at `40582ae95a5b3d08362b54ad0278e8b81de2d3fd`. PR regression run `34800166607` passed all 343 tests. No tag or release was created, and `candidate-ready` remains rejected by ordinary Main task admission.
 - v0.8.1-beta.1 was merged through non-draft PR #18 and published as a non-draft prerelease on 2026-09-13: https://github.com/zhao-cai-lihua/Deep-code/releases/tag/v0.8.1-beta.1. PR regression run `34757128770`, merged-main regression run `34757206850`, release-notes PR #19 run `34757342273`, later merged-main run `34757406405`, and Windows release run `34757463201` all succeeded with 315 tests. The release workflow validated tag/version, rebuilt both compressed Windows targets, generated checksums, and uploaded all assets.
 - `Deep code 0.8.1-beta.1.exe`: 100,579,265 bytes; GitHub SHA-256 `504a9e91158b30c55339f4052480787a7c9ba6df45a0f9aa437f63b918314a85`.
 - `Deep code Setup 0.8.1-beta.1.exe`: 100,802,671 bytes; GitHub SHA-256 `5fc2355971586aa21850dd8d3bd77e9fb50f4dd8c4839dfe29b3a7a4cd79e114`.
