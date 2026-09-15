@@ -39,6 +39,7 @@ class CandidateSessionLab {
     this.followIterator = null
     this.eventStream = null
     this.usageControlStream = null
+    this.attachmentController = null
     this.eventPump = null
     this.usageControlPump = null
     this.followPump = null
@@ -46,6 +47,7 @@ class CandidateSessionLab {
     this.attachInFlight = false
     this.pendingEvents = new Map()
     this.promptEvidence = null
+    this.promptEvidenceDefinition = null
     this.currentUsageControl = null
     this.current = emptySnapshot(connectionGeneration)
   }
@@ -63,7 +65,7 @@ class CandidateSessionLab {
     }
   }
 
-  async attach({ cwd, sessionId } = {}) {
+  async attach({ cwd, sessionId, agentPreset } = {}) {
     if (this.current.state !== 'closed' || this.attachInFlight) {
       throw new Error('候选 Session Lab 已经绑定或正在绑定一个 Session。')
     }
@@ -72,28 +74,44 @@ class CandidateSessionLab {
     let followIterator = null
     let eventStream = null
     let usageControlStream = null
+    const attachmentController = new AbortController()
+    this.attachmentController = attachmentController
     try {
-      const created = await this.adapter.createSession({ cwd, ...(sessionId ? { sessionId } : {}) })
+      const created = await this.adapter.createSession({
+        cwd,
+        ...(sessionId ? { sessionId } : {}),
+        ...(agentPreset ? { agentPreset } : {}),
+        signal: attachmentController.signal
+      })
       this.#assertAttachCurrent(nonce)
       const exactSessionId = String(created?.sessionId || '')
       if (!exactSessionId || (sessionId && exactSessionId !== String(sessionId))) {
         throw new Error('候选 Session Lab 收到的 Session 身份与请求不一致。')
       }
 
-      followIterator = this.adapter.followSession({ sessionId: exactSessionId })[Symbol.asyncIterator]()
+      followIterator = this.adapter.followSession({
+        sessionId: exactSessionId,
+        signal: attachmentController.signal
+      })[Symbol.asyncIterator]()
       this.followIterator = followIterator
       const first = await followIterator.next()
       this.#assertAttachCurrent(nonce)
       if (first.done || first.value?.type !== 'snapshot' || first.value?.header?.id !== exactSessionId) {
         throw new Error('候选 Session Lab 未收到精确匹配的 Session 快照。')
       }
-      const usageControl = await this.adapter.openTokenUsageControl({ sessionId: exactSessionId })
+      const usageControl = await this.adapter.openTokenUsageControl({
+        sessionId: exactSessionId,
+        signal: attachmentController.signal
+      })
       usageControlStream = usageControl?.stream || null
       this.#assertAttachCurrent(nonce)
       if (!usageControl?.baseline || !usageControlStream) {
         throw new Error('候选 Session Lab 未收到精确 Session 的用量控制流。')
       }
-      const eventGeneration = await this.adapter.openEventGeneration({ sessionId: exactSessionId })
+      const eventGeneration = await this.adapter.openEventGeneration({
+        sessionId: exactSessionId,
+        signal: attachmentController.signal
+      })
       eventStream = eventGeneration?.stream || null
       this.#assertAttachCurrent(nonce)
       if (eventGeneration?.generation !== this.connectionGeneration
@@ -122,6 +140,8 @@ class CandidateSessionLab {
       this.eventPump = this.#pumpDecisionGate(eventStream, exactSessionId, nonce)
       return this.snapshot()
     } catch (error) {
+      attachmentController.abort(new Error('候选 Session 绑定未完成。'))
+      if (this.attachmentController === attachmentController) this.attachmentController = null
       if (this.followIterator === followIterator) this.followIterator = null
       if (this.eventStream === eventStream) this.eventStream = null
       if (this.usageControlStream === usageControlStream) this.usageControlStream = null
@@ -135,19 +155,23 @@ class CandidateSessionLab {
 
   async close() {
     this.attachmentNonce += 1
+    const attachmentController = this.attachmentController
     const followIterator = this.followIterator
     const eventStream = this.eventStream
     const usageControlStream = this.usageControlStream
     this.followIterator = null
     this.eventStream = null
     this.usageControlStream = null
+    this.attachmentController = null
     this.eventPump = null
     this.usageControlPump = null
     this.followPump = null
     this.pendingEvents.clear()
     this.promptEvidence = null
+    this.promptEvidenceDefinition = null
     this.currentUsageControl = null
     this.current = emptySnapshot(this.connectionGeneration)
+    attachmentController?.abort(new Error('候选 Session Lab 已关闭。'))
     await Promise.all([closeIterator(followIterator), closeIterator(usageControlStream), closeIterator(eventStream)])
     return this.snapshot()
   }
@@ -161,13 +185,75 @@ class CandidateSessionLab {
       .includes(this.promptEvidence.snapshot().state)) {
       throw new Error('候选 Session Lab 已经在观察一条尚未结算的 Prompt。')
     }
-    this.promptEvidence = new CandidatePromptEvidence({
+    this.promptEvidenceDefinition = {
       sessionId: this.current.sessionId,
       requestId,
       expectedRoute,
       usageBaseline: this.currentUsageControl
-    })
+    }
+    this.promptEvidence = new CandidatePromptEvidence(this.promptEvidenceDefinition)
     return this.promptEvidence.snapshot()
+  }
+
+  async reconcilePromptEvidence({ timeoutMs = 10_000 } = {}) {
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
+      throw new Error('候选 Prompt 对账等待上限无效。')
+    }
+    if (this.current.state !== 'observing' || !this.current.sessionId || !this.promptEvidence
+      || !this.promptEvidenceDefinition) {
+      throw new Error('候选 Session Lab 没有可对账的 Prompt 证据。')
+    }
+    const admission = this.promptEvidence.snapshot().admission
+    if (!admission.accepted || typeof admission.acceptedAt !== 'string') {
+      throw new Error('候选 Prompt 尚未确认接纳，不能从持久化记录重建。')
+    }
+    const sessionId = this.current.sessionId
+    const nonce = this.attachmentNonce
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      controller.abort(new Error('候选 Prompt 的只读证据对账超时。'))
+    }, timeoutMs)
+    let follow = null
+    let usageStream = null
+    try {
+      follow = this.adapter.followSession({ sessionId, signal: controller.signal })[Symbol.asyncIterator]()
+      const first = await follow.next()
+      this.#assertAttachCurrent(nonce)
+      if (first.done || first.value?.type !== 'snapshot' || first.value?.header?.id !== sessionId
+        || !Array.isArray(first.value.records) || first.value.hasMore === true) {
+        throw new Error('候选 Prompt 无法取得完整且精确匹配的只读 Session 快照。')
+      }
+      const usageControl = await this.adapter.openTokenUsageControl({
+        sessionId,
+        signal: controller.signal
+      })
+      usageStream = usageControl?.stream || null
+      this.#assertAttachCurrent(nonce)
+      if (!usageControl?.baseline || !usageStream) {
+        throw new Error('候选 Prompt 对账没有取得精确 Session 的累计用量。')
+      }
+      const rebuilt = new CandidatePromptEvidence(this.promptEvidenceDefinition)
+      rebuilt.confirmAdmission({ acceptedAt: admission.acceptedAt })
+      for (const record of first.value.records) rebuilt.observe(record)
+      rebuilt.observeControlUsage(usageControl.baseline)
+      this.promptEvidence = rebuilt
+      this.currentUsageControl = usageControl.baseline
+      this.current = {
+        ...this.current,
+        follow: {
+          attached: true,
+          cursor: Number.isInteger(first.value.cursor) ? first.value.cursor : this.current.follow.cursor
+        },
+        usageControl: { attached: true, asOfSeq: usageControl.baseline.asOfSeq }
+      }
+      return this.snapshot()
+    } catch (error) {
+      if (controller.signal.aborted) throw controller.signal.reason
+      throw error
+    } finally {
+      clearTimeout(timer)
+      await Promise.all([closeIterator(follow), closeIterator(usageStream)])
+    }
   }
 
   confirmPromptAdmission({ requestId, acceptedAt } = {}) {
@@ -264,6 +350,7 @@ class CandidateSessionLab {
     try {
       for await (const sample of stream) {
         if (nonce !== this.attachmentNonce || this.current.sessionId !== sessionId) return
+        if (sample.asOfSeq <= (this.current.usageControl.asOfSeq ?? -1)) continue
         this.currentUsageControl = sample
         this.current = {
           ...this.current,

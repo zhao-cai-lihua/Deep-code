@@ -1,11 +1,22 @@
 # Deep Code current handoff
 
-Updated: 2026-09-14
-Branch: `main`
+Updated: 2026-09-15
+Branch: `codex/v0.8.1-gate-d-acceptance`
 Current packaged stable release: `0.7.0`
 Previous accepted prerelease: `0.7.0-rc.1`
 Current published test prerelease: `0.8.1-beta.1` (accepted Capability Gate; observe before stable promotion)
 Current runtime source baseline: DSH 0.1.5 compatibility Gate A merged through PR #20 at `679e3db6a1c868b13cad0f72c4baf8b2154d9845`; Gate B and Commands/Plan merged through PR #22 at `f331def0b20b35f3f0a467519fad4c1a058ad4af`; the zero-token Decision Gate round trip merged through PR #23 at `93ed6c188f6196ebe2f9e3ad5c4f8e0eca48740d`; the exact disabled Runtime Supervisor candidate merged through PR #24 at `40582ae95a5b3d08362b54ad0278e8b81de2d3fd`; the internal candidate Session seam merged through PR #26 at `ba0cb11f6201ba3e7f6eca6ba6e278c1a9a05e16`; Prompt admission/correlation fixtures merged through PR #28 at `51b033cdac6a2775a088f83590fcb513120ec9ef`; control-stream usage agreement merged through PR #29 at `22174aa2c88e430be2d6e498bae6e5825757fb5f`; packaged product version remains `0.8.1-beta.1`
+
+## DSH 0.1.5 Gate D bounded acceptance
+
+- On 2026-09-14, 砚星 explicitly authorized exactly one low-cost text-model call with no automatic retry. Preflight fixed `deepseek-official / deepseek-v4-flash / low`, `maxTokens: 32`, `maxRetries: 0`, no tools, and no auxiliary title-model call.
+- The execution entry ran once. The durable Harness Session contains one correlated user message, one `request/header`, no retry event, one Assistant settlement, and a matching `turn/end completed` terminal. Assistant and Session-control usage agree at 63 uncached input, 20 output, 0 cache-read, and 0 cache-write tokens: 83 Provider tokens total.
+- The Deep Code smoke did not print its receipt before the bounded stop. Persisted facts prove the Harness request, but do not prove whether the missing output was caused by a live-projection gap or delayed stream shutdown. No second Provider call was made.
+- The repair makes attachment streams abortable, covers selection and Prompt admission with the same deadline, rejects retry/multiple-header evidence, and performs one read-only same-Session snapshot/control reconciliation when live evidence is terminal-but-incomplete or times out. Reconciliation never sends a Prompt.
+- The interrupted isolated DSH home, including its copied credential file, was removed after a secret-free Session-log hash was recorded. The user's original Harness credential file remains untouched. Future SIGINT/SIGTERM also invokes isolated cleanup.
+- Focused Gate D/Prompt/Lab/V2 Adapter behavior passed **38/38**; full `npm test` passed **373/373**. A post-repair exact-runtime Supervisor smoke completed two authenticated Session/control generations and clean stop with **0 Provider / 0 Prompt requests**.
+- Gate D remains **partially accepted**: Harness-level admission/route/terminal/usage passed, while the repaired Deep Code receipt needs one future explicitly authorized live revalidation. The candidate stays internal, product admission remains closed, and no release artifact was produced.
+- Full sanitized evidence: `docs/research/DSH_0.1.5_RC2_GATE_D_RECEIPT.md`.
 
 The v0.7.0 Evidence Gate baseline includes PR #8 at `65fb75fcb7b9d4b058e10add30aa1d30760f238f`, PR #9 at `1258c5138b1b2b88070ce04b702ca6208320b053`, PR #10 at `ac72768e6939f1ad2b72183fd6660ba5585f72bb`, PR #11 at `8ad48f3698e5569732dfb062511cbda990b7ca07`, and stable preparation PR #13 at `791c2f63217b4c6860b5a200efc5f19362e6559d`. Model Services, conversation, compact task evidence/receipt presentation, and projection-integrity corrections are released on `main` as stable v0.7.0.
 
@@ -294,7 +305,7 @@ Do not ask the user to recreate fake Providers or a no-`HEAD` repository merely 
 
 1. Gates B, the zero-token portion of Gate C, and the first Runtime Supervisor candidate boundary are complete. Keep `legacy-0.1.1` unchanged and do not add `0.1.5-rc.2` to the usable list yet.
 2. The internal candidate Session seam is complete. Keep it unreachable from ordinary Main IPC and Renderer task actions until the full candidate admission gate is reviewed.
-3. The V2 Prompt/correlation and control-stream usage comparison seams are complete and remain internal-only. Gate D is now the next protocol step: one bounded, explicit, low-cost model acceptance in which prompt admission, durable request correlation, same-Session route, terminal, control/Turn usage agreement, and receipt must all agree. Do not spend Provider tokens without an explicit preflight notice and 砚星's authorization.
+3. Gate D's single authorized request passed at the Harness persistence boundary, but the repaired Deep Code receipt path has not been live-revalidated. Do not spend Provider tokens again without a fresh explicit preflight notice and 砚星's authorization. Until that one-shot revalidation prints a complete receipt, keep `0.1.5-rc.2` internal and product-disabled.
 4. v0.7.0 remains stable. Keep v0.8.0-beta.2 and v0.8.1-beta.1 as historical/current prerelease evidence. This feature branch is not a release candidate and its local executable is not a release asset.
 5. Avoid unrelated UI redesign while the V2 protocol seam is being built. Keep automatic memory extraction/injection, automatic model routing, companion-card prompt injection, and ecosystem execution out of scope until the core task loop is stable.
 

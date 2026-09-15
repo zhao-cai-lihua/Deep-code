@@ -237,3 +237,57 @@ test('fails closed when same-Turn samples disagree with the authoritative Sessio
   assert.equal(evidence.snapshot().state, 'usage-mismatch')
   assert.equal(evidence.snapshot().usageAgreement.state, 'mismatched')
 })
+
+test('projects the sanitized DSH 0.1.5 Gate D event shapes without counting reasoning twice', () => {
+  const evidence = new CandidatePromptEvidence({
+    sessionId: 'session-gate-d', requestId: 'request-gate-d',
+    expectedRoute: {
+      provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'low'
+    },
+    usageBaseline: {
+      asOfSeq: 4,
+      usage: { uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
+    }
+  })
+  evidence.confirmAdmission({ acceptedAt: '2026-09-14T12:00:00.000Z' })
+  evidence.observe(event(5, 'turn/start', { turn: 1 }))
+  evidence.observe(event(9, 'user/message', {
+    source: { kind: 'user', rpcId: 'request-gate-d', clientTimeZone: 'Asia/Shanghai' },
+    role: 'user', id: 'redacted', content: []
+  }))
+  evidence.observe(event(10, 'request/header', {
+    header: {
+      config: {
+        provider: 'deepseek-official', model: 'deepseek-v4-flash',
+        reasoningEffort: 'low', maxTokens: 32
+      },
+      adapterDefaults: {}
+    },
+    reason: 'redacted'
+  }))
+  evidence.observe(event(13, 'assistant/message', {
+    turn: 1, step: 1, message: { content: [] },
+    usage: {
+      inputTokens: 63, outputTokens: 20, totalTokens: 83,
+      cacheReadTokens: 0, reasoningTokens: 17
+    }
+  }))
+  evidence.observe(event(15, 'turn/end', { turn: 1, reason: { kind: 'completed' } }))
+  evidence.observeControlUsage({
+    asOfSeq: 15,
+    usage: { uncachedInputTokens: 63, outputTokens: 20, cacheReadTokens: 0, cacheWriteTokens: 0 }
+  })
+
+  const snapshot = evidence.snapshot()
+  assert.equal(snapshot.state, 'completed')
+  assert.deepEqual(snapshot.usage, {
+    uncachedInputTokens: 63,
+    outputTokens: 20,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    evidenceSeqs: [13]
+  })
+  assert.equal(snapshot.usageAgreement.state, 'matched')
+  assert.equal(snapshot.retryEvidence, undefined)
+  assert.equal(snapshot.additionalRequestHeaders, undefined)
+})

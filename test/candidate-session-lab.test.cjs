@@ -115,12 +115,18 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
 
   const snapshot = await lab.attach({ cwd: 'C:\\workspace' })
 
-  assert.deepEqual(calls, [
+  assert.deepEqual(calls.map(call => ({
+    operation: call.operation,
+    request: Object.fromEntries(Object.entries(call.request).filter(([key]) => key !== 'signal'))
+  })), [
     { operation: 'create', request: { cwd: 'C:\\workspace' } },
     { operation: 'follow', request: { sessionId: 'session-exact' } },
     { operation: 'usage', request: { sessionId: 'session-exact' } },
     { operation: 'events', request: { sessionId: 'session-exact' } }
   ])
+  const attachmentSignals = calls.map(call => call.request.signal)
+  assert.ok(attachmentSignals.every(signal => signal instanceof AbortSignal))
+  assert.ok(attachmentSignals.every(signal => signal === attachmentSignals[0] && !signal.aborted))
   assert.deepEqual(snapshot, {
     version: 1,
     state: 'observing',
@@ -134,6 +140,41 @@ test('attaches one empty exact Session and exposes only a sanitized read-only pr
   const serialized = JSON.stringify(snapshot)
   assert.doesNotMatch(serialized, /client-secret|dsh\.sid|privateState|Users\\\\private|41234/)
 
+  await lab.close()
+  assert.ok(attachmentSignals.every(signal => signal.aborted))
+})
+
+test('creates the isolated candidate Session with an explicit agent preset', async () => {
+  const follow = pushStream()
+  follow.push({ type: 'snapshot', header: { id: 'session-preset' }, cursor: 1, records: [] })
+  const creations = []
+  const lab = new CandidateSessionLab({
+    connectionGeneration: 8,
+    adapter: {
+      async createSession(request) {
+        creations.push(request)
+        return { sessionId: 'session-preset', agentPreset: 'deep-code-gate-d-text-only' }
+      },
+      followSession: () => follow,
+      openTokenUsageControl: async () => usageControl(1),
+      openEventGeneration: async () => ({ generation: 8, sessionId: 'session-preset', stream: pendingStream() })
+    }
+  })
+
+  const attached = await lab.attach({
+    cwd: 'C:\\gate-d',
+    agentPreset: 'deep-code-gate-d-text-only'
+  })
+
+  assert.equal(attached.sessionId, 'session-preset')
+  assert.deepEqual(creations.map(request => ({
+    ...request,
+    signal: undefined
+  })), [{
+    cwd: 'C:\\gate-d',
+    agentPreset: 'deep-code-gate-d-text-only',
+    signal: undefined
+  }])
   await lab.close()
 })
 
@@ -364,5 +405,82 @@ test('captures the current Session usage baseline per Prompt and reconciles live
   await waitFor(() => assert.equal(lab.snapshot().promptEvidence?.usageAgreement?.state, 'matched'))
   assert.equal(lab.snapshot().promptEvidence.state, 'completed')
   assert.deepEqual(lab.snapshot().usageControl, { attached: true, asOfSeq: 105 })
+  await lab.close()
+})
+
+test('rebuilds missed live Prompt evidence from one read-only Session snapshot without sending', async () => {
+  const liveFollow = pushStream()
+  liveFollow.push({ type: 'snapshot', header: { id: 'session-a' }, cursor: 4, records: [] })
+  const calls = []
+  let followCount = 0
+  let usageCount = 0
+  const persistedRecords = [
+    { type: 'event', event: { seq: 5, type: 'turn/start', data: { turn: 1 } } },
+    { type: 'event', event: {
+      seq: 9, type: 'user/message',
+      data: { source: { kind: 'user', rpcId: 'request-reconcile' }, content: [] }
+    } },
+    { type: 'event', event: {
+      seq: 10, type: 'request/header',
+      data: { header: { config: {
+        provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'low'
+      } } }
+    } },
+    { type: 'event', event: {
+      seq: 13, type: 'assistant/message',
+      data: { turn: 1, step: 1, usage: { inputTokens: 63, outputTokens: 20, cacheReadTokens: 0 } }
+    } },
+    { type: 'event', event: {
+      seq: 15, type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } }
+    } }
+  ]
+  const adapter = {
+    createSession: async () => ({ sessionId: 'session-a' }),
+    followSession(request) {
+      calls.push({ operation: 'follow', request })
+      followCount += 1
+      if (followCount === 1) return liveFollow
+      const replay = pushStream()
+      replay.push({
+        type: 'snapshot', header: { id: 'session-a' }, cursor: 15,
+        records: persistedRecords, hasMore: false
+      })
+      return replay
+    },
+    async openTokenUsageControl(request) {
+      calls.push({ operation: 'usage', request })
+      usageCount += 1
+      if (usageCount === 1) return usageControl(4)
+      return {
+        baseline: {
+          asOfSeq: 15,
+          usage: { uncachedInputTokens: 63, outputTokens: 20, cacheReadTokens: 0, cacheWriteTokens: 0 }
+        },
+        stream: pendingStream()
+      }
+    },
+    openEventGeneration: async () => ({
+      generation: 18, sessionId: 'session-a', stream: pendingStream()
+    })
+  }
+  const lab = new CandidateSessionLab({ adapter, connectionGeneration: 18 })
+  await lab.attach({ cwd: 'C:\\workspace' })
+  lab.preparePromptEvidence({
+    requestId: 'request-reconcile',
+    expectedRoute: {
+      provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'low'
+    }
+  })
+  lab.confirmPromptAdmission({
+    requestId: 'request-reconcile', acceptedAt: '2026-09-14T12:00:00.000Z'
+  })
+
+  const reconciled = await lab.reconcilePromptEvidence()
+
+  assert.equal(reconciled.promptEvidence.state, 'completed')
+  assert.equal(reconciled.promptEvidence.usageAgreement.state, 'matched')
+  assert.equal(calls.filter(call => call.operation === 'follow').length, 2)
+  assert.equal(calls.filter(call => call.operation === 'usage').length, 2)
+  assert.doesNotMatch(JSON.stringify(reconciled), /private prompt|private answer/)
   await lab.close()
 })

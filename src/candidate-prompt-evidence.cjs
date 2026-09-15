@@ -105,6 +105,7 @@ class CandidatePromptEvidence {
     this.pendingTurn = null
     this.boundTurn = null
     this.route = null
+    this.requestHeaderSeqs = []
     this.routeMatch = 'pending'
     this.terminal = null
     this.usageByStep = new Map()
@@ -113,6 +114,8 @@ class CandidatePromptEvidence {
       : Object.freeze(normalizeControlUsage(usageBaseline, ' Session 用量基线'))
     this.latestControlUsage = null
     this.controlUsageInvalid = false
+    this.retryScheduledSeqs = []
+    this.retryStartedSeqs = []
     this.lastSeq = -1
   }
 
@@ -157,6 +160,15 @@ class CandidatePromptEvidence {
       else if (this.terminal.state === 'completed' && usageAgreement && usageAgreement.state !== 'matched') state = 'evidence-incomplete'
       else state = this.terminal.state
     }
+    const retryEvidence = this.retryScheduledSeqs.length || this.retryStartedSeqs.length ? {
+      scheduled: this.retryScheduledSeqs.length,
+      started: this.retryStartedSeqs.length,
+      evidenceSeqs: [...this.retryScheduledSeqs, ...this.retryStartedSeqs].sort((left, right) => left - right)
+    } : null
+    const additionalRequestHeaders = this.requestHeaderSeqs.length > 1 ? {
+      count: this.requestHeaderSeqs.length,
+      evidenceSeqs: [...this.requestHeaderSeqs]
+    } : null
     return {
       version: 1,
       state,
@@ -180,6 +192,8 @@ class CandidatePromptEvidence {
       routeMatch: this.routeMatch,
       ...(usage ? { usage } : {}),
       ...(usageAgreement ? { usageAgreement } : {}),
+      ...(retryEvidence ? { retryEvidence } : {}),
+      ...(additionalRequestHeaders ? { additionalRequestHeaders } : {}),
       ...(this.terminal ? { terminal: { ...this.terminal } } : {})
     }
   }
@@ -211,9 +225,16 @@ class CandidatePromptEvidence {
     if (event.type === 'request/header') {
       const route = routeFrom(event)
       if (route) {
+        this.requestHeaderSeqs.push(event.seq)
         this.route = { ...route, seq: event.seq }
         this.routeMatch = routesMatch(this.expectedRoute, route) ? 'matched' : 'mismatched'
       }
+    } else if (event.type === 'llm/retry'
+      && turnId(event.data?.turn) === this.boundTurn.id) {
+      this.retryScheduledSeqs.push(event.seq)
+    } else if (event.type === 'llm/retry-started'
+      && turnId(event.data?.turn) === this.boundTurn.id) {
+      this.retryStartedSeqs.push(event.seq)
     } else if (event.type === 'assistant/message'
       && turnId(event.data?.turn) === this.boundTurn.id) {
       const usage = usageFrom(event)
