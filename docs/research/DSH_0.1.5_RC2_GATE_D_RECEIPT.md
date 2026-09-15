@@ -57,8 +57,10 @@ The exact persisted event shapes are covered by a sanitized behavior fixture, an
 ## Verification after the repair
 
 - focused Gate D, Prompt evidence, Candidate Session Lab, and V2 Adapter tests: **38/38 passed**;
-- full `npm test`: **373/373 passed**;
+- packaged-candidate boundary behavior: **5/5 passed**; `npm run verify:package:candidate` proved byte-exact parity for the eight reviewed candidate/trust modules, rejected product-entry reachability, and confirmed the paid smoke script is absent from `app.asar`;
+- full `npm test`: **378/378 passed**;
 - exact-runtime Supervisor smoke: two authenticated candidate generations, two Session attachments, two usage-control attachments, clean stop, product admission closed, **0 Provider requests and 0 Prompt requests**;
+- the same Supervisor smoke passed from the final packaged module. Local test portable: `Deep-code-Test-0.8.1-beta.1.exe`, 368,929,274 bytes, SHA-256 `a447d0b9117a3112ee93f5f3299ec462d5b20922b537c9b52b008c823b05c69e`. It is a local test artifact, not a release asset;
 - syntax checks and `git diff --check`: passed on the final staged tree before commit.
 
 ## Remaining gate

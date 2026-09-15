@@ -10,9 +10,11 @@
     "start": "electron .",
     "test": "node --test",
     "package:win": "electron-builder --win nsis portable",
-    "package:test:win": "electron-builder --win portable --config.artifactName=\"Deep-code-Test-${version}.${ext}\" --config.compression=store"
+    "package:test:win": "electron-builder --win portable --config.artifactName=\"Deep-code-Test-${version}.${ext}\" --config.compression=store",
+    "verify:package:candidate": "node scripts/verify-packaged-candidate.cjs . dist/win-unpacked/resources/app.asar"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "electron": "43.4.0",
     "electron-builder": "26.15.3"
   },
