@@ -203,7 +203,8 @@ Partially completed on 2026-09-14 after explicit authorization for exactly one l
 - the Deep Code smoke process did not print its own receipt within the bounded wait. The process was stopped instead of spending more time or issuing another request;
 - the repair adds abortable Session streams, a deadline around Prompt admission, explicit retry/header cardinality evidence, and one same-Session read-only snapshot reconciliation when the live projection is incomplete. The actual DSH event shapes and recovery path now have behavior fixtures;
 - a reusable packaged-candidate verifier compares eight reviewed source modules with `app.asar`, rejects any changed module or ordinary entrypoint reference to the Gate D runner, and rejects packaging the paid smoke entrypoint. The final packaged Supervisor repeated two candidate start/Session/control/stop generations with product admission closed and zero Provider or Prompt requests;
-- this is **not** yet a full end-to-end Gate D pass. Another Provider call is forbidden without a new explicit authorization, and `0.1.5-rc.2` remains product-disabled.
+- on 2026-09-15, one newly authorized 81-token revalidation printed the repaired Deep Code receipt in 6.6 seconds with durable admission, exact route, matching completed terminal, matched Assistant/Session-control usage, one request header, and zero retries. Gate D is accepted; another Provider call is neither needed nor authorized;
+- `0.1.5-rc.2` remains product-disabled. Enabling it requires a separate product-activation review rather than extending this paid protocol check.
 
 The sanitized facts, artifact hash, cleanup boundary, and remaining acceptance criterion are in `DSH_0.1.5_RC2_GATE_D_RECEIPT.md`. No image request was made or authorized.
 
