@@ -194,10 +194,17 @@ Completed on 2026-09-14 without sending a Prompt:
 
 ### Gate D — bounded model acceptance
 
-- make one low-cost text request after explicit model selection;
-- prove request admission, durable request correlation, same-Session route, Turn terminal, usage projection, and receipt all agree;
-- if available, perform one image request only to test transport; do not infer vision support from the model name;
-- ask 砚星 for a small manual acceptance only after every zero-token gate passes.
+Partially completed on 2026-09-14 after explicit authorization for exactly one low-cost text request with no automatic retry:
+
+- the isolated preflight fixed the route to `deepseek-official / deepseek-v4-flash / low`, capped output at 32 tokens, set `maxRetries: 0`, disabled the title-model plugin, used a no-tools complete persona, and sent zero Prompts;
+- the execution path was invoked once and was not retried;
+- the durable Session proves one client-correlated user message, one `request/header`, no retry event, one matching completed Turn, no tool call, and matching Assistant/Session usage of 63 uncached input plus 20 output tokens (83 total Provider tokens);
+- Prompt and answer text were not inspected or retained in the receipt;
+- the Deep Code smoke process did not print its own receipt within the bounded wait. The process was stopped instead of spending more time or issuing another request;
+- the repair adds abortable Session streams, a deadline around Prompt admission, explicit retry/header cardinality evidence, and one same-Session read-only snapshot reconciliation when the live projection is incomplete. The actual DSH event shapes and recovery path now have behavior fixtures;
+- this is **not** yet a full end-to-end Gate D pass. Another Provider call is forbidden without a new explicit authorization, and `0.1.5-rc.2` remains product-disabled.
+
+The sanitized facts, artifact hash, cleanup boundary, and remaining acceptance criterion are in `DSH_0.1.5_RC2_GATE_D_RECEIPT.md`. No image request was made or authorized.
 
 ## Tests that must fail before implementation
 
@@ -245,4 +252,4 @@ This is compatibility-lab evidence, not a public release or a supported runtime 
 
 The source audit used `git show dsh-v0.1.5-rc.2:<path>` and `git ls-tree -r dsh-v0.1.5-rc.2`, not the checkout's moving working tree. A tag-wide search found no `host.describe` declaration in this revision. That is an absence finding, not a guarantee that future tags will never expose equivalent host metadata.
 
-Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall, and the candidate can cross the product's Runtime Supervisor boundary, attach an internal empty Session with an exact control baseline, survive packaged-module verification, and stop without becoming usable. Prompt transport, durable correlation, and usage agreement have fail-closed behavior-fixture evidence, but no real Prompt has exercised them together. The bounded model call, receipt agreement, and human acceptance remain unverified. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` task path and Adapter remain unchanged.
+Gates B and C now have exact-tag Windows runtime evidence, including the real synthetic question waterfall, and the candidate can cross the product's Runtime Supervisor boundary, attach an internal empty Session with an exact control baseline, survive packaged-module verification, and stop without becoming usable. One authorized real Prompt has now exercised transport, durable request correlation, same-Session route, terminal settlement, and usage agreement together. Harness persisted all of those facts consistently, but the Deep Code smoke did not emit its own receipt before the bounded stop. The repaired observer/reconciliation path has offline behavior evidence only. A second live call requires new explicit authorization, so full Gate D and human acceptance remain open. `0.1.5-rc.2` therefore stays outside the usable compatibility list; the existing `0.1.1-rc.2` task path and Adapter remain unchanged.
