@@ -4,7 +4,7 @@ Date: 2026-09-14
 
 Runtime: official tag `dsh-v0.1.5-rc.2`, version `0.1.5-rc.2`, Git revision `fb2c4b9e698e30edb738bca4cf0618587db7d203`
 
-Status: **Harness request accepted and completed; Deep Code end-to-end receipt revalidation still pending**
+Status: **Accepted — Harness and Deep Code end-to-end evidence agree**
 
 ## Authorized cost boundary
 
@@ -19,6 +19,25 @@ Status: **Harness request accepted and completed; Deep Code end-to-end receipt r
 - zero Prompt requests during preflight.
 
 The execution command was invoked once. It was not retried.
+
+## Authorized live revalidation
+
+On 2026-09-15, 砚星 explicitly authorized one new low-cost Gate D text-model call with no automatic retry. The authorization was not treated as reusable.
+
+A fresh preflight completed first with zero Prompt requests and proved the exact runtime `0.1.5-rc.2@fb2c4b9e698e`, route `deepseek-official / deepseek-v4-flash / low`, text modality, 32-token output cap, `maxRetries: 0`, disabled title model, isolated credential copy, and no tools.
+
+The execution entry was then invoked exactly once. Deep Code printed the complete sanitized receipt in 6.6 seconds:
+
+- durable Prompt admission: accepted;
+- route: `deepseek-official / deepseek-v4-flash / low`;
+- terminal: `completed`, reason `completed`;
+- usage: 63 uncached input, 18 output, 0 cache-read, and 0 cache-write tokens;
+- Assistant and Session-control usage agreement: `matched`;
+- Prompt requests: 1;
+- request headers: 1;
+- retry events: 0.
+
+The revalidation used 81 Provider tokens total. Prompt and answer text were not recorded in this receipt. The temporary isolated DSH home and copied credential were removed, zero matching isolated processes remained, and the user's original Harness credential file was not modified.
 
 ## Durable Harness facts
 
@@ -38,7 +57,7 @@ The durable Session contained:
 
 The deleted Session artifact had SHA-256 `92e9e5a3d7991593f803f4f180209fe5c0f543599cfdcbd85d5c94fdea802d7a`. The hash is retained only as provenance; the temporary DSH home, copied credential file, Session content, preset, and workspace were removed. The user's original Harness credential file was not modified.
 
-## Why this is not a full Gate D pass yet
+## Why the first run was not a full Gate D pass
 
 Harness proved admission, exact route, terminal completion, and matching usage. The smoke process itself did not return a Deep Code receipt before it was stopped after roughly 135 seconds. The available evidence does not distinguish with certainty between a missed live projection and a shutdown/stream-settlement delay, so this report does not claim a proven root cause.
 
@@ -52,19 +71,22 @@ Deep Code now closes both exposed gaps without sending another Prompt:
 - retry events and more than one same-Turn `request/header` fail closed;
 - interrupted smoke scripts remove their isolated credential copy before exit.
 
-The exact persisted event shapes are covered by a sanitized behavior fixture, and a separate fixture proves missed live evidence can be rebuilt without another Prompt. This validates the code path offline, not its next live end-to-end behavior.
+The exact persisted event shapes are covered by a sanitized behavior fixture, and a separate fixture proves missed live evidence can be rebuilt without another Prompt. At that point this validated the repair offline. The later authorized live revalidation above now supersedes that uncertainty.
 
 ## Verification after the repair
 
 - focused Gate D, Prompt evidence, Candidate Session Lab, and V2 Adapter tests: **38/38 passed**;
+- post-acceptance focused managed connection, V2 Adapter, Session Lab, Prompt evidence, Gate D runner, and packaged-boundary regression: **55/55 passed**;
 - packaged-candidate boundary behavior: **5/5 passed**; `npm run verify:package:candidate` proved byte-exact parity for the eight reviewed candidate/trust modules, rejected product-entry reachability, and confirmed the paid smoke script is absent from `app.asar`;
 - full `npm test`: **378/378 passed**;
 - exact-runtime Supervisor smoke: two authenticated candidate generations, two Session attachments, two usage-control attachments, clean stop, product admission closed, **0 Provider requests and 0 Prompt requests**;
 - the same Supervisor smoke passed from the final packaged module. Local test portable: `Deep-code-Test-0.8.1-beta.1.exe`, 368,929,274 bytes, SHA-256 `a447d0b9117a3112ee93f5f3299ec462d5b20922b537c9b52b008c823b05c69e`. It is a local test artifact, not a release asset;
 - syntax checks and `git diff --check`: passed on the final staged tree before commit.
 
-## Remaining gate
+## Acceptance result
 
-Do not issue another Provider call automatically. A future live revalidation requires a new explicit authorization. It should repeat only the same small text case and must print the complete sanitized Deep Code receipt before `0.1.5-rc.2` can enter the product's usable compatibility list.
+Gate D is complete at the internal candidate boundary. The repaired Deep Code path has now printed the complete same-Turn admission, route, terminal, usage, request-count, and retry-count receipt that was missing from the first run.
+
+Do not issue another Provider call for this gate. The next step is a separate product-activation review; Gate D acceptance alone does not add `0.1.5-rc.2` to the usable compatibility list or open ordinary Main/Preload/Renderer admission.
 
 No image-model call is authorized or needed for this gate. Image transport and model vision capability remain separate future questions.
